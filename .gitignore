@@ -1,0 +1,15 @@
+# dependencies / build artifacts
+reader/node_modules/
+reader/dist/
+reader/src-tauri/target/
+reader/src-tauri/gen/schemas/
+
+# logs
+*.log
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.swp
