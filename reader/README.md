@@ -6,7 +6,49 @@ Lightweight PDF / Markdown desktop reader. Design spec: [`../轻量 PDF - Markdo
 Tauri 2 · Rust · React + TypeScript · Vite · Zustand
 ```
 
-## Phase 3 — Markdown (current)
+## Phase 4 — PDF annotation (current)
+
+PDFium (`pdfium-render` v0.9, dynamic `pdfium.dll` from bblanchon/pdfium-binaries
+chromium/7999) wired in behind a `PdfMutationBackend` trait (§4). All pdfium-render
+concrete types are confined to `src-tauri/src/pdf/`; the command layer only sees
+the trait, so the backend is swappable.
+
+What works:
+
+- **6 annotation types**: Highlight, Underline, Strikeout (text-markup via
+  QuadPoints), Note, Free Text, Ink (drawn as line path objects).
+- **Create / Read / Delete**: `create_annotation`, `get_annotations`,
+  `delete_annotation` commands (§24). Update is remove+recreate (§5).
+- **Standard PDF output**: annotations written via PDFium's FPDF annotation API,
+  so any standards-compliant reader sees them.
+- **Coordinate conversion** (§5): `screenToPdf` / `pdfToScreen` centralized in
+  `coordinates.ts`; no per-tool transform math.
+- **SVG overlay layer** (§5): sits above canvas + text layer; text-markup
+  tools capture DOM selection ranges → quads; ink draws via pointer events;
+  note/freetext placed by click. Double-click an annotation to delete it.
+- **Annotation toolbar**: select / highlight / underline / strikeout / note /
+  freetext / ink tools + save button. Ctrl+S persists.
+- **Dirty sync**: creating an annotation marks the document dirty (tab shows ●);
+  save clears it.
+- **Atomic save** (§7): create/delete already write through atomically
+  (tmp → fsync → rename); explicit `save_document` re-flushes.
+
+### Verification
+
+- 4 Rust PDFium integration tests: highlight create+read-back, note create+delete,
+  freetext create+save-round-trip, cross-verification fixture. All pass.
+- **Test 5 (third-party)**: a highlight + freetext created via our backend was
+  read back by **pypdf** (independent PDF library) — confirmed standard
+  `/Highlight` and `/FreeText` subtypes with correct `/Contents`. Visible in
+  Acrobat / Chrome / Firefox / Okular.
+
+### Known limitations
+
+- Annotation overlay only loads annotations for the current visible page.
+- Ink stroke width is fixed (1.5pt).
+- No annotation move/resize yet (Phase 4 focused on create/delete).
+
+## Phase 3 — Markdown
 
 Milkdown (Crepe) WYSIWYG editor wired in behind a lazy-loaded adapter (§2.1:
 opening a PDF never pulls in the Milkdown/ProseMirror chunk).
@@ -145,8 +187,15 @@ reader/
 │   │   ├── lib.rs             # builder: single-instance, setup, run event, logger
 │   │   ├── commands.rs        # open_document router + commands (§24)
 │   │   │                     #   read_file_bytes/text, save_file_text (atomic),
-│   │   │                     #   set_dirty, log_frontend, canonicalize_path
-│   │   └── workspace.rs       # AppWorkspace / DocumentSession / WindowTab (§10,§18)
+│   │   │                     #   set_dirty, get/create/update/delete_annotation,
+│   │   │                     #   save_document, log_frontend, canonicalize_path
+│   │   ├── workspace.rs       # AppWorkspace / DocumentSession / WindowTab (§10,§18)
+│   │   └── pdf/               # PdfMutationBackend trait + pdfium-render impl (§4,§5)
+│   │       ├── mod.rs         #   PdfMutationBackend trait
+│   │       ├── annotation.rs #   PdfAnnotation model (§5)
+│   │       ├── pdfium.rs     #   pdfium-render backend + tests
+│   │       └── save.rs
+│   ├── lib/bin/pdfium.dll    # PDFium dynamic library (bblanchon/pdfium-binaries)
 │   ├── capabilities/default.json
 │   └── tauri.conf.json        # window + file associations (§15)
 └── tests/fixtures/            # PDFs + gfm/unknown-syntax/frontmatter .md

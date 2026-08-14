@@ -742,3 +742,31 @@ body,
 .md-source:focus {
   outline: none;
 }
+
+/* ---- PDF annotation layer (§5) ---- */
+
+.pdf-annotation-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* When a tool is active, the overlay captures pointer events for drawing. */
+.pdf-annotation-layer.pdf-annot-tool {
+  pointer-events: auto;
+}
+
+.pdf-annotation-layer g {
+  cursor: default;
+}
+
+.pdf-annotation-layer g:hover path {
+  stroke: #fff;
+  stroke-width: 1;
+}
+
+.pdf-annot-group .pdf-tbtn {
+  font-size: 11px;
+  min-width: 32px;
+}

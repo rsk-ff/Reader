@@ -1,0 +1,521 @@
+//! pdfium-render implementation of `PdfMutationBackend` (§4).
+//!
+//! All `pdfium-render` concrete types are confined to this module. The command
+//! layer only sees `PdfMutationBackend`.
+
+use std::sync::OnceLock;
+
+use pdfium_render::prelude::*;
+
+use super::annotation::{AnnotationType, PdfAnnotation, Quad, Rect};
+use super::PdfMutationBackend;
+
+/// A single shared `Pdfium` instance. `Pdfium::default()` binds to a dynamic
+/// library named `pdfium.dll`/`libpdfium.so`/`libpdfium.dylib`, resolved from
+/// the executable directory / `PATH` (§34 — we ship `pdfium.dll` alongside).
+fn pdfium() -> &'static Pdfium {
+    static PDFIUM: OnceLock<Pdfium> = OnceLock::new();
+    PDFIUM.get_or_init(Pdfium::default)
+}
+
+pub struct PdfiumBackend;
+
+impl PdfiumBackend {
+    pub fn new() -> Self {
+        let _ = pdfium();
+        Self
+    }
+}
+
+impl Default for PdfiumBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---- color/coord helpers ----
+
+fn parse_color(hex: &str) -> PdfColor {
+    let h = hex.trim_start_matches('#');
+    let (r, g, b) = if h.len() == 6 {
+        (
+            u8::from_str_radix(&h[0..2], 16).unwrap_or(0),
+            u8::from_str_radix(&h[2..4], 16).unwrap_or(0),
+            u8::from_str_radix(&h[4..6], 16).unwrap_or(0),
+        )
+    } else {
+        (255, 213, 79)
+    };
+    PdfColor::new(r, g, b, 255)
+}
+
+fn color_with_opacity(hex: &str, opacity: f32) -> PdfColor {
+    let base = parse_color(hex);
+    let a = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
+    PdfColor::new(base.red(), base.green(), base.blue(), a)
+}
+
+fn color_to_hex(c: PdfColor) -> String {
+    format!("#{:02x}{:02x}{:02x}", c.red(), c.green(), c.blue())
+}
+
+fn load_doc(path: &str) -> Result<PdfDocument<'static>, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("read '{path}': {e}"))?;
+    pdfium()
+        .load_pdf_from_byte_vec(bytes, None)
+        .map_err(|e| format!("pdfium load: {e}"))
+}
+
+fn save_doc_bytes(doc: &PdfDocument<'_>) -> Result<Vec<u8>, String> {
+    doc.save_to_bytes().map_err(|e| format!("pdfium save: {e}"))
+}
+
+fn atomic_write(path: &str, bytes: &[u8]) -> Result<u64, String> {
+    let tmp = format!("{path}.tmp");
+    std::fs::write(&tmp, bytes).map_err(|e| format!("write tmp '{tmp}': {e}"))?;
+    // Reopen with write access so sync_all (FlushFileBuffers) is permitted on Windows.
+    let f = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&tmp)
+        .map_err(|e| format!("reopen tmp '{tmp}': {e}"))?;
+    f.sync_all().map_err(|e| format!("fsync tmp '{tmp}': {e}"))?;
+    drop(f);
+    std::fs::rename(&tmp, path).map_err(|e| format!("rename '{tmp}' -> '{path}': {e}"))?;
+    Ok(bytes.len() as u64)
+}
+
+fn map_annot_type(ty: PdfPageAnnotationType) -> Option<AnnotationType> {
+    match ty {
+        PdfPageAnnotationType::Highlight => Some(AnnotationType::Highlight),
+        PdfPageAnnotationType::Underline => Some(AnnotationType::Underline),
+        PdfPageAnnotationType::Strikeout => Some(AnnotationType::Strikeout),
+        PdfPageAnnotationType::Text => Some(AnnotationType::Note),
+        PdfPageAnnotationType::FreeText => Some(AnnotationType::FreeText),
+        PdfPageAnnotationType::Ink => Some(AnnotationType::Ink),
+        _ => None,
+    }
+}
+
+impl PdfMutationBackend for PdfiumBackend {
+    fn get_annotations(&self, path: &str, page_index: usize) -> Result<Vec<PdfAnnotation>, String> {
+        let doc = load_doc(path)?;
+        let page = doc
+            .pages()
+            .get(page_index as i32)
+            .map_err(|e| format!("page {page_index}: {e}"))?;
+        let annotations = page.annotations();
+        let mut out = Vec::with_capacity(annotations.len());
+        for i in 0..annotations.len() {
+            let ann = match annotations.get(i) {
+                Ok(a) => a,
+                Err(_) => continue,
+            };
+            let mapped = match map_annot_type(ann.annotation_type()) {
+                Some(t) => t,
+                None => continue,
+            };
+            let bounds = ann.bounds().unwrap_or(PdfRect::ZERO);
+            let color = ann.fill_color().unwrap_or(PdfColor::new(255, 213, 79, 255));
+            let text = ann.contents();
+            let id = format!("page:{page_index}:idx:{i}");
+            let mut ann_model = PdfAnnotation {
+                id,
+                page_index,
+                annotation_type: mapped,
+                rect: Rect {
+                    bottom: bounds.bottom().value,
+                    left: bounds.left().value,
+                    top: bounds.top().value,
+                    right: bounds.right().value,
+                },
+                quad_points: vec![],
+                ink_paths: vec![],
+                color: color_to_hex(color),
+                opacity: color.alpha() as f32 / 255.0,
+                text,
+                created_at: ann.creation_date(),
+                modified_at: ann.modification_date(),
+            };
+            if ann.has_attachment_points() {
+                for ap in ann.attachment_points().iter() {
+                    ann_model.quad_points.push(Quad {
+                        x1: ap.x1().value,
+                        y1: ap.y1().value,
+                        x2: ap.x2().value,
+                        y2: ap.y2().value,
+                        x3: ap.x3().value,
+                        y3: ap.y3().value,
+                        x4: ap.x4().value,
+                        y4: ap.y4().value,
+                    });
+                }
+            }
+            out.push(ann_model);
+        }
+        Ok(out)
+    }
+
+    fn create_annotation(&self, path: &str, ann: PdfAnnotation) -> Result<PdfAnnotation, String> {
+        let mut doc = load_doc(path)?;
+        // pages_mut().get() returns an owned PdfPage handle (cheap, handle-based).
+        let mut page = doc
+            .pages_mut()
+            .get(ann.page_index as i32)
+            .map_err(|e| format!("page {}: {}", ann.page_index, e))?;
+        let annotations = page.annotations_mut();
+        let color = color_with_opacity(&ann.color, ann.opacity);
+        let bounds = PdfRect::new(
+            PdfPoints::new(ann.rect.bottom),
+            PdfPoints::new(ann.rect.left),
+            PdfPoints::new(ann.rect.top),
+            PdfPoints::new(ann.rect.right),
+        );
+
+        match ann.annotation_type {
+            AnnotationType::Highlight => {
+                let mut created = annotations
+                    .create_highlight_annotation()
+                    .map_err(|e| format!("create highlight: {e}"))?;
+                created.set_fill_color(color).map_err(|e| format!("set color: {e}"))?;
+                let aps = created.attachment_points_mut();
+                for q in &ann.quad_points {
+                    aps.create_attachment_point_at_end(PdfQuadPoints::new(
+                        PdfPoints::new(q.x1), PdfPoints::new(q.y1),
+                        PdfPoints::new(q.x2), PdfPoints::new(q.y2),
+                        PdfPoints::new(q.x3), PdfPoints::new(q.y3),
+                        PdfPoints::new(q.x4), PdfPoints::new(q.y4),
+                    )).map_err(|e| format!("add quad: {e}"))?;
+                }
+                if ann.rect.right > ann.rect.left {
+                    created.set_bounds(bounds).map_err(|e| format!("set bounds: {e}"))?;
+                }
+                if let Some(t) = &ann.text {
+                    created.set_contents(t).map_err(|e| format!("set contents: {e}"))?;
+                }
+            }
+            AnnotationType::Underline => {
+                let mut created = annotations
+                    .create_underline_annotation()
+                    .map_err(|e| format!("create underline: {e}"))?;
+                created.set_fill_color(color).map_err(|e| format!("set color: {e}"))?;
+                let aps = created.attachment_points_mut();
+                for q in &ann.quad_points {
+                    aps.create_attachment_point_at_end(PdfQuadPoints::new(
+                        PdfPoints::new(q.x1), PdfPoints::new(q.y1),
+                        PdfPoints::new(q.x2), PdfPoints::new(q.y2),
+                        PdfPoints::new(q.x3), PdfPoints::new(q.y3),
+                        PdfPoints::new(q.x4), PdfPoints::new(q.y4),
+                    )).map_err(|e| format!("add quad: {e}"))?;
+                }
+                if ann.rect.right > ann.rect.left {
+                    created.set_bounds(bounds).map_err(|e| format!("set bounds: {e}"))?;
+                }
+            }
+            AnnotationType::Strikeout => {
+                let mut created = annotations
+                    .create_strikeout_annotation()
+                    .map_err(|e| format!("create strikeout: {e}"))?;
+                created.set_fill_color(color).map_err(|e| format!("set color: {e}"))?;
+                let aps = created.attachment_points_mut();
+                for q in &ann.quad_points {
+                    aps.create_attachment_point_at_end(PdfQuadPoints::new(
+                        PdfPoints::new(q.x1), PdfPoints::new(q.y1),
+                        PdfPoints::new(q.x2), PdfPoints::new(q.y2),
+                        PdfPoints::new(q.x3), PdfPoints::new(q.y3),
+                        PdfPoints::new(q.x4), PdfPoints::new(q.y4),
+                    )).map_err(|e| format!("add quad: {e}"))?;
+                }
+                if ann.rect.right > ann.rect.left {
+                    created.set_bounds(bounds).map_err(|e| format!("set bounds: {e}"))?;
+                }
+            }
+            AnnotationType::Note => {
+                let mut created = annotations
+                    .create_text_annotation(ann.text.as_deref().unwrap_or(""))
+                    .map_err(|e| format!("create note: {e}"))?;
+                created.set_fill_color(color).map_err(|e| format!("set color: {e}"))?;
+                created.set_bounds(bounds).map_err(|e| format!("set bounds: {e}"))?;
+            }
+            AnnotationType::FreeText => {
+                let mut created = annotations
+                    .create_free_text_annotation(ann.text.as_deref().unwrap_or(""))
+                    .map_err(|e| format!("create free text: {e}"))?;
+                created.set_fill_color(color).map_err(|e| format!("set color: {e}"))?;
+                created.set_bounds(bounds).map_err(|e| format!("set bounds: {e}"))?;
+            }
+            AnnotationType::Ink => {
+                let mut created = annotations
+                    .create_ink_annotation()
+                    .map_err(|e| format!("create ink: {e}"))?;
+                created.set_stroke_color(color).map_err(|e| format!("set color: {e}"))?;
+                // Ink drawn as line path objects inside the annotation.
+                for path in &ann.ink_paths {
+                    for w in path.windows(2) {
+                        let p1 = &w[0];
+                        let p2 = &w[1];
+                        // create_path_object_line already adds the object to the collection.
+                        let _ = created
+                            .objects_mut()
+                            .create_path_object_line(
+                                PdfPoints::new(p1.x),
+                                PdfPoints::new(p1.y),
+                                PdfPoints::new(p2.x),
+                                PdfPoints::new(p2.y),
+                                color,
+                                PdfPoints::new(1.5),
+                            )
+                            .map_err(|e| format!("ink line: {e}"))?;
+                    }
+                }
+                if ann.rect.right > ann.rect.left {
+                    created.set_bounds(bounds).map_err(|e| format!("set bounds: {e}"))?;
+                }
+            }
+        }
+        drop(page);
+        let bytes = save_doc_bytes(&doc)?;
+        atomic_write(path, &bytes)?;
+        Ok(ann)
+    }
+
+    fn update_annotation(&self, path: &str, ann: PdfAnnotation) -> Result<(), String> {
+        // §5: read old → remove → recreate.
+        self.delete_annotation(path, ann.page_index, &ann.id)?;
+        let mut fresh = ann.clone();
+        fresh.id = format!("page:{}:upd:{}", fresh.page_index, uuid_seed());
+        self.create_annotation(path, fresh)?;
+        Ok(())
+    }
+
+    fn delete_annotation(&self, path: &str, page_index: usize, id: &str) -> Result<(), String> {
+        let mut doc = load_doc(path)?;
+        let mut page = doc
+            .pages_mut()
+            .get(page_index as i32)
+            .map_err(|e| format!("page {page_index}: {e}"))?;
+        // id format: page:<idx>:idx:<i>  (from get_annotations) or page:<idx>:upd:<...>
+        let idx = id.rsplit(':').next().and_then(|s| s.parse::<usize>().ok());
+        if let Some(i) = idx {
+            let annotations = page.annotations_mut();
+            if i < annotations.len() {
+                let ann = annotations
+                    .get(i)
+                    .map_err(|e| format!("get annot {i}: {e}"))?;
+                annotations
+                    .delete_annotation(ann)
+                    .map_err(|e| format!("delete annot {i}: {e}"))?;
+            }
+        }
+        drop(page);
+        let bytes = save_doc_bytes(&doc)?;
+        atomic_write(path, &bytes)?;
+        Ok(())
+    }
+
+    fn save(&self, path: &str) -> Result<u64, String> {
+        let doc = load_doc(path)?;
+        let bytes = save_doc_bytes(&doc)?;
+        atomic_write(path, &bytes)
+    }
+}
+
+fn uuid_seed() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(1);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!(
+        "{}-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0),
+        n
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn fixture(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        // copy a fixture to temp so tests don't mutate the original; unique per
+        // test name + thread to avoid parallel-test collisions on Windows.
+        let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("tests")
+            .join("fixtures")
+            .join(name);
+        let dst = std::env::temp_dir().join(format!(
+            "reader-annot-{}-{name}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        fs::copy(&src, &dst).expect("copy fixture");
+        (src, dst)
+    }
+
+    #[test]
+    fn create_and_read_back_highlight() {
+        let (_src, dst) = fixture("text-3.pdf");
+        let backend = PdfiumBackend::new();
+        let path = dst.to_str().unwrap();
+
+        // Before: no annotations on page 0.
+        let before = backend.get_annotations(path, 0).expect("get before");
+        assert!(before.is_empty(), "expected no annotations before create");
+
+        // Create a highlight with quad points over some text.
+        let ann = PdfAnnotation {
+            id: "test".into(),
+            page_index: 0,
+            annotation_type: AnnotationType::Highlight,
+            rect: Rect { bottom: 720.0, left: 70.0, top: 780.0, right: 300.0 },
+            quad_points: vec![Quad {
+                x1: 70.0, y1: 720.0, x2: 300.0, y2: 720.0,
+                x3: 70.0, y3: 780.0, x4: 300.0, y4: 780.0,
+            }],
+            ink_paths: vec![],
+            color: "#ffd54f".into(),
+            opacity: 0.4,
+            text: Some("highlighted by test".into()),
+            created_at: None,
+            modified_at: None,
+        };
+        backend.create_annotation(path, ann.clone()).expect("create");
+
+        // After: one highlight annotation.
+        let after = backend.get_annotations(path, 0).expect("get after");
+        assert_eq!(after.len(), 1, "expected 1 annotation after create");
+        assert_eq!(after[0].annotation_type, AnnotationType::Highlight);
+        assert!(!after[0].quad_points.is_empty(), "highlight should have quad points");
+        assert_eq!(after[0].text.as_deref(), Some("highlighted by test"));
+
+        // File should have grown (annotations add bytes).
+        let size = fs::metadata(&dst).map(|m| m.len()).unwrap_or(0);
+        assert!(size > 0, "file should exist after save");
+
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn create_and_delete_annotation() {
+        let (_src, dst) = fixture("text-3.pdf");
+        let backend = PdfiumBackend::new();
+        let path = dst.to_str().unwrap();
+
+        let ann = PdfAnnotation {
+            id: "test".into(),
+            page_index: 0,
+            annotation_type: AnnotationType::Note,
+            rect: Rect { bottom: 700.0, left: 70.0, top: 740.0, right: 110.0 },
+            quad_points: vec![],
+            ink_paths: vec![],
+            color: "#ffd54f".into(),
+            opacity: 1.0,
+            text: Some("a note".into()),
+            created_at: None,
+            modified_at: None,
+        };
+        backend.create_annotation(path, ann).expect("create note");
+        let after = backend.get_annotations(path, 0).expect("get after create");
+        assert_eq!(after.len(), 1);
+
+        // Delete by the id returned from get_annotations.
+        backend.delete_annotation(path, 0, &after[0].id).expect("delete");
+        let after_del = backend.get_annotations(path, 0).expect("get after delete");
+        assert!(after_del.is_empty(), "expected no annotations after delete");
+
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn create_freetext_and_save() {
+        let (_src, dst) = fixture("blank-10.pdf");
+        let backend = PdfiumBackend::new();
+        let path = dst.to_str().unwrap();
+
+        let ann = PdfAnnotation {
+            id: "test".into(),
+            page_index: 0,
+            annotation_type: AnnotationType::FreeText,
+            rect: Rect { bottom: 700.0, left: 70.0, top: 780.0, right: 300.0 },
+            quad_points: vec![],
+            ink_paths: vec![],
+            color: "#333333".into(),
+            opacity: 1.0,
+            text: Some("hello freetext".into()),
+            created_at: None,
+            modified_at: None,
+        };
+        backend.create_annotation(path, ann).expect("create freetext");
+        let after = backend.get_annotations(path, 0).expect("get");
+        assert_eq!(after.len(), 1);
+        assert_eq!(after[0].annotation_type, AnnotationType::FreeText);
+
+        // explicit save round-trip
+        backend.save(path).expect("save");
+        let after_save = backend.get_annotations(path, 0).expect("get after save");
+        assert_eq!(after_save.len(), 1, "annotation must survive save");
+
+        let _ = fs::remove_file(&dst);
+    }
+}
+
+#[cfg(test)]
+mod cross_verify {
+    use super::*;
+    use std::fs;
+
+    /// Creates a highlight + note on a known temp path and LEAVES the file
+    /// there so a third-party reader (pypdf) can verify the annotations are
+    /// standard and visible. Run with: cargo test cross_verify -- --nocapture
+    #[test]
+    fn create_for_cross_verification() {
+        let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("tests")
+            .join("fixtures")
+            .join("text-3.pdf");
+        let dst = std::env::temp_dir().join("reader-cross-verify.pdf");
+        fs::copy(&src, &dst).expect("copy");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+
+        backend.create_annotation(path, PdfAnnotation {
+            id: "x".into(),
+            page_index: 0,
+            annotation_type: AnnotationType::Highlight,
+            rect: Rect { bottom: 720.0, left: 70.0, top: 780.0, right: 300.0 },
+            quad_points: vec![Quad {
+                x1: 70.0, y1: 720.0, x2: 300.0, y2: 720.0,
+                x3: 70.0, y3: 780.0, x4: 300.0, y4: 780.0,
+            }],
+            ink_paths: vec![],
+            color: "#ffff00".into(),
+            opacity: 0.5,
+            text: Some("cross verify highlight".into()),
+            created_at: None,
+            modified_at: None,
+        }).expect("create highlight");
+
+        backend.create_annotation(path, PdfAnnotation {
+            id: "y".into(),
+            page_index: 0,
+            annotation_type: AnnotationType::FreeText,
+            rect: Rect { bottom: 700.0, left: 70.0, top: 780.0, right: 300.0 },
+            quad_points: vec![],
+            ink_paths: vec![],
+            color: "#ff0000".into(),
+            opacity: 1.0,
+            text: Some("cross verify freetext".into()),
+            created_at: None,
+            modified_at: None,
+        }).expect("create freetext");
+
+        eprintln!("CROSS_VERIFY_PATH={}", path);
+        // intentionally do NOT delete — pypdf reads it next.
+    }
+}

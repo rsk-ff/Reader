@@ -13,3 +13,4 @@ reader/src-tauri/gen/schemas/
 .idea
 .DS_Store
 *.swp
+src-tauri/lib/bin/

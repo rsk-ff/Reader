@@ -8,6 +8,10 @@ import { runSearch } from "./search";
 import type { SearchSession } from "./search";
 import { destToPageIndex, flattenOutline } from "./outline";
 import type { OutlineNode, PageInfo, ZoomMode } from "./types";
+import type { PdfAnnotation } from "./annotation-types";
+import { invoke } from "@tauri-apps/api/core";
+import type { AnnotationTool } from "./PdfAnnotationLayer";
+import { useWorkspace } from "../../workspace/store";
 
 const PAGE_GAP = 8;
 const RENDER_BUFFER = 2; // pages above/below the viewport to pre-render
@@ -20,6 +24,10 @@ interface PdfViewerProps {
 export function PdfViewer({ path, active }: PdfViewerProps) {
   const { doc, loading, error } = usePdfDocument(path);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // track dirty locally (the workspace also tracks it, but we read via the
+  // document session to show the ● in the toolbar).
+  const [dirty, setDirty] = useState(false);
+  const documentsById = useWorkspace((s) => s.documentsById);
   const [pageInfos, setPageInfos] = useState<PageInfo[]>([]);
   const [scale, setScale] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
@@ -32,6 +40,8 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
   const [searching, setSearching] = useState(false);
   const [searchIdx, setSearchIdx] = useState(0);
   const [renderToken, setRenderToken] = useState(0);
+  const [annotationsByPage, setAnnotationsByPage] = useState<Record<number, PdfAnnotation[]>>({});
+  const [annotTool, setAnnotTool] = useState<AnnotationTool>("select");
 
   const maxPageWidth = useMemo(
     () => pageInfos.reduce((m, p) => Math.max(m, p.w1), 0) || 1,
@@ -221,6 +231,39 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
     [doc, scrollToPage],
   );
 
+  // ---- annotations (§5) ----
+  const loadAnnotations = useCallback(
+    async (pageNumber: number) => {
+      if (!doc) return;
+      try {
+        const anns = await invoke<PdfAnnotation[]>("get_annotations", {
+          path,
+          pageIndex: pageNumber - 1,
+        });
+        setAnnotationsByPage((prev) => ({ ...prev, [pageNumber]: anns }));
+      } catch (e) {
+        // backend may be unavailable (no pdfium) — fail quietly.
+        console.warn("get_annotations failed", e);
+      }
+    },
+    [doc, path],
+  );
+
+  // Load annotations for visible pages once the doc is ready.
+  useEffect(() => {
+    if (!doc) return;
+    loadAnnotations(currentPage);
+  }, [doc, currentPage, loadAnnotations]);
+
+  const onAnnotationsChanged = useCallback(
+    (pageNumber: number) => loadAnnotations(pageNumber),
+    [loadAnnotations],
+  );
+
+  const onAnnotationCreated = useCallback((_ann: PdfAnnotation) => {
+    // Already handled by onAnnotationsChanged reload.
+  }, []);
+
   // ---- print (basic: render pages into a print window) ----
   const print = useCallback(async () => {
     if (!doc) return;
@@ -272,6 +315,35 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, print, zoomIn, zoomOut, setFit]);
 
+  // ---- save (§7) ----
+  const saveDocument = useCallback(async () => {
+    try {
+      await invoke("save_document", { path });
+      setDirty(false);
+    } catch (e) {
+      console.warn("save failed", e);
+    }
+  }, [path]);
+
+  // Sync dirty from the workspace (create_annotation sets it there).
+  useEffect(() => {
+    const doc = documentsById[Object.keys(documentsById).find((k) => documentsById[k].path === path) ?? ""];
+    if (doc) setDirty(doc.dirty);
+  }, [documentsById, path]);
+
+  // Ctrl+S
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        void saveDocument();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [active, saveDocument]);
+
   if (loading) {
     return <div className="pdf-status">opening PDF…</div>;
   }
@@ -307,6 +379,10 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
         onSearchNav={gotoSearchHit}
         onPrint={print}
         onJumpPage={scrollToPage}
+        annotTool={annotTool}
+        dirty={dirty}
+        onAnnotTool={setAnnotTool}
+        onSave={saveDocument}
       />
       <div className="pdf-body">
         {sidebarMode && (
@@ -328,6 +404,7 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
                 <PdfPage
                   key={p.pageNumber}
                   doc={doc}
+                  path={path}
                   pageNumber={p.pageNumber}
                   w1={p.w1}
                   h1={p.h1}
@@ -335,6 +412,10 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
                   active={active}
                   renderToken={renderToken}
                   searchQuery={searchQuery}
+                  annotations={annotationsByPage[p.pageNumber] ?? []}
+                  annotTool={annotTool}
+                  onAnnotationsChanged={onAnnotationsChanged}
+                  onAnnotationCreated={onAnnotationCreated}
                 />
               );
             })}

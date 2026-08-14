@@ -10,6 +10,7 @@
 //! shell with plain-text placeholders (§30 Phase 1).
 
 mod commands;
+pub mod pdf;
 mod workspace;
 
 #[cfg(target_os = "macos")]
@@ -47,6 +48,11 @@ pub fn run() {
             commands::save_file_text,
             commands::canonicalize_path,
             commands::set_dirty,
+            commands::get_annotations,
+            commands::create_annotation,
+            commands::update_annotation,
+            commands::delete_annotation,
+            commands::save_document,
         ])
         .setup(|app| {
             // Open files passed on the command line at first launch, before the

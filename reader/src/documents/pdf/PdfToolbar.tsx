@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ZoomMode } from "./types";
+import type { AnnotationTool } from "./PdfAnnotationLayer";
 
 interface PdfToolbarProps {
   currentPage: number;
@@ -11,6 +12,8 @@ interface PdfToolbarProps {
   searchHits: number;
   searchIdx: number;
   searching: boolean;
+  annotTool: AnnotationTool;
+  dirty: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: (m: ZoomMode) => void;
@@ -19,6 +22,8 @@ interface PdfToolbarProps {
   onSearchNav: (dir: 1 | -1) => void;
   onPrint: () => void;
   onJumpPage: (n: number) => void;
+  onAnnotTool: (t: AnnotationTool) => void;
+  onSave: () => void;
 }
 
 export function PdfToolbar(props: PdfToolbarProps) {
@@ -40,6 +45,10 @@ export function PdfToolbar(props: PdfToolbarProps) {
     onSearchNav,
     onPrint,
     onJumpPage,
+    annotTool,
+    dirty,
+    onAnnotTool,
+    onSave,
   } = props;
 
   const [searchInput, setSearchInput] = useState("");
@@ -155,11 +164,70 @@ export function PdfToolbar(props: PdfToolbarProps) {
         </ToolbarButton>
       </div>
 
+      <div className="pdf-toolbar-group pdf-annot-group">
+        <ToolbarButton
+          active={annotTool === "select"}
+          onClick={() => onAnnotTool("select")}
+          title="Select"
+        >
+          ▶
+        </ToolbarButton>
+        <ToolbarButton
+          active={annotTool === "highlight"}
+          onClick={() => onAnnotTool("highlight")}
+          title="Highlight (select text)"
+        >
+          HL
+        </ToolbarButton>
+        <ToolbarButton
+          active={annotTool === "underline"}
+          onClick={() => onAnnotTool("underline")}
+          title="Underline (select text)"
+        >
+          UL
+        </ToolbarButton>
+        <ToolbarButton
+          active={annotTool === "strikeout"}
+          onClick={() => onAnnotTool("strikeout")}
+          title="Strikeout (select text)"
+        >
+          ST
+        </ToolbarButton>
+        <ToolbarButton
+          active={annotTool === "note"}
+          onClick={() => onAnnotTool("note")}
+          title="Note (click to place)"
+        >
+          N
+        </ToolbarButton>
+        <ToolbarButton
+          active={annotTool === "freetext"}
+          onClick={() => onAnnotTool("freetext")}
+          title="Free text (click to place)"
+        >
+          T
+        </ToolbarButton>
+        <ToolbarButton
+          active={annotTool === "ink"}
+          onClick={() => onAnnotTool("ink")}
+          title="Ink (draw)"
+        >
+          ✎
+        </ToolbarButton>
+      </div>
+
       <div className="pdf-toolbar-spacer" />
 
       <div className="pdf-toolbar-group">
         <ToolbarButton onClick={onPrint} title="Print (Ctrl+P)">
           print
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={onSave}
+          disabled={!dirty}
+          title="Save (persist annotations)"
+        >
+          {dirty ? "save ●" : "saved"}
         </ToolbarButton>
       </div>
     </div>

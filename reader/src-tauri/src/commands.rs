@@ -165,3 +165,60 @@ pub fn set_dirty(document_id: String, dirty: bool, app: AppHandle, ws: State<'_,
     let _ = app.emit("workspace://changed", &snapshot);
     Ok(())
 }
+
+// ---- PDF annotation commands (§24) ----
+
+use crate::pdf::{PdfAnnotation, PdfMutationBackend, PdfiumBackend};
+
+fn backend() -> PdfiumBackend {
+    PdfiumBackend::new()
+}
+
+#[tauri::command]
+pub fn get_annotations(path: String, page_index: usize) -> Result<Vec<PdfAnnotation>, String> {
+    backend().get_annotations(&path, page_index)
+}
+
+#[tauri::command]
+pub fn create_annotation(path: String, annotation: PdfAnnotation, app: AppHandle, ws: State<'_, SharedWorkspace>) -> Result<PdfAnnotation, String> {
+    let ann = backend().create_annotation(&path, annotation)?;
+    // Mark the owning document dirty so the tab shows ● and save is required.
+    if let Ok(mut guard) = ws.lock() {
+        // find the document by path
+        let doc_id = guard.documents.values()
+            .find(|d| d.path.to_str() == Some(&path))
+            .map(|d| d.id.clone());
+        if let Some(id) = doc_id {
+            guard.set_dirty(&id, true);
+        }
+        let snapshot = guard.snapshot();
+        let _ = app.emit("workspace://changed", &snapshot);
+    }
+    Ok(ann)
+}
+
+#[tauri::command]
+pub fn update_annotation(path: String, annotation: PdfAnnotation) -> Result<(), String> {
+    backend().update_annotation(&path, annotation)
+}
+
+#[tauri::command]
+pub fn delete_annotation(path: String, page_index: usize, id: String) -> Result<(), String> {
+    backend().delete_annotation(&path, page_index, &id)
+}
+
+#[tauri::command]
+pub fn save_document(path: String, app: AppHandle, ws: State<'_, SharedWorkspace>) -> Result<u64, String> {
+    let len = backend().save(&path)?;
+    if let Ok(mut guard) = ws.lock() {
+        let doc_id = guard.documents.values()
+            .find(|d| d.path.to_str() == Some(&path))
+            .map(|d| d.id.clone());
+        if let Some(id) = doc_id {
+            guard.set_dirty(&id, false);
+        }
+        let snapshot = guard.snapshot();
+        let _ = app.emit("workspace://changed", &snapshot);
+    }
+    Ok(len)
+}

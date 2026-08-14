@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy, PageViewport, RenderTask } from "pdfjs-dist";
 import { TextLayer } from "pdfjs-dist";
+import { AnnotationOverlay } from "./PdfAnnotationLayer";
+import type { AnnotationTool } from "./PdfAnnotationLayer";
+import type { PdfAnnotation } from "./annotation-types";
 
 interface PdfPageProps {
   doc: PDFDocumentProxy;
+  /** file path (for annotation commands) */
+  path: string;
   pageNumber: number;
   /** unscaled width (scale=1) */
   w1: number;
@@ -16,6 +21,12 @@ interface PdfPageProps {
   renderToken: number;
   /** search highlight term (lowercased) or null */
   searchQuery: string | null;
+  /** annotations for this page */
+  annotations: PdfAnnotation[];
+  /** active annotation tool */
+  annotTool: AnnotationTool;
+  onAnnotationsChanged: (pageNumber: number) => void;
+  onAnnotationCreated: (ann: PdfAnnotation) => void;
   /** called when the page becomes visible (for current-page tracking) */
   onVisible?: (pageNumber: number, ratio: number) => void;
 }
@@ -27,6 +38,7 @@ interface PdfPageProps {
  */
 export function PdfPage({
   doc,
+  path,
   pageNumber,
   w1,
   h1,
@@ -34,6 +46,10 @@ export function PdfPage({
   active,
   renderToken,
   searchQuery,
+  annotations,
+  annotTool,
+  onAnnotationsChanged,
+  onAnnotationCreated,
   onVisible,
 }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -183,6 +199,16 @@ export function PdfPage({
         {!rendered && <div className="pdf-page-placeholder">page {pageNumber}</div>}
         <canvas ref={canvasRef} className="pdf-canvas" />
         <div ref={textRef} className="pdf-text-layer" />
+        <AnnotationOverlay
+          doc={doc}
+          path={path}
+          pageNumber={pageNumber}
+          geom={{ w1, h1, scale }}
+          annotations={annotations}
+          tool={annotTool}
+          onAnnotationsChanged={onAnnotationsChanged}
+          onAnnotationCreated={onAnnotationCreated}
+        />
       </div>
     </div>
   );
