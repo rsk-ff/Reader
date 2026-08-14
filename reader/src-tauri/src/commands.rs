@@ -4,7 +4,7 @@
 //! from OS double-click (single-instance plugin / opened-files event), CLI
 //! args at first launch, drag-in, or a frontend File→Open action.
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, ipc::Response};
 
 use crate::workspace::{SharedWorkspace, TabId, WorkspaceSnapshot, MAIN_WINDOW};
 
@@ -96,3 +96,25 @@ pub fn close_tab(tab_id: TabId, app: AppHandle, ws: State<'_, SharedWorkspace>) 
 }
 
 
+
+/// Read a file's raw bytes. Used by the PDF adapter to feed `pdfjs.getDocument`.
+/// Returns raw bytes via `tauri::ipc::Response` so a 50 MB PDF doesn't get
+/// JSON-encoded into a ~150 MB number array over IPC (Phase 7 will switch to
+/// the asset protocol for true range streaming).
+#[tauri::command]
+pub fn read_file_bytes(path: String) -> Result<Response, String> {
+    let bytes = std::fs::read(&path).map_err(|e| format!("read '{path}': {e}"))?;
+    Ok(Response::new(bytes))
+}
+
+/// Sink for frontend runtime errors so they surface in the dev terminal / log
+/// (the webview console is otherwise invisible to the Rust host). Wired from
+/// `window.onerror` and `unhandledrejection` in `main.tsx`.
+#[tauri::command]
+pub fn log_frontend(level: String, message: String) {
+    match level.as_str() {
+        "error" => log::error!("[frontend] {message}"),
+        "warn" => log::warn!("[frontend] {message}"),
+        _ => log::info!("[frontend] {message}"),
+    }
+}

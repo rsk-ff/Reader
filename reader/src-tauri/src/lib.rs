@@ -18,6 +18,9 @@ use workspace::new_shared;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .try_init();
+
     let mut builder = tauri::Builder::default();
 
     // Single-instance: a second `reader.exe <file>` invocation forwards argv
@@ -38,6 +41,8 @@ pub fn run() {
             commands::open_document_command,
             commands::focus_tab,
             commands::close_tab,
+            commands::read_file_bytes,
+            commands::log_frontend,
         ])
         .setup(|app| {
             // Open files passed on the command line at first launch, before the

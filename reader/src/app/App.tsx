@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useWorkspace } from "../workspace/store";
 import { TabStrip } from "../components/TabStrip";
-import { PlaceholderView } from "../components/PlaceholderView";
 import { EmptyState } from "../components/EmptyState";
+import { DocumentView } from "../documents/DocumentView";
 import "../styles.css";
 
 export default function App() {
@@ -15,18 +15,28 @@ export default function App() {
     void init();
   }, [init]);
 
-  const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
-
   return (
     <div className="app-shell">
       <TabStrip />
       <div className="content-area">
         {!ready ? (
           <div className="boot">loading…</div>
-        ) : activeTab ? (
-          <PlaceholderView tab={activeTab} />
-        ) : (
+        ) : tabs.length === 0 ? (
           <EmptyState />
+        ) : (
+          // §10: switching tabs must not unmount the viewer. Render every tab's
+          // document and hide the inactive ones — scroll/zoom state survives.
+          <div className="tab-stack">
+            {tabs.map((tab) => (
+              <div
+                key={tab.id}
+                className={"tab-pane" + (tab.id === activeTabId ? " tab-pane-active" : "")}
+                aria-hidden={tab.id !== activeTabId}
+              >
+                <DocumentView tab={tab} active={tab.id === activeTabId} />
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
