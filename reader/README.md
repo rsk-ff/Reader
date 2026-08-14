@@ -6,7 +6,49 @@ Lightweight PDF / Markdown desktop reader. Design spec: [`../轻量 PDF - Markdo
 Tauri 2 · Rust · React + TypeScript · Vite · Zustand
 ```
 
-## Phase 6 — Tabs / Windows polish (current)
+## Phase 7 — Performance (current)
+
+Targeted the real §27 bottlenecks with profiling-driven fixes (no mystical
+premature optimization).
+
+### PDF asset protocol (range streaming)
+
+Replaced whole-file `read_file_bytes` IPC with a custom `reader-file://` URI
+scheme (`register_asynchronous_uri_scheme_protocol`) that serves file bytes with
+HTTP `Range` support. pdf.js now range-requests pages instead of slurping the
+entire file into memory before the first page can render (§27: "switch to the
+asset protocol for true range streaming").
+
+- 200 / 206 Partial Content responses with `Content-Range` + `Accept-Ranges`.
+- CORS headers + OPTIONS preflight (webview origin differs from the scheme host).
+- 4 Rust unit tests: range parsing, URI→path extraction, percent-decode, URL format.
+
+**Verified**: 3-page PDF loads via range in ~1s; 1000-page PDF loads in ~1s at
+~37 MB RSS (range-requested, not whole-file). `pdf loaded: 1000 pages` confirmed.
+
+### Render-storm fix
+
+Page 1 was rendering ~19× during initial layout (Phase 2 observation): every
+`recomputeScale` bumped a `renderToken` that was a render-effect dependency.
+Removed the redundant `renderToken` (scale is already a dep), added skip-if-
+equal in `recomputeScale`, and debounced `ResizeObserver` (60ms coalescing).
+
+### Lazy loading (already in place, confirmed)
+
+- `PdfViewer` chunk (444 KB) loads only when a PDF is opened.
+- `MarkdownEditor` chunk (1.4 MB) loads only when a `.md` is opened.
+- `pdf.worker.min` (1.2 MB) is a separate lazy chunk.
+- Per §2.1, a Markdown-only session never pulls in pdfjs, and vice versa.
+
+### Known / deferred
+
+- Cross-window drag-merge still needs native OLE (Phase 6 limitation).
+- `manualChunks` could split the 1.4 MB Milkdown chunk further, but it's lazy so
+  it doesn't block first paint of other document types.
+- Cold-start target < 700 ms needs a release build to measure meaningfully
+  (debug build + dev server is not representative).
+
+## Phase 6 — Tabs / Windows polish
 
 The workspace model is now truly multi-window (§18): `AppWorkspace` holds a
 `HashMap<WindowId, WindowState>` + global documents. Tabs reference a window;

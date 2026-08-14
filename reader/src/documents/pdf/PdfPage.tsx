@@ -17,8 +17,6 @@ interface PdfPageProps {
   scale: number;
   /** true when this page is within the render buffer (visible ± N) */
   active: boolean;
-  /** bump to force a re-render even if deps look unchanged */
-  renderToken: number;
   /** search highlight term (lowercased) or null */
   searchQuery: string | null;
   /** annotations for this page */
@@ -44,7 +42,6 @@ export function PdfPage({
   h1,
   scale,
   active,
-  renderToken,
   searchQuery,
   annotations,
   annotTool,
@@ -146,7 +143,7 @@ export function PdfPage({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, pageNumber, scale, active, renderToken]);
+  }, [doc, pageNumber, scale, active]);
 
   // Re-apply search highlight without re-rendering the canvas/text layer.
   useEffect(() => {

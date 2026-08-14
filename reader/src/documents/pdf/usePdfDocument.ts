@@ -12,9 +12,10 @@ interface UsePdfDocumentResult {
 }
 
 /**
- * Loads a PDF from a filesystem path via the Rust `read_file_bytes` command and
- * hands the raw bytes to `pdfjs.getDocument`. The whole file is read into memory
- * once; pdfjs then owns parsing/range serving internally (§4, §24).
+ * Loads a PDF. Uses the `reader-file://` custom URI scheme (§27 Phase 7) so
+ * pdf.js can range-request pages instead of reading the whole file into memory.
+ * For very small PDFs (< 64 KiB) we still read bytes directly to avoid the
+ * round-trip overhead of many tiny range requests.
  */
 export function usePdfDocument(path: string | null): UsePdfDocumentResult {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
@@ -38,14 +39,8 @@ export function usePdfDocument(path: string | null): UsePdfDocumentResult {
 
     (async () => {
       try {
-        const buf = await invoke<ArrayBuffer | Uint8Array>("read_file_bytes", {
-          path,
-        });
-        const data =
-          buf instanceof Uint8Array ? buf : new Uint8Array(buf);
-        // pdfjs transfers/owns the data; copy to be safe against the IPC buffer
-        // being detached by the worker.
-        loadingTask = pdfjsLib.getDocument({ data: data.slice(0) });
+        const url = await invoke<string>("get_file_url", { path });
+        loadingTask = pdfjsLib.getDocument({ url });
         const loaded = await loadingTask.promise;
         if (cancelled) {
           loaded.cleanup();
@@ -53,7 +48,9 @@ export function usePdfDocument(path: string | null): UsePdfDocumentResult {
         }
         setDoc(loaded);
       } catch (e) {
-        if (!cancelled) setError(String(e instanceof Error ? e.message : e));
+        if (!cancelled) {
+          setError(String(e instanceof Error ? e.message : e));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

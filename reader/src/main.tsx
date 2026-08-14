@@ -32,6 +32,7 @@ function report(level: string, msg: unknown) {
   void invoke("log_frontend", { level, message: text }).catch(() => {});
 }
 
+
 window.addEventListener("error", (e) => {
   report("error", e.error ?? e.message);
 });

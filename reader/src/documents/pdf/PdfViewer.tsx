@@ -39,7 +39,6 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchIdx, setSearchIdx] = useState(0);
-  const [renderToken, setRenderToken] = useState(0);
   const [annotationsByPage, setAnnotationsByPage] = useState<Record<number, PdfAnnotation[]>>({});
   const [annotTool, setAnnotTool] = useState<AnnotationTool>("select");
 
@@ -96,24 +95,37 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
     if (!el || pageInfos.length === 0) return;
     const availW = el.clientWidth - PAGE_GAP * 2;
     const availH = el.clientHeight - PAGE_GAP * 2;
+    let next = scale;
     if (zoomMode === "fit-width") {
-      setScale(availW / maxPageWidth);
+      next = availW / maxPageWidth;
     } else if (zoomMode === "fit-page") {
-      setScale(Math.min(availW / maxPageWidth, availH / maxPageHeight));
+      next = Math.min(availW / maxPageWidth, availH / maxPageHeight);
     }
-    setRenderToken((t) => t + 1);
-  }, [pageInfos, maxPageWidth, maxPageHeight, zoomMode]);
+    // Skip if unchanged to avoid re-render storms during layout settling.
+    if (Math.abs(next - scale) > 0.001) {
+      setScale(next);
+    }
+  }, [pageInfos, maxPageWidth, maxPageHeight, zoomMode, scale]);
 
   useEffect(() => {
     recomputeScale();
   }, [recomputeScale]);
 
+  // Debounced resize: the container fires many ResizeObserver events while the
+  // window layout settles; coalesce them so we only recompute once per burst.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => recomputeScale());
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const ro = new ResizeObserver(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => recomputeScale(), 60);
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (timer) clearTimeout(timer);
+    };
   }, [recomputeScale]);
 
   // ---- virtualization: visible range + current page via IntersectionObserver ----
@@ -172,16 +184,13 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
   const zoomIn = useCallback(() => {
     setZoomMode("manual");
     setScale((s) => Math.min(s * 1.1, 8));
-    setRenderToken((t) => t + 1);
   }, []);
   const zoomOut = useCallback(() => {
     setZoomMode("manual");
     setScale((s) => Math.max(s / 1.1, 0.1));
-    setRenderToken((t) => t + 1);
   }, []);
   const setFit = useCallback((m: ZoomMode) => {
     setZoomMode(m);
-    setRenderToken((t) => t + 1);
   }, []);
 
   // ---- search ----
@@ -448,7 +457,6 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
                   h1={p.h1}
                   scale={scale}
                   active={active}
-                  renderToken={renderToken}
                   searchQuery={searchQuery}
                   annotations={annotationsByPage[p.pageNumber] ?? []}
                   annotTool={annotTool}
