@@ -1,20 +1,20 @@
-//! Reader desktop shell — Phase 1.
+//! Reader desktop shell.
 //!
 //! Wires up:
 //!   - single-instance plugin (OS double-click funnels into the running app)
 //!   - first-launch argv file parsing
+//!   - session restore (§26) — windows/tabs/files survive a restart
+//!   - multi-window tab system (§17, §18) — reorder, detach, attach
 //!   - the workspace state + open_document router (§16)
 //!   - high-level commands (§24)
-//!
-//! PDF / Markdown engines are intentionally absent here; Phase 1 verifies the
-//! shell with plain-text placeholders (§30 Phase 1).
 
 mod commands;
 pub mod pdf;
 mod workspace;
 
+use tauri::{Manager, WindowEvent};
 #[cfg(target_os = "macos")]
-use tauri::{Manager, RunEvent};
+use tauri::RunEvent;
 use workspace::new_shared;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,8 +24,6 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default();
 
-    // Single-instance: a second `reader.exe <file>` invocation forwards argv
-    // to the already-running process instead of starting a new one (§15, §16).
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(
@@ -37,11 +35,33 @@ pub fn run() {
 
     builder
         .manage(new_shared())
+        .on_window_event(|window, event| {
+            // When a window is closed by the user, drop its tab slots from the
+            // workspace (so the model stays consistent) and persist the session
+            // for crash/quit recovery (§26). The main window's slots are kept
+            // (it may outlive its tabs).
+            if let WindowEvent::Destroyed = event {
+                let app = window.app_handle();
+                let label = window.label().to_string();
+                let ws = app.state::<workspace::SharedWorkspace>().inner();
+                // remove_window is a no-op for main.
+                if let Ok(mut guard) = ws.lock() {
+                    guard.remove_window(&label);
+                }
+                commands::broadcast(app, ws);
+                let _ = commands::save_session_impl(app, ws);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_workspace,
             commands::open_document_command,
             commands::focus_tab,
             commands::close_tab,
+            commands::reorder_tabs,
+            commands::detach_tab,
+            commands::move_tab,
+            commands::remove_window,
+            commands::save_session,
             commands::read_file_bytes,
             commands::log_frontend,
             commands::read_file_text,
@@ -57,18 +77,23 @@ pub fn run() {
             commands::delete_page,
         ])
         .setup(|app| {
-            // Open files passed on the command line at first launch, before the
-            // window is shown, so the very first paint already has the tab.
+            // Restore the previous session BEFORE opening CLI files so that
+            // the freshly-double-clicked file wins focus (§26: current file
+            // takes priority over session restore).
+            commands::try_restore_session(app.handle());
             commands::open_initial_files(app.handle());
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
+            // Persist on exit so the next launch can restore (§26).
+            if matches!(event, tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }) {
+                let ws = app_handle.state::<workspace::SharedWorkspace>().inner();
+                let _ = commands::save_session_impl(app_handle, ws);
+            }
             // macOS: Finder "Open With" / double-click on an already-running
-            // app arrives as an OpenFiles event (§15). Other platforms route
-            // double-clicks through the single-instance plugin / first-launch
-            // argv parsing instead.
+            // app arrives as an OpenFiles event (§15).
             #[cfg(target_os = "macos")]
             {
                 if let RunEvent::Opened { urls } = event {

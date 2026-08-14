@@ -6,7 +6,49 @@ Lightweight PDF / Markdown desktop reader. Design spec: [`../轻量 PDF - Markdo
 Tauri 2 · Rust · React + TypeScript · Vite · Zustand
 ```
 
-## Phase 5 — PDF page mutation (current)
+## Phase 6 — Tabs / Windows polish (current)
+
+The workspace model is now truly multi-window (§18): `AppWorkspace` holds a
+`HashMap<WindowId, WindowState>` + global documents. Tabs reference a window;
+detaching/moving a tab never recreates the DocumentSession (Test 10).
+
+What works:
+
+- **Drag reorder**: HTML5 drag-and-drop within the tab strip; optimistic local
+  reorder + `reorder_tabs` command.
+- **Drag out → detach**: dragging a tab outside the strip bounds calls
+  `detach_tab`, which mints a new window id, moves the tab there, and creates a
+  native `WebviewWindow` with that label (§18, Test 9). The new window boots the
+  same frontend, fetches its own snapshot, shows the moved tab with scroll/zoom
+  preserved.
+- **Move between windows**: `move_tab` command transfers a tab to another window
+  at a position (§18). Dirty state survives.
+- **Keyboard**: Ctrl+W close, Ctrl+Tab / Ctrl+Shift+Tab cycle tabs (§17).
+- **Window lifecycle**: closing the last tab in a non-main window closes the
+  native window; `on_window_event(Destroyed)` drops the window's tab slots.
+- **Session restore (§26)**: workspace serialized to `AppData/session.json`
+  atomically on every window close + on app exit; restored on next launch
+  (detached windows re-created). CLI/double-click files open AFTER restore so
+  they win focus (§26: current file takes priority).
+- **Per-window snapshot**: `get_workspace(window_id)` returns only that window's
+  tabs + all documents; `workspace://changed` is a wake-up signal each window
+  re-fetches from.
+
+### Verification
+
+- 9 Rust workspace tests: dedupe, focus, close/repack, **detach keeps session
+  + dirty (Test 10)**, move-between-windows keeps dirty, reorder, serialize/
+  restore round-trip. All pass.
+- Smoke run: open a PDF in the running app, no panic/error.
+
+### Known limitations
+
+- Cross-window drag **merge** (drag a tab from window A's strip onto window B's
+  strip) is not wired through native OS drag yet — `move_tab` exists but the
+  drag gesture between separate webviews needs native OLE support.
+- Window geometry restore is persisted but not yet applied to re-created windows.
+
+## Phase 5 — PDF page mutation
 
 PDFium page-structure operations (§6) added to the `PdfMutationBackend`.
 

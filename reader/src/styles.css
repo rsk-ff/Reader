@@ -770,3 +770,18 @@ body,
   font-size: 11px;
   min-width: 32px;
 }
+
+/* ---- Tab drag (§17, §18) ---- */
+
+.tab[draggable="true"] {
+  -webkit-user-drag: element;
+  cursor: grab;
+}
+
+.tab-dragging {
+  opacity: 0.4;
+}
+
+.tab-drag-over {
+  border-left: 2px solid var(--accent);
+}

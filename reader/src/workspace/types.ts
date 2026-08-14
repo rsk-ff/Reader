@@ -26,6 +26,7 @@ export interface WindowTab {
   active: boolean;
 }
 
+/** Per-window snapshot returned by `get_workspace(window_id)`. */
 export interface WorkspaceSnapshot {
   window_id: string;
   tabs: WindowTab[];

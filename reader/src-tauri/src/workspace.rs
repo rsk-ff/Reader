@@ -1,14 +1,13 @@
 //! Workspace state model (spec §10, §16, §18).
 //!
 //! Three independent concepts:
-//!   - DocumentSession : a file + its parser/annotation/dirty state
-//!   - WindowTab       : a tab slot in a window referencing a DocumentSession
-//!   - WindowState     : a native window holding ordered tabs (Phase 1: single window)
+//!   - DocumentSession : a file + its parser/annotation/dirty state (global)
+//!   - WindowState     : a native window holding an ordered list of tab ids
+//!   - WindowTab       : a tab slot referencing a DocumentSession, living in a window
 //!
-//! Phase 1 keeps the model minimal: one window ("main"), tabs backed by a
-//! plain-text placeholder. The shape is already split so Phase 6 (tab detach /
-//! multi-window) only needs to fill in WindowState without touching the
-//! DocumentSession / Tab boundary.
+//! Phase 6 makes this truly multi-window: tabs can be reordered, detached into
+//! new windows, and moved between windows — all without recreating the
+//! underlying DocumentSession (so dirty state survives, Test 10).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -20,7 +19,8 @@ pub type WindowId = String;
 pub type DocumentId = String;
 pub type TabId = String;
 
-/// The main window label used in Phase 1. Phase 6 will manage multiple.
+/// The primary window label. Always exists; shows the empty state when it has
+/// no tabs. Detached tabs go into dynamically-created windows.
 pub const MAIN_WINDOW: &str = "main";
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -55,7 +55,6 @@ pub struct DocumentSession {
     pub dirty: bool,
     pub revision: u64,
     pub last_saved_revision: u64,
-    /// File size in bytes, read once at open time for the placeholder view.
     pub file_size: Option<u64>,
 }
 
@@ -64,26 +63,46 @@ pub struct WindowTab {
     pub id: TabId,
     pub window_id: WindowId,
     pub document_id: DocumentId,
-    /// Title shown in the tab strip. Defaults to file name.
     pub title: String,
-    /// Position within the window tab strip (0-based).
     pub position: usize,
     pub active: bool,
 }
 
+/// Per-window snapshot returned to that window's frontend.
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct WorkspaceSnapshot {
+pub struct WindowSnapshot {
     pub window_id: WindowId,
     pub tabs: Vec<WindowTab>,
+    /// All documents (global — a tab may reference any of them).
     pub documents: Vec<DocumentSession>,
     pub active_tab_id: Option<TabId>,
+}
+
+/// A native window's tab-strip state.
+#[derive(Clone, Debug)]
+pub struct WindowState {
+    pub id: WindowId,
+    /// Ordered tab ids — position is implicit from this Vec.
+    pub tab_ids: Vec<TabId>,
+    pub active_tab: Option<TabId>,
+    /// Saved geometry for session restore (§26).
+    pub bounds: Option<WindowBounds>,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+pub struct WindowBounds {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub maximized: bool,
 }
 
 #[derive(Default)]
 pub struct AppWorkspace {
     pub documents: HashMap<DocumentId, DocumentSession>,
-    pub tabs: Vec<WindowTab>,
-    pub active_tab: Option<TabId>,
+    pub tabs: HashMap<TabId, WindowTab>,
+    pub windows: HashMap<WindowId, WindowState>,
     next_id: u64,
 }
 
@@ -93,33 +112,44 @@ impl AppWorkspace {
         format!("{prefix}-{}", self.next_id)
     }
 
-    /// Canonicalize a path the way the router does, so two different string
-    /// spellings of the same file collapse to one DocumentSession (§16).
+    pub fn ensure_main(&mut self) {
+        self.windows
+            .entry(MAIN_WINDOW.to_string())
+            .or_insert_with(|| WindowState {
+                id: MAIN_WINDOW.to_string(),
+                tab_ids: vec![],
+                active_tab: None,
+                bounds: None,
+            });
+    }
+
     fn canonicalize(path: &str) -> Result<PathBuf, String> {
         let p = PathBuf::from(path);
         p.canonicalize()
             .map_err(|e| format!("cannot canonicalize '{path}': {e}"))
     }
 
-    /// The single open_document entry point (§16). Handles OS double-click,
-    /// drag-in, CLI, recent files — everything funnels through here.
-    ///
-    /// Returns the tab id that ended up active for this path.
-    pub fn open_document(&mut self, path: &str) -> Result<TabId, String> {
+    /// The single open_document entry point (§16). `target_window` selects
+    /// which window receives the new tab (or focuses the existing one).
+    pub fn open_document(
+        &mut self,
+        path: &str,
+        target_window: &WindowId,
+    ) -> Result<TabId, String> {
+        self.ensure_main();
         let canon = Self::canonicalize(path)?;
 
-        // Already open? Focus the existing tab (§16 dedupe).
+        // Already open anywhere? Focus that tab's window + tab (§16 dedupe).
         if let Some(tab) = self
             .tabs
-            .iter()
+            .values()
             .find(|t| self.documents.get(&t.document_id).map_or(false, |d| d.path == canon))
+            .cloned()
         {
-            let id = tab.id.clone();
-            self.focus_tab(&id);
-            return Ok(id);
+            self.focus_tab(&tab.id)?;
+            return Ok(tab.id);
         }
 
-        // New DocumentSession.
         let file_name = canon
             .file_name()
             .and_then(|n| n.to_str())
@@ -143,63 +173,160 @@ impl AppWorkspace {
         };
         self.documents.insert(doc_id.clone(), session);
 
-        // New tab at the end of the strip.
-        let position = self.tabs.len();
         let tab_id = self.fresh_id("tab");
         let tab = WindowTab {
             id: tab_id.clone(),
-            window_id: MAIN_WINDOW.to_string(),
+            window_id: target_window.clone(),
             document_id: doc_id,
             title: file_name,
-            position,
+            position: 0,
             active: true,
         };
-        self.tabs.push(tab);
-        self.focus_tab(&tab_id);
+        self.tabs.insert(tab_id.clone(), tab);
+        let win = self.windows.entry(target_window.clone()).or_insert_with(|| {
+            WindowState {
+                id: target_window.clone(),
+                tab_ids: vec![],
+                active_tab: None,
+                bounds: None,
+            }
+        });
+        win.tab_ids.push(tab_id.clone());
+        self.focus_tab(&tab_id)?;
         Ok(tab_id)
     }
 
-    /// Mark exactly one tab active; deactivate the rest.
-    pub fn focus_tab(&mut self, tab_id: &TabId) {
-        for t in self.tabs.iter_mut() {
-            t.active = t.id == *tab_id;
-        }
-        self.active_tab = Some(tab_id.clone());
+    /// Focus a tab. Finds its window, sets it active there.
+    pub fn focus_tab(&mut self, tab_id: &TabId) -> Result<(), String> {
+        let tab = self
+            .tabs
+            .get(tab_id)
+            .cloned()
+            .ok_or_else(|| format!("tab not found: {tab_id}"))?;
+        let win = self
+            .windows
+            .get_mut(&tab.window_id)
+            .ok_or_else(|| format!("window not found: {}", tab.window_id))?;
+        win.active_tab = Some(tab_id.clone());
+        Ok(())
     }
 
-    /// Close a tab. The DocumentSession is dropped only when no remaining tab
-    /// references it, so dragging a tab out (Phase 6) won't lose the session.
-    pub fn close_tab(&mut self, tab_id: &TabId) -> Result<(), String> {
-        let pos = self
+    /// Close a tab. Drops the session if no remaining tab references it.
+    /// Returns the window_id that owned the tab (so the caller can close an
+    /// empty non-main native window).
+    pub fn close_tab(&mut self, tab_id: &TabId) -> Result<WindowId, String> {
+        let tab = self
             .tabs
-            .iter()
-            .position(|t| t.id == *tab_id)
+            .remove(tab_id)
             .ok_or_else(|| format!("tab not found: {tab_id}"))?;
-        let removed = self.tabs.remove(pos);
-
-        // re-pack positions
-        for (i, t) in self.tabs.iter_mut().enumerate() {
-            t.position = i;
+        let win = self
+            .windows
+            .get_mut(&tab.window_id)
+            .ok_or_else(|| format!("window not found: {}", tab.window_id))?;
+        win.tab_ids.retain(|id| id != tab_id);
+        if win.active_tab.as_deref() == Some(tab_id) {
+            win.active_tab = win.tab_ids.first().cloned();
         }
+        // drop session if nothing references it
+        let still_referenced = self.tabs.values().any(|t| t.document_id == tab.document_id);
+        if !still_referenced {
+            self.documents.remove(&tab.document_id);
+        }
+        Ok(tab.window_id)
+    }
 
-        // pick a new active tab if we closed the active one
-        if self.active_tab.as_deref() == Some(tab_id) {
-            self.active_tab = self.tabs.get(pos).or_else(|| self.tabs.last()).map(|t| t.id.clone());
-            if let Some(id) = self.active_tab.clone() {
-                self.focus_tab(&id);
+    /// Reorder tabs within a window to the given order.
+    pub fn reorder_tabs(&mut self, window_id: &WindowId, tab_ids: &[TabId]) -> Result<(), String> {
+        let win = self
+            .windows
+            .get_mut(window_id)
+            .ok_or_else(|| format!("window not found: {window_id}"))?;
+        if win.tab_ids.len() != tab_ids.len() {
+            return Err("reorder length mismatch".into());
+        }
+        win.tab_ids = tab_ids.to_vec();
+        Ok(())
+    }
+
+    /// Move a tab to a target window at a position. The DocumentSession is
+    /// untouched — only the tab's window_id changes (Test 10).
+    pub fn move_tab(
+        &mut self,
+        tab_id: &TabId,
+        target_window: &WindowId,
+        position: usize,
+    ) -> Result<(), String> {
+        let tab = self
+            .tabs
+            .get(tab_id)
+            .cloned()
+            .ok_or_else(|| format!("tab not found: {tab_id}"))?;
+        let old_window = tab.window_id.clone();
+
+        // remove from old window
+        if let Some(win) = self.windows.get_mut(&old_window) {
+            win.tab_ids.retain(|id| id != tab_id);
+            if win.active_tab.as_deref() == Some(tab_id) {
+                win.active_tab = win.tab_ids.first().cloned();
             }
         }
 
-        // drop the session if nothing else references it
-        let still_referenced = self.tabs.iter().any(|t| t.document_id == removed.document_id);
-        if !still_referenced {
-            self.documents.remove(&removed.document_id);
+        // insert into target window
+        self.ensure_main();
+        let win = self
+            .windows
+            .entry(target_window.clone())
+            .or_insert_with(|| WindowState {
+                id: target_window.clone(),
+                tab_ids: vec![],
+                active_tab: None,
+                bounds: None,
+            });
+        let pos = position.min(win.tab_ids.len());
+        win.tab_ids.insert(pos, tab_id.clone());
+        win.active_tab = Some(tab_id.clone());
+
+        // update the tab's window_id
+        if let Some(t) = self.tabs.get_mut(tab_id) {
+            t.window_id = target_window.clone();
         }
         Ok(())
     }
 
-    /// Flip a document's dirty flag (§7). Called by the frontend adapter when
-    /// the user edits / saves. Emits are done by the caller via the snapshot.
+    /// Detach a tab: remove from its current window, stage it as a new window.
+    /// Returns the new window id; the caller creates the native window with
+    /// that label.
+    pub fn detach_tab(&mut self, tab_id: &TabId) -> Result<WindowId, String> {
+        let new_window = self.fresh_id("win");
+        // Move to the new window at position 0; session untouched.
+        self.move_tab(tab_id, &new_window, 0)?;
+        Ok(new_window)
+    }
+
+    /// Called when a native window is destroyed. Removes the window; its tabs
+    /// (if any leaked) are dropped. The main window is never removed.
+    pub fn remove_window(&mut self, window_id: &WindowId) {
+        if window_id == MAIN_WINDOW {
+            return;
+        }
+        if let Some(win) = self.windows.remove(window_id) {
+            for tab_id in &win.tab_ids {
+                if let Some(tab) = self.tabs.remove(tab_id) {
+                    let still_referenced =
+                        self.tabs.values().any(|t| t.document_id == tab.document_id);
+                    if !still_referenced {
+                        self.documents.remove(&tab.document_id);
+                    }
+                }
+            }
+        }
+    }
+
+    /// List all window ids (for broadcasting changes).
+    pub fn window_ids(&self) -> Vec<WindowId> {
+        self.windows.keys().cloned().collect()
+    }
+
     pub fn set_dirty(&mut self, document_id: &DocumentId, dirty: bool) {
         if let Some(d) = self.documents.get_mut(document_id) {
             d.dirty = dirty;
@@ -211,146 +338,293 @@ impl AppWorkspace {
         }
     }
 
-    pub fn snapshot(&self) -> WorkspaceSnapshot {
-        WorkspaceSnapshot {
-            window_id: MAIN_WINDOW.to_string(),
-            tabs: self.tabs.clone(),
+    /// Snapshot for a specific window — only that window's tabs, but all
+    /// documents (so the tab strip can show titles even if a doc lives in
+    /// another window too).
+    pub fn snapshot_for(&self, window_id: &WindowId) -> WindowSnapshot {
+        let win = self.windows.get(window_id);
+        let tabs: Vec<WindowTab> = win
+            .map(|w| {
+                w.tab_ids
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, id)| {
+                        let t = self.tabs.get(id)?;
+                        Some(WindowTab {
+                            id: t.id.clone(),
+                            window_id: t.window_id.clone(),
+                            document_id: t.document_id.clone(),
+                            title: t.title.clone(),
+                            position: i,
+                            active: w.active_tab.as_deref() == Some(&t.id),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        WindowSnapshot {
+            window_id: window_id.clone(),
+            tabs,
             documents: self.documents.values().cloned().collect(),
-            active_tab_id: self.active_tab.clone(),
+            active_tab_id: win.and_then(|w| w.active_tab.clone()),
         }
+    }
+
+    // ---- session persistence (§26) ----
+
+    pub fn serialize(&self) -> String {
+        let windows: Vec<_> = self
+            .windows
+            .values()
+            .map(|w| PersistedWindow {
+                id: w.id.clone(),
+                tab_ids: w.tab_ids.clone(),
+                active_tab: w.active_tab.clone(),
+                bounds: w.bounds,
+            })
+            .collect();
+        let tabs: Vec<_> = self.tabs.values().cloned().collect();
+        let docs: Vec<_> = self.documents.values().cloned().collect();
+        serde_json::to_string(&PersistedSession {
+            windows,
+            documents: docs,
+            tabs,
+        })
+        .unwrap_or_default()
+    }
+
+    pub fn restore(serialized: &str) -> Option<AppWorkspace> {
+        let s: PersistedSession = serde_json::from_str(serialized).ok()?;
+        let mut ws = AppWorkspace::default();
+        for w in s.windows {
+            ws.windows.insert(
+                w.id.clone(),
+                WindowState {
+                    id: w.id,
+                    tab_ids: w.tab_ids,
+                    active_tab: w.active_tab,
+                    bounds: w.bounds,
+                },
+            );
+        }
+        for t in s.tabs {
+            let id = t.id.clone();
+            ws.tabs.insert(id, t);
+        }
+        for d in s.documents {
+            ws.documents.insert(d.id.clone(), d);
+        }
+        ws.ensure_main();
+        Some(ws)
     }
 }
 
-/// Convenience: the workspace lives behind a Mutex in Tauri State.
 pub type SharedWorkspace = Mutex<AppWorkspace>;
 
 pub fn new_shared() -> SharedWorkspace {
     Mutex::new(AppWorkspace::default())
 }
 
+// ---- session persistence types (§26) ----
+
+#[derive(Serialize, Deserialize)]
+struct PersistedSession {
+    windows: Vec<PersistedWindow>,
+    documents: Vec<DocumentSession>,
+    tabs: Vec<WindowTab>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PersistedWindow {
+    id: WindowId,
+    tab_ids: Vec<TabId>,
+    active_tab: Option<TabId>,
+    bounds: Option<WindowBounds>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
 
     fn tmp_file(name: &str, body: &str) -> PathBuf {
         let mut p = std::env::temp_dir();
-        p.push(format!("reader-test-{}-{}", std::process::id(), name));
-        fs::write(&p, body).unwrap();
+        p.push(format!(
+            "reader-test-{}-{name}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::write(&p, body).unwrap();
         p
     }
 
     #[test]
     fn open_document_creates_one_tab_per_unique_file() {
         let mut ws = AppWorkspace::default();
+        ws.ensure_main();
         let a = tmp_file("a.pdf", "%PDF-1.4");
         let b = tmp_file("b.md", "# hi");
         let c = tmp_file("c.markdown", "# md");
         let d = tmp_file("d.txt", "plain");
 
-        let t1 = ws.open_document(a.to_str().unwrap()).unwrap();
-        let t2 = ws.open_document(b.to_str().unwrap()).unwrap();
-        let t3 = ws.open_document(c.to_str().unwrap()).unwrap();
-        let t4 = ws.open_document(d.to_str().unwrap()).unwrap();
+        let t1 = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let t2 = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let t3 = ws.open_document(c.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let t4 = ws.open_document(d.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
         assert_ne!(t1, t2);
         assert_ne!(t2, t3);
         assert_ne!(t3, t4);
-        assert_eq!(ws.tabs.len(), 4);
 
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snap.tabs.len(), 4);
+        assert_eq!(snap.documents.len(), 4);
         // doc_type detection
-        let docs: Vec<_> = ws.snapshot().documents;
-        assert_eq!(docs.iter().find(|d| d.file_name.ends_with("a.pdf")).unwrap().doc_type, DocumentType::Pdf);
-        assert_eq!(docs.iter().find(|d| d.file_name.ends_with("b.md")).unwrap().doc_type, DocumentType::Markdown);
-        assert_eq!(docs.iter().find(|d| d.file_name.ends_with("c.markdown")).unwrap().doc_type, DocumentType::Markdown);
-        assert_eq!(docs.iter().find(|d| d.file_name.ends_with("d.txt")).unwrap().doc_type, DocumentType::Unknown);
+        assert_eq!(snap.documents.iter().find(|d| d.file_name.ends_with("a.pdf")).unwrap().doc_type, DocumentType::Pdf);
+        assert_eq!(snap.documents.iter().find(|d| d.file_name.ends_with("b.md")).unwrap().doc_type, DocumentType::Markdown);
     }
 
     #[test]
-    fn open_document_dedupes_same_file_different_spelling() {
-        // §16: two spellings of the same file collapse to one session+tab.
+    fn open_document_dedupes_same_file() {
         let mut ws = AppWorkspace::default();
+        ws.ensure_main();
         let path = tmp_file("dedup.pdf", "%PDF");
-        let abs = path.to_str().unwrap();
-        // build a relative spelling via cwd if possible; otherwise use the
-        // canonical form twice — still exercises the path-equality branch.
-        let t1 = ws.open_document(abs).unwrap();
-        let t2 = ws.open_document(abs).unwrap();
+        let t1 = ws.open_document(path.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let t2 = ws.open_document(path.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
         assert_eq!(t1, t2, "same path must return the existing tab id");
-        assert_eq!(ws.tabs.len(), 1);
-        assert_eq!(ws.documents.len(), 1);
-        assert_eq!(ws.active_tab, Some(t1));
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snap.tabs.len(), 1);
+        assert_eq!(snap.documents.len(), 1);
     }
 
     #[test]
     fn new_open_becomes_active_and_dedup_focuses() {
         let mut ws = AppWorkspace::default();
+        ws.ensure_main();
         let a = tmp_file("x.pdf", "%PDF");
         let b = tmp_file("y.md", "# y");
-        let ta = ws.open_document(a.to_str().unwrap()).unwrap();
-        let tb = ws.open_document(b.to_str().unwrap()).unwrap();
-        assert_eq!(ws.active_tab, Some(tb));
+        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let tb = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snap.active_tab_id, Some(tb));
         // re-open a → a becomes active again, no new tab
-        let ta2 = ws.open_document(a.to_str().unwrap()).unwrap();
+        let ta2 = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
         assert_eq!(ta2, ta);
-        assert_eq!(ws.tabs.len(), 2);
-        assert_eq!(ws.active_tab, Some(ta));
+        let snap2 = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snap2.tabs.len(), 2);
+        assert_eq!(snap2.active_tab_id, Some(ta));
     }
 
     #[test]
-    fn close_tab_repacks_positions_and_picks_neighbour_active() {
+    fn close_tab_repacks_and_picks_neighbour_active() {
         let mut ws = AppWorkspace::default();
+        ws.ensure_main();
         let a = tmp_file("a.pdf", "%PDF");
         let b = tmp_file("b.md", "# b");
         let c = tmp_file("c.pdf", "%PDF");
-        let ta = ws.open_document(a.to_str().unwrap()).unwrap();
-        let tb = ws.open_document(b.to_str().unwrap()).unwrap();
-        let tc = ws.open_document(c.to_str().unwrap()).unwrap();
-        // positions 0,1,2
-        assert_eq!(ws.tabs.iter().map(|t| t.position).collect::<Vec<_>>(), vec![0, 1, 2]);
-        // close middle
+        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let tb = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let tc = ws.open_document(c.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
         ws.close_tab(&tb).unwrap();
-        assert_eq!(ws.tabs.len(), 2);
-        // repacked
-        assert_eq!(ws.tabs.iter().map(|t| t.position).collect::<Vec<_>>(), vec![0, 1]);
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snap.tabs.len(), 2);
+        // repacked positions 0,1
+        assert_eq!(snap.tabs.iter().map(|t| t.position).collect::<Vec<_>>(), vec![0, 1]);
         // remaining tabs are a and c
-        let remaining: Vec<_> = ws.tabs.iter().map(|t| t.id.clone()).collect();
-        assert!(remaining.contains(&ta) && remaining.contains(&tc));
+        let ids: Vec<_> = snap.tabs.iter().map(|t| t.id.clone()).collect();
+        assert!(ids.contains(&ta) && ids.contains(&tc));
     }
 
     #[test]
-    fn close_last_tab_leaves_empty_workspace() {
+    fn close_last_tab_leaves_empty_window() {
         let mut ws = AppWorkspace::default();
+        ws.ensure_main();
         let a = tmp_file("only.pdf", "%PDF");
-        let ta = ws.open_document(a.to_str().unwrap()).unwrap();
+        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
         ws.close_tab(&ta).unwrap();
-        assert!(ws.tabs.is_empty());
-        assert!(ws.documents.is_empty());
-        assert!(ws.active_tab.is_none());
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert!(snap.tabs.is_empty());
+        assert!(snap.documents.is_empty());
+        assert!(snap.active_tab_id.is_none());
     }
 
     #[test]
-    fn close_tab_keeps_session_if_another_tab_references_it() {
-        // Phase 6 will reference one DocumentSession from two tabs (detach).
-        // Even now the model must not drop a session that's still referenced.
+    fn detach_tab_moves_session_not_recreates() {
+        // Test 10: dragging a tab out must not recreate the DocumentSession.
         let mut ws = AppWorkspace::default();
-        let a = tmp_file("shared.pdf", "%PDF");
-        let t1 = ws.open_document(a.to_str().unwrap()).unwrap();
-        // simulate a second tab on the same document id manually
-        let doc_id = ws.tabs[0].document_id.clone();
-        let t2 = format!("tab-extra");
-        ws.tabs.push(WindowTab {
-            id: t2.clone(),
-            window_id: MAIN_WINDOW.to_string(),
-            document_id: doc_id.clone(),
-            title: "shared (2)".into(),
-            position: 1,
-            active: false,
-        });
-        ws.focus_tab(&t2);
-        // close one of the two tabs
-        ws.close_tab(&t2).unwrap();
-        assert_eq!(ws.tabs.len(), 1);
-        assert_eq!(ws.tabs[0].id, t1);
-        assert!(ws.documents.contains_key(&doc_id), "session must survive while a tab still refs it");
+        ws.ensure_main();
+        let a = tmp_file("detach.pdf", "%PDF");
+        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone();
+
+        // mark dirty to prove dirty state survives the detach
+        ws.set_dirty(&doc_id, true);
+
+        let new_win = ws.detach_tab(&ta).unwrap();
+        assert_ne!(new_win, MAIN_WINDOW);
+
+        // session still exists, still dirty
+        let doc = ws.documents.get(&doc_id).expect("session must survive detach");
+        assert!(doc.dirty, "dirty state must survive detach");
+
+        // tab now lives in the new window
+        let snap_main = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert!(snap_main.tabs.is_empty(), "main should be empty after detach");
+        let snap_new = ws.snapshot_for(&new_win);
+        assert_eq!(snap_new.tabs.len(), 1);
+        assert_eq!(snap_new.tabs[0].id, ta);
+    }
+
+    #[test]
+    fn move_tab_between_windows_keeps_dirty() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let a = tmp_file("move.pdf", "%PDF");
+        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone();
+        ws.set_dirty(&doc_id, true);
+
+        let other = "win-other".to_string();
+        ws.move_tab(&ta, &other, 0).unwrap();
+
+        // dirty preserved
+        assert!(ws.documents.get(&doc_id).unwrap().dirty);
+        // main empty, other has the tab
+        assert!(ws.snapshot_for(&MAIN_WINDOW.into()).tabs.is_empty());
+        assert_eq!(ws.snapshot_for(&other).tabs.len(), 1);
+    }
+
+    #[test]
+    fn reorder_tabs_changes_order() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let a = tmp_file("a.pdf", "%PDF");
+        let b = tmp_file("b.md", "# b");
+        let c = tmp_file("c.pdf", "%PDF");
+        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let tb = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let tc = ws.open_document(c.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+
+        // reverse order
+        ws.reorder_tabs(&MAIN_WINDOW.into(), &[tc.clone(), tb.clone(), ta.clone()]).unwrap();
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snap.tabs[0].id, tc);
+        assert_eq!(snap.tabs[1].id, tb);
+        assert_eq!(snap.tabs[2].id, ta);
+        assert_eq!(snap.tabs.iter().map(|t| t.position).collect::<Vec<_>>(), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn serialize_restore_round_trip() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let a = tmp_file("persist.pdf", "%PDF");
+        ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+
+        let serialized = ws.serialize();
+        let restored = AppWorkspace::restore(&serialized).expect("restore");
+        let snap = restored.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snap.tabs.len(), 1);
+        assert_eq!(snap.documents.len(), 1);
     }
 }
