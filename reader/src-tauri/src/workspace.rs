@@ -198,6 +198,19 @@ impl AppWorkspace {
         Ok(())
     }
 
+    /// Flip a document's dirty flag (§7). Called by the frontend adapter when
+    /// the user edits / saves. Emits are done by the caller via the snapshot.
+    pub fn set_dirty(&mut self, document_id: &DocumentId, dirty: bool) {
+        if let Some(d) = self.documents.get_mut(document_id) {
+            d.dirty = dirty;
+            if !dirty {
+                d.last_saved_revision = d.revision;
+            } else {
+                d.revision += 1;
+            }
+        }
+    }
+
     pub fn snapshot(&self) -> WorkspaceSnapshot {
         WorkspaceSnapshot {
             window_id: MAIN_WINDOW.to_string(),

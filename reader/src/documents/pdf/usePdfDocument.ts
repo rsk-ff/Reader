@@ -50,10 +50,6 @@ export function usePdfDocument(path: string | null): UsePdfDocumentResult {
           return;
         }
         setDoc(loaded);
-        void invoke("log_frontend", {
-          level: "info",
-          message: `pdf loaded: ${loaded.numPages} pages from ${path}`,
-        }).catch(() => {});
       } catch (e) {
         if (!cancelled) setError(String(e instanceof Error ? e.message : e));
       } finally {

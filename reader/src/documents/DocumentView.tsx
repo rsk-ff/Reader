@@ -3,10 +3,12 @@ import { useWorkspace } from "../workspace/store";
 import { PlaceholderView } from "../components/PlaceholderView";
 import type { WindowTab } from "../workspace/types";
 
-// §2.1: PDF engine loads only when a PDF is actually opened. Markdown-only
-// sessions never pull in pdfjs.
+// §2.1: each engine loads only when its document type is opened.
 const PdfViewer = lazy(() =>
   import("./pdf/PdfViewer").then((m) => ({ default: m.PdfViewer })),
+);
+const MarkdownEditor = lazy(() =>
+  import("./markdown/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
 );
 
 /**
@@ -25,6 +27,11 @@ export function DocumentView({ tab, active }: { tab: WindowTab; active: boolean 
         </Suspense>
       );
     case "markdown":
+      return (
+        <Suspense fallback={<div className="md-status">loading Markdown engine…</div>}>
+          <MarkdownEditor path={doc.path} docId={doc.id} active={active} />
+        </Suspense>
+      );
     case "unknown":
     default:
       return <PlaceholderView tab={tab} />;

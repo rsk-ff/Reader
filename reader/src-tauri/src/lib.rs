@@ -43,6 +43,10 @@ pub fn run() {
             commands::close_tab,
             commands::read_file_bytes,
             commands::log_frontend,
+            commands::read_file_text,
+            commands::save_file_text,
+            commands::canonicalize_path,
+            commands::set_dirty,
         ])
         .setup(|app| {
             // Open files passed on the command line at first launch, before the

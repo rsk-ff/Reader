@@ -6,7 +6,32 @@ Lightweight PDF / Markdown desktop reader. Design spec: [`../轻量 PDF - Markdo
 Tauri 2 · Rust · React + TypeScript · Vite · Zustand
 ```
 
-## Phase 2 — PDF reading (current)
+## Phase 3 — Markdown (current)
+
+Milkdown (Crepe) WYSIWYG editor wired in behind a lazy-loaded adapter (§2.1:
+opening a PDF never pulls in the Milkdown/ProseMirror chunk).
+
+What works:
+
+- **WYSIWYG**: Typora-like editing via Crepe — GFM, task lists, tables, fenced
+  code (CodeMirror), links, images, blockquotes, frontmatter, latex.
+- **Source mode**: plain textarea showing the raw markdown (Ctrl+/ to toggle,
+  or the Rendered|Source buttons). Switching back re-mounts Crepe with the
+  edited text. Unknown syntax survives because source mode is raw text (§13).
+- **Save**: Ctrl+S writes through `save_file_text` (atomic: tmp → fsync →
+  rename, §7). Dirty flag syncs to the workspace so the tab shows ●.
+- **Byte-for-byte integrity**: a file opened but not edited is never written,
+  so SHA256 is unchanged on close (§14, Test 7 — verified).
+- **Tab preservation**: switching tabs hides, never unmounts (§10).
+
+### Verification (dev, no screen)
+
+- `gfm.md` (122 chars): Milkdown init OK, no errors.
+- `unknown-syntax.md` (admonition `!!! note` block): loads without error —
+  unknown syntax doesn't crash the parser (§13).
+- **Test 7**: open `gfm.md`, don't edit, close → `sha256sum` before == after. ✅
+
+## Phase 2 — PDF reading
 
 PDF.js (`pdfjs-dist` v6) wired in behind a lazy-loaded adapter (§2.1: a
 Markdown-only session never pulls in the pdfjs chunk / worker).
@@ -107,9 +132,11 @@ reader/
 │   ├── app/App.tsx            # shell: tab strip + tab stack (hide, not unmount)
 │   ├── components/            # TabStrip, PlaceholderView, EmptyState
 │   ├── documents/
-│   │   ├── DocumentView.tsx   # routes by doc_type; lazy-loads PdfViewer
-│   │   └── pdf/               # PdfViewer, PdfPage, PdfToolbar, PdfSidebar,
-│   │                         #   usePdfDocument, search, outline, pdfjs
+│   │   ├── DocumentView.tsx   # routes by doc_type; lazy-loads each engine
+│   │   ├── pdf/               # PdfViewer, PdfPage, PdfToolbar, PdfSidebar,
+│   │   │                     #   usePdfDocument, search, outline, pdfjs
+│   │   └── markdown/          # MarkdownEditor, MilkdownCrepe, MarkdownToolbar,
+│   │                         #   useMarkdownText (load + atomic save)
 │   ├── workspace/             # store (zustand), types, useFileDrop
 │   ├── styles.css
 │   └── main.tsx               # + frontend error bridge
@@ -117,11 +144,12 @@ reader/
 │   ├── src/
 │   │   ├── lib.rs             # builder: single-instance, setup, run event, logger
 │   │   ├── commands.rs        # open_document router + commands (§24)
-│   │   │                     #   read_file_bytes (raw bytes), log_frontend
+│   │   │                     #   read_file_bytes/text, save_file_text (atomic),
+│   │   │                     #   set_dirty, log_frontend, canonicalize_path
 │   │   └── workspace.rs       # AppWorkspace / DocumentSession / WindowTab (§10,§18)
 │   ├── capabilities/default.json
 │   └── tauri.conf.json        # window + file associations (§15)
-└── tests/fixtures/            # blank-10, blank-1000, text-3 PDFs
+└── tests/fixtures/            # PDFs + gfm/unknown-syntax/frontmatter .md
 ```
 
 ## Tests

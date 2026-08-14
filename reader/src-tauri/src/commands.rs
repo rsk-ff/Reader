@@ -118,3 +118,50 @@ pub fn log_frontend(level: String, message: String) {
         _ => log::info!("[frontend] {message}"),
     }
 }
+
+/// Read a text file as a UTF-8 string. Used by the Markdown adapter.
+#[tauri::command]
+pub fn read_file_text(path: String) -> Result<String, String> {
+    let bytes = std::fs::read(&path).map_err(|e| format!("read '{path}': {e}"))?;
+    String::from_utf8(bytes).map_err(|e| format!("file '{path}' is not valid UTF-8: {e}"))
+}
+
+/// Atomically write `content` to `path` (§7 transactional save):
+///   foo.md → foo.md.tmp → fsync → rename → foo.md
+/// The original file is never touched until the temp file is fully written.
+#[tauri::command]
+pub fn save_file_text(path: String, content: String) -> Result<(), String> {
+    let tmp = format!("{path}.tmp");
+    let bytes = content.as_bytes();
+    std::fs::write(&tmp, bytes).map_err(|e| format!("write tmp '{tmp}': {e}"))?;
+    // fsync the temp file before renaming so a crash between rename and flush
+    // can't leave a truncated file under the real name.
+    let f = std::fs::File::open(&tmp).map_err(|e| format!("reopen tmp '{tmp}': {e}"))?;
+    f.sync_all().map_err(|e| format!("fsync tmp '{tmp}': {e}"))?;
+    drop(f);
+    std::fs::rename(&tmp, &path).map_err(|e| format!("rename '{tmp}' -> '{path}': {e}"))?;
+    Ok(())
+}
+
+/// Canonicalize a path (exposed so the frontend can dedupe / compare paths
+/// the way the workspace router does).
+#[tauri::command]
+pub fn canonicalize_path(path: String) -> Result<String, String> {
+    std::fs::canonicalize(&path)
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| format!("canonicalize '{path}': {e}"))
+}
+
+/// Flip a document's dirty flag (§7). The frontend adapter calls this when the
+/// user edits / saves so the tab strip can show the ● indicator.
+#[tauri::command]
+pub fn set_dirty(document_id: String, dirty: bool, app: AppHandle, ws: State<'_, SharedWorkspace>) -> Result<(), String> {
+    {
+        let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        guard.set_dirty(&document_id, dirty);
+    }
+    let guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let snapshot = guard.snapshot();
+    let _ = app.emit("workspace://changed", &snapshot);
+    Ok(())
+}
