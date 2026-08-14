@@ -222,3 +222,51 @@ pub fn save_document(path: String, app: AppHandle, ws: State<'_, SharedWorkspace
     }
     Ok(len)
 }
+
+// ---- PDF page mutation commands (§6) ----
+
+use crate::pdf::PageSize;
+
+#[tauri::command]
+pub fn insert_blank_page(
+    path: String,
+    index: usize,
+    size: PageSize,
+    reference_page_index: Option<usize>,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<usize, String> {
+    let backend = PdfiumBackend::new();
+    let landed = backend.insert_blank_page(&path, index, size, reference_page_index)?;
+    mark_dirty_by_path(&app, &ws, &path);
+    Ok(landed)
+}
+
+#[tauri::command]
+pub fn delete_page(
+    path: String,
+    index: usize,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    let backend = PdfiumBackend::new();
+    backend.delete_page(&path, index)?;
+    mark_dirty_by_path(&app, &ws, &path);
+    Ok(())
+}
+
+/// Shared helper: flip the document matching `path` to dirty and emit snapshot.
+fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &str) {
+    if let Ok(mut guard) = ws.lock() {
+        let doc_id = guard
+            .documents
+            .values()
+            .find(|d| d.path.to_str() == Some(path))
+            .map(|d| d.id.clone());
+        if let Some(id) = doc_id {
+            guard.set_dirty(&id, true);
+        }
+        let snapshot = guard.snapshot();
+        let _ = app.emit("workspace://changed", &snapshot);
+    }
+}

@@ -8,7 +8,7 @@
 pub mod annotation;
 pub mod pdfium;
 
-pub use annotation::{AnnotationType, PdfAnnotation, Point, Quad, Rect};
+pub use annotation::{AnnotationType, PageSize, PdfAnnotation, Point, Quad, Rect};
 pub use pdfium::PdfiumBackend;
 
 /// The mutation contract every backend must satisfy (§4). All coordinates are
@@ -25,6 +25,19 @@ pub trait PdfMutationBackend: Send + Sync {
 
     /// Delete an annotation by id.
     fn delete_annotation(&self, path: &str, page_index: usize, id: &str) -> Result<(), String>;
+
+    /// Insert a blank page at the given index (§6). `size_kind` selects the
+    /// page dimensions; "same" copies the size of `reference_page_index`.
+    fn insert_blank_page(
+        &self,
+        path: &str,
+        index: usize,
+        size: PageSize,
+        reference_page_index: Option<usize>,
+    ) -> Result<usize, String>;
+
+    /// Delete the page at the given index (§6 — including inserted blank pages).
+    fn delete_page(&self, path: &str, index: usize) -> Result<(), String>;
 
     /// Persist all changes back to the file atomically (§7). Returns the new
     /// byte length so the caller can refresh the DocumentSession file_size.

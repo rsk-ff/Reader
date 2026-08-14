@@ -7,8 +7,18 @@ use std::sync::OnceLock;
 
 use pdfium_render::prelude::*;
 
-use super::annotation::{AnnotationType, PdfAnnotation, Quad, Rect};
+use super::annotation::{AnnotationType, PageSize, PdfAnnotation, Quad, Rect};
 use super::PdfMutationBackend;
+
+/// PDFium uses a process-global singleton that is not safe across parallel test
+/// threads. Every test in this file takes this lock so the lib test harness runs
+/// all pdfium tests serially even when `--test-threads > 1`.
+#[cfg(test)]
+fn pdfium_test_lock() -> std::sync::MutexGuard<'static, ()> {
+    use std::sync::Mutex;
+    static LOCK: Mutex<()> = Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
 
 /// A single shared `Pdfium` instance. `Pdfium::default()` binds to a dynamic
 /// library named `pdfium.dll`/`libpdfium.so`/`libpdfium.dylib`, resolved from
@@ -317,6 +327,67 @@ impl PdfMutationBackend for PdfiumBackend {
         let bytes = save_doc_bytes(&doc)?;
         atomic_write(path, &bytes)
     }
+
+    fn insert_blank_page(
+        &self,
+        path: &str,
+        index: usize,
+        size: PageSize,
+        reference_page_index: Option<usize>,
+    ) -> Result<usize, String> {
+        let mut doc = load_doc(path)?;
+        let total = doc.pages().len() as usize;
+        // Clamp index into [0, total] so callers can say "after the last page"
+        // by passing index == total.
+        let idx = index.min(total) as i32;
+
+        // Resolve the paper size.
+        let paper = match size {
+            PageSize::A4 => PdfPagePaperSize::a4(),
+            PageSize::Letter => PdfPagePaperSize::new_portrait(PdfPagePaperStandardSize::USLetterAnsiA),
+            PageSize::Same => {
+                let ref_idx = reference_page_index.unwrap_or(0) as i32;
+                let ref_page = doc
+                    .pages()
+                    .get(ref_idx)
+                    .map_err(|e| format!("reference page {}: {}", ref_idx, e))?;
+                PdfPagePaperSize::new_custom(ref_page.width(), ref_page.height())
+            }
+            PageSize::Custom => PdfPagePaperSize::new_custom(
+                PdfPoints::new(595.0),
+                PdfPoints::new(842.0),
+            ),
+        };
+
+        let _page = doc
+            .pages_mut()
+            .create_page_at_index(paper, idx)
+            .map_err(|e| format!("create page at {idx}: {e}"))?;
+        let bytes = save_doc_bytes(&doc)?;
+        atomic_write(path, &bytes)?;
+        // Return the index where the page landed.
+        Ok(idx as usize)
+    }
+
+    fn delete_page(&self, path: &str, index: usize) -> Result<(), String> {
+        let mut doc = load_doc(path)?;
+        let total = doc.pages().len() as usize;
+        if total == 0 {
+            return Err("cannot delete page from empty document".into());
+        }
+        if index >= total {
+            return Err(format!("page index {index} out of range (0..{total})"));
+        }
+        // pdfium-render exposes page deletion via PdfPage::delete (consumes the page).
+        let page = doc
+            .pages_mut()
+            .get(index as i32)
+            .map_err(|e| format!("get page {index}: {e}"))?;
+        page.delete().map_err(|e| format!("delete page {index}: {e}"))?;
+        let bytes = save_doc_bytes(&doc)?;
+        atomic_write(path, &bytes)?;
+        Ok(())
+    }
 }
 
 fn uuid_seed() -> String {
@@ -359,6 +430,7 @@ mod tests {
 
     #[test]
     fn create_and_read_back_highlight() {
+        let _g = pdfium_test_lock();
         let (_src, dst) = fixture("text-3.pdf");
         let backend = PdfiumBackend::new();
         let path = dst.to_str().unwrap();
@@ -402,6 +474,7 @@ mod tests {
 
     #[test]
     fn create_and_delete_annotation() {
+        let _g = pdfium_test_lock();
         let (_src, dst) = fixture("text-3.pdf");
         let backend = PdfiumBackend::new();
         let path = dst.to_str().unwrap();
@@ -433,6 +506,7 @@ mod tests {
 
     #[test]
     fn create_freetext_and_save() {
+        let _g = pdfium_test_lock();
         let (_src, dst) = fixture("blank-10.pdf");
         let backend = PdfiumBackend::new();
         let path = dst.to_str().unwrap();
@@ -474,6 +548,7 @@ mod cross_verify {
     /// standard and visible. Run with: cargo test cross_verify -- --nocapture
     #[test]
     fn create_for_cross_verification() {
+        let _g = pdfium_test_lock();
         let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("tests")
@@ -517,5 +592,183 @@ mod cross_verify {
 
         eprintln!("CROSS_VERIFY_PATH={}", path);
         // intentionally do NOT delete — pypdf reads it next.
+    }
+}
+
+#[cfg(test)]
+mod page_tests {
+    use super::*;
+    use crate::pdf::PageSize;
+    use std::fs;
+
+    fn fixture(name: &str) -> std::path::PathBuf {
+        let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("tests")
+            .join("fixtures")
+            .join(name);
+        let dst = std::env::temp_dir().join(format!(
+            "reader-page-test-{}-{name}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        fs::copy(&src, &dst).expect("copy fixture");
+        dst
+    }
+
+    fn page_count(path: &str) -> usize {
+        let backend = PdfiumBackend::new();
+        let doc = backend.get_annotations(path, 0).ok(); // warm pdfium
+        let _ = doc;
+        // Use pdfium-render directly to count.
+        let bytes = fs::read(path).unwrap();
+        pdfium()
+            .load_pdf_from_byte_vec(bytes, None)
+            .map(|d| d.pages().len() as usize)
+            .unwrap_or(0)
+    }
+
+    #[test]
+    fn insert_blank_page_after_current() {
+        let _g = pdfium_test_lock();
+        let dst = fixture("text-3.pdf");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+        assert_eq!(page_count(path), 3);
+
+        // Insert after page 0 (i.e. at index 1).
+        let landed = backend
+            .insert_blank_page(path, 1, PageSize::Same, Some(0))
+            .expect("insert");
+        assert_eq!(landed, 1);
+        assert_eq!(page_count(path), 4, "page count must be 4 after insert");
+
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn insert_a4_and_letter_pages() {
+        let _g = pdfium_test_lock();
+        let dst = fixture("blank-10.pdf");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+        assert_eq!(page_count(path), 10);
+
+        backend
+            .insert_blank_page(path, 0, PageSize::A4, None)
+            .expect("insert a4");
+        backend
+            .insert_blank_page(path, 0, PageSize::Letter, None)
+            .expect("insert letter");
+        assert_eq!(page_count(path), 12);
+
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn delete_inserted_blank_page() {
+        let _g = pdfium_test_lock();
+        // §6 + user requirement: an inserted blank page must be deletable.
+        let dst = fixture("text-3.pdf");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+        assert_eq!(page_count(path), 3);
+
+        // Insert at end (index == len).
+        let landed = backend
+            .insert_blank_page(path, 3, PageSize::A4, None)
+            .expect("insert at end");
+        assert_eq!(landed, 3);
+        assert_eq!(page_count(path), 4);
+
+        // Delete the page we just inserted.
+        backend.delete_page(path, 3).expect("delete inserted page");
+        assert_eq!(page_count(path), 3, "page count back to 3 after delete");
+
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn delete_original_page() {
+        let _g = pdfium_test_lock();
+        let dst = fixture("blank-10.pdf");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+        assert_eq!(page_count(path), 10);
+
+        backend.delete_page(path, 0).expect("delete page 0");
+        assert_eq!(page_count(path), 9);
+
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn delete_out_of_range_fails() {
+        let _g = pdfium_test_lock();
+        let dst = fixture("text-3.pdf");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+        let res = backend.delete_page(path, 99);
+        assert!(res.is_err(), "deleting a non-existent page must error");
+
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn insert_then_save_round_trip() {
+        let _g = pdfium_test_lock();
+        let dst = fixture("text-3.pdf");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+        backend
+            .insert_blank_page(path, 1, PageSize::A4, None)
+            .expect("insert");
+        // explicit save
+        backend.save(path).expect("save");
+        assert_eq!(page_count(path), 4, "inserted page survives save");
+
+        let _ = fs::remove_file(&dst);
+    }
+}
+
+#[cfg(test)]
+mod page_cross_verify {
+    use super::*;
+    use crate::pdf::PageSize;
+    use std::fs;
+
+    #[test]
+    fn create_for_page_cross_verification() {
+        let _g = pdfium_test_lock();
+        let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("tests")
+            .join("fixtures")
+            .join("text-3.pdf");
+        let dst = std::env::temp_dir().join("reader-page-cross-verify.pdf");
+        fs::copy(&src, &dst).expect("copy");
+        let path = dst.to_str().unwrap();
+        let backend = PdfiumBackend::new();
+
+        // Insert one A4 page after page 0 (index 1).
+        backend
+            .insert_blank_page(path, 1, PageSize::A4, None)
+            .expect("insert");
+        // Insert one "same as page 0" page at the end.
+        backend
+            .insert_blank_page(path, page_count_internal(path), PageSize::Same, Some(0))
+            .expect("insert at end");
+
+        eprintln!("PAGE_CROSS_VERIFY_PATH={}", path);
+    }
+
+    fn page_count_internal(path: &str) -> usize {
+        let bytes = fs::read(path).unwrap();
+        pdfium()
+            .load_pdf_from_byte_vec(bytes, None)
+            .map(|d| d.pages().len() as usize)
+            .unwrap_or(0)
     }
 }

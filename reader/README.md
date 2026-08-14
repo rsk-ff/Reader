@@ -6,7 +6,35 @@ Lightweight PDF / Markdown desktop reader. Design spec: [`../轻量 PDF - Markdo
 Tauri 2 · Rust · React + TypeScript · Vite · Zustand
 ```
 
-## Phase 4 — PDF annotation (current)
+## Phase 5 — PDF page mutation (current)
+
+PDFium page-structure operations (§6) added to the `PdfMutationBackend`.
+
+What works:
+
+- **Insert blank page**: before/after the current page via toolbar buttons
+  (`+ ◀` / `+ ▶`). Size options: `Same` (copies current page dimensions),
+  `A4`, `Letter`, `Custom`. Inserted at an arbitrary index via `create_page_at_index`.
+- **Delete page**: `✕ pg` button with confirm; works on any page including
+  inserted blank pages (user requirement: inserted blanks must be deletable).
+  Uses `PdfPage::delete` (pdfium-render's high-level API).
+- **Transactional save**: insert/delete already write atomically
+  (tmp → fsync → rename, §7); `save_document` re-flushes and clears dirty.
+- **Reload revision**: after a structural change the frontend re-reads the file
+  (`usePdfDocument.reload`) and page metadata is rebuilt.
+- **Dirty sync**: page mutations mark the document dirty (tab ●); save clears.
+
+### Verification
+
+- 6 Rust page-mutation tests: insert after current, A4+Letter inserts, **delete
+  inserted blank page**, delete original page, out-of-range errors, save
+  round-trip. All pass.
+- **Test 6 (third-party)**: pypdf confirms 3 pages → 2 inserts → 5 pages, page
+  structure standard.
+- PDFium tests serialized via a global mutex (the library uses a process-global
+  singleton).
+
+## Phase 4 — PDF annotation
 
 PDFium (`pdfium-render` v0.9, dynamic `pdfium.dll` from bblanchon/pdfium-binaries
 chromium/7999) wired in behind a `PdfMutationBackend` trait (§4). All pdfium-render

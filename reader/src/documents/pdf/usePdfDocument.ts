@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
@@ -8,6 +8,7 @@ interface UsePdfDocumentResult {
   doc: PDFDocumentProxy | null;
   loading: boolean;
   error: string | null;
+  reload: () => void;
 }
 
 /**
@@ -19,6 +20,7 @@ export function usePdfDocument(path: string | null): UsePdfDocumentResult {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!path) {
@@ -61,7 +63,9 @@ export function usePdfDocument(path: string | null): UsePdfDocumentResult {
       cancelled = true;
       if (loadingTask) loadingTask.destroy();
     };
-  }, [path]);
+  }, [path, reloadKey]);
 
-  return { doc, loading, error };
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  return { doc, loading, error, reload };
 }

@@ -24,6 +24,9 @@ interface PdfToolbarProps {
   onJumpPage: (n: number) => void;
   onAnnotTool: (t: AnnotationTool) => void;
   onSave: () => void;
+  onInsertBlankBefore: () => void;
+  onInsertBlankAfter: () => void;
+  onDeletePage: () => void;
 }
 
 export function PdfToolbar(props: PdfToolbarProps) {
@@ -49,6 +52,9 @@ export function PdfToolbar(props: PdfToolbarProps) {
     dirty,
     onAnnotTool,
     onSave,
+    onInsertBlankBefore,
+    onInsertBlankAfter,
+    onDeletePage,
   } = props;
 
   const [searchInput, setSearchInput] = useState("");
@@ -213,6 +219,18 @@ export function PdfToolbar(props: PdfToolbarProps) {
           title="Ink (draw)"
         >
           ✎
+        </ToolbarButton>
+      </div>
+
+      <div className="pdf-toolbar-group pdf-page-group">
+        <ToolbarButton onClick={onInsertBlankBefore} title="Insert blank page before current">
+          + ◀
+        </ToolbarButton>
+        <ToolbarButton onClick={onInsertBlankAfter} title="Insert blank page after current">
+          + ▶
+        </ToolbarButton>
+        <ToolbarButton onClick={onDeletePage} title="Delete current page">
+          ✕ pg
         </ToolbarButton>
       </div>
 

@@ -22,7 +22,7 @@ interface PdfViewerProps {
 }
 
 export function PdfViewer({ path, active }: PdfViewerProps) {
-  const { doc, loading, error } = usePdfDocument(path);
+  const { doc, loading, error, reload: reloadDoc } = usePdfDocument(path);
   const scrollRef = useRef<HTMLDivElement>(null);
   // track dirty locally (the workspace also tracks it, but we read via the
   // document session to show the ● in the toolbar).
@@ -344,6 +344,41 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, saveDocument]);
 
+  // ---- page mutation (§6) ----
+  const insertBlank = useCallback(
+    async (relative: "before" | "after") => {
+      if (!doc) return;
+      const idx = relative === "before" ? currentPage - 1 : currentPage;
+      try {
+        await invoke("insert_blank_page", {
+          path,
+          index: idx,
+          size: "Same",
+          referencePageIndex: currentPage - 1,
+        });
+        reloadDoc();
+      } catch (e) {
+        console.warn("insert page failed", e);
+      }
+    },
+    [doc, currentPage, path, reloadDoc],
+  );
+
+  const deleteCurrentPage = useCallback(async () => {
+    if (!doc) return;
+    if (doc.numPages <= 1) {
+      alert("Cannot delete the last page.");
+      return;
+    }
+    if (!confirm(`Delete page ${currentPage}?`)) return;
+    try {
+      await invoke("delete_page", { path, index: currentPage - 1 });
+      reloadDoc();
+    } catch (e) {
+      console.warn("delete page failed", e);
+    }
+  }, [doc, currentPage, path, reloadDoc]);
+
   if (loading) {
     return <div className="pdf-status">opening PDF…</div>;
   }
@@ -383,6 +418,9 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
         dirty={dirty}
         onAnnotTool={setAnnotTool}
         onSave={saveDocument}
+        onInsertBlankBefore={() => void insertBlank("before")}
+        onInsertBlankAfter={() => void insertBlank("after")}
+        onDeletePage={deleteCurrentPage}
       />
       <div className="pdf-body">
         {sidebarMode && (

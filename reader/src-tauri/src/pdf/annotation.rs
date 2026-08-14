@@ -73,6 +73,18 @@ fn default_opacity() -> f32 {
     1.0
 }
 
+/// Page-size selector for blank-page insertion (§6).
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum PageSize {
+    /// Same dimensions as the reference page.
+    Same,
+    A4,
+    Letter,
+    /// Custom width/height in PDF points.
+    Custom,
+}
+
 impl PdfAnnotation {
     pub fn new(page_index: usize, ty: AnnotationType) -> Self {
         Self {

@@ -53,6 +53,8 @@ pub fn run() {
             commands::update_annotation,
             commands::delete_annotation,
             commands::save_document,
+            commands::insert_blank_page,
+            commands::delete_page,
         ])
         .setup(|app| {
             // Open files passed on the command line at first launch, before the
