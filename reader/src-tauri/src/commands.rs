@@ -371,14 +371,6 @@ pub fn set_dirty(
 // ---- PDF annotation commands (§24) ----
 
 use crate::pdf::{PdfAnnotation, PdfMutationBackend, PdfiumBackend};
-use crate::pdf::file_protocol;
-
-/// Return a `reader-file://` URL the frontend can hand to pdf.js for
-/// range-requested loading (§27). Replaces whole-file `read_file_bytes`.
-#[tauri::command]
-pub fn get_file_url(path: String) -> String {
-    file_protocol::file_url(&path)
-}
 
 fn backend() -> PdfiumBackend {
     PdfiumBackend::new()

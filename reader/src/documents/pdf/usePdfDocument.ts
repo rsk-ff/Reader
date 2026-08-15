@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 import { pdfjsLib } from "./pdfjs";
@@ -39,7 +39,7 @@ export function usePdfDocument(path: string | null): UsePdfDocumentResult {
 
     (async () => {
       try {
-        const url = await invoke<string>("get_file_url", { path });
+        const url = convertFileSrc(path);
         loadingTask = pdfjsLib.getDocument({ url });
         const loaded = await loadingTask.promise;
         if (cancelled) {

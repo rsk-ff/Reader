@@ -6,7 +6,6 @@
 //! the command layer or the frontend.
 
 pub mod annotation;
-pub mod file_protocol;
 pub mod pdfium;
 
 pub use annotation::{AnnotationType, PageSize, PdfAnnotation, Point, Quad, Rect};

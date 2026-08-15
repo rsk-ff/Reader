@@ -24,13 +24,6 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default();
 
-    // Custom URI scheme serving file bytes with HTTP Range support (§27 Phase 7):
-    // lets pdf.js range-request pages instead of loading the whole file.
-    builder = builder.register_asynchronous_uri_scheme_protocol(
-        "reader-file",
-        crate::pdf::file_protocol::handle_reader_file,
-    );
-
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(
@@ -82,7 +75,7 @@ pub fn run() {
             commands::save_document,
             commands::insert_blank_page,
             commands::delete_page,
-            commands::get_file_url,
+
         ])
         .setup(|app| {
             // Restore the previous session BEFORE opening CLI files so that
