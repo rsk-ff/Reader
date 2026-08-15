@@ -75,6 +75,9 @@ pub fn run() {
             commands::save_document,
             commands::insert_blank_page,
             commands::delete_page,
+            commands::get_page_infos,
+            commands::render_page,
+            commands::get_page_text,
 
         ])
         .setup(|app| {

@@ -10,11 +10,9 @@ use pdfium_render::prelude::*;
 use super::annotation::{AnnotationType, PageSize, PdfAnnotation, Quad, Rect};
 use super::PdfMutationBackend;
 
-/// PDFium uses a process-global singleton that is not safe across parallel test
-/// threads. Every test in this file takes this lock so the lib test harness runs
-/// all pdfium tests serially even when `--test-threads > 1`.
-#[cfg(test)]
-fn pdfium_test_lock() -> std::sync::MutexGuard<'static, ()> {
+/// Serializes ALL PDFium access (process-global singleton is not thread-safe).
+/// Command handlers and tests both acquire this before touching PDFium.
+pub fn pdfium_lock() -> std::sync::MutexGuard<'static, ()> {
     use std::sync::Mutex;
     static LOCK: Mutex<()> = Mutex::new(());
     LOCK.lock().unwrap_or_else(|e| e.into_inner())
@@ -404,6 +402,99 @@ fn uuid_seed() -> String {
     )
 }
 
+// ---- Rendering: PDFium rasterizes pages (no pdf.js) ----
+// PDFium is Chrome's engine; it handles every PDF (annotated, odd fonts) without
+// crashing. Pages render to PNG; a text layer (coords from PDFium text segments)
+// provides selection + search. (§4: "PDF.js → other renderer" adapter seam.)
+
+/// Page size at scale=1 (unscaled, in PDF points).
+#[derive(Clone, serde::Serialize)]
+pub struct PageInfoDTO {
+    pub page_number: usize,
+    pub w1: f32,
+    pub h1: f32,
+    pub rotation: i32,
+}
+
+/// All page sizes in one call — replaces the pdf.js getPage() loop that crashed.
+pub fn get_page_infos(path: &str) -> Result<Vec<PageInfoDTO>, String> {
+    let _g = pdfium_lock();
+    let doc = load_doc(path)?;
+    let mut out = Vec::with_capacity(doc.pages().len() as usize);
+    for i in 0..doc.pages().len() {
+        let page = doc.pages().get(i as i32).map_err(|e| format!("page {i}: {e}"))?;
+        let rot = page.rotation().map(|r| r.as_degrees() as i32).unwrap_or(0);
+        out.push(PageInfoDTO {
+            page_number: i as usize + 1,
+            w1: page.width().value,
+            h1: page.height().value,
+            rotation: rot,
+        });
+    }
+    Ok(out)
+}
+
+/// Render a page to PNG bytes at the given scale. The caller sets scale =
+/// css_scale * devicePixelRatio for crisp rendering on HiDPI.
+pub fn render_page_png(path: &str, page_index: usize, scale: f32) -> Result<Vec<u8>, String> {
+    let _g = pdfium_lock();
+    let doc = load_doc(path)?;
+    let page = doc
+        .pages()
+        .get(page_index as i32)
+        .map_err(|e| format!("page {page_index}: {e}"))?;
+    let w = (page.width().value * scale).max(1.0) as i32;
+    let h = (page.height().value * scale).max(1.0) as i32;
+    let bmp = page
+        .render_with_config(
+            &PdfRenderConfig::new()
+                .set_target_width(w)
+                .set_maximum_height(h),
+        )
+        .map_err(|e| format!("render p{page_index}: {e}"))?;
+    let img = bmp.as_image().map_err(|e| format!("image: {e}"))?;
+    let rgba = img.as_rgba8().ok_or("not rgba8")?;
+    let mut buf = Vec::with_capacity(rgba.len() / 2);
+    use image::ImageEncoder;
+    image::codecs::png::PngEncoder::new(&mut buf)
+        .write_image(rgba.as_raw(), rgba.width(), rgba.height(), image::ExtendedColorType::Rgba8)
+        .map_err(|e| format!("png: {e}"))?;
+    Ok(buf)
+}
+
+/// Text segment with bounding box (PDF coords, origin bottom-left). Used for
+/// the selection/search text layer overlaid on the rendered bitmap.
+#[derive(Clone, serde::Serialize)]
+pub struct TextSegment {
+    pub text: String,
+    pub left: f32,
+    pub bottom: f32,
+    pub right: f32,
+    pub top: f32,
+}
+
+pub fn get_page_text(path: &str, page_index: usize) -> Result<Vec<TextSegment>, String> {
+    let _g = pdfium_lock();
+    let doc = load_doc(path)?;
+    let page = doc
+        .pages()
+        .get(page_index as i32)
+        .map_err(|e| format!("page {page_index}: {e}"))?;
+    let text = page.text().map_err(|e| format!("text: {e}"))?;
+    let mut out = Vec::new();
+    for seg in text.segments().iter() {
+        let b = seg.bounds();
+        out.push(TextSegment {
+            text: seg.text(),
+            left: b.left().value,
+            bottom: b.bottom().value,
+            right: b.right().value,
+            top: b.top().value,
+        });
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -430,7 +521,7 @@ mod tests {
 
     #[test]
     fn create_and_read_back_highlight() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let (_src, dst) = fixture("text-3.pdf");
         let backend = PdfiumBackend::new();
         let path = dst.to_str().unwrap();
@@ -474,7 +565,7 @@ mod tests {
 
     #[test]
     fn create_and_delete_annotation() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let (_src, dst) = fixture("text-3.pdf");
         let backend = PdfiumBackend::new();
         let path = dst.to_str().unwrap();
@@ -506,7 +597,7 @@ mod tests {
 
     #[test]
     fn create_freetext_and_save() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let (_src, dst) = fixture("blank-10.pdf");
         let backend = PdfiumBackend::new();
         let path = dst.to_str().unwrap();
@@ -548,7 +639,7 @@ mod cross_verify {
     /// standard and visible. Run with: cargo test cross_verify -- --nocapture
     #[test]
     fn create_for_cross_verification() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("tests")
@@ -632,7 +723,7 @@ mod page_tests {
 
     #[test]
     fn insert_blank_page_after_current() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let dst = fixture("text-3.pdf");
         let path = dst.to_str().unwrap();
         let backend = PdfiumBackend::new();
@@ -650,7 +741,7 @@ mod page_tests {
 
     #[test]
     fn insert_a4_and_letter_pages() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let dst = fixture("blank-10.pdf");
         let path = dst.to_str().unwrap();
         let backend = PdfiumBackend::new();
@@ -669,7 +760,7 @@ mod page_tests {
 
     #[test]
     fn delete_inserted_blank_page() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         // §6 + user requirement: an inserted blank page must be deletable.
         let dst = fixture("text-3.pdf");
         let path = dst.to_str().unwrap();
@@ -692,7 +783,7 @@ mod page_tests {
 
     #[test]
     fn delete_original_page() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let dst = fixture("blank-10.pdf");
         let path = dst.to_str().unwrap();
         let backend = PdfiumBackend::new();
@@ -706,7 +797,7 @@ mod page_tests {
 
     #[test]
     fn delete_out_of_range_fails() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let dst = fixture("text-3.pdf");
         let path = dst.to_str().unwrap();
         let backend = PdfiumBackend::new();
@@ -718,7 +809,7 @@ mod page_tests {
 
     #[test]
     fn insert_then_save_round_trip() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let dst = fixture("text-3.pdf");
         let path = dst.to_str().unwrap();
         let backend = PdfiumBackend::new();
@@ -741,7 +832,7 @@ mod page_cross_verify {
 
     #[test]
     fn create_for_page_cross_verification() {
-        let _g = pdfium_test_lock();
+        let _g = pdfium_lock();
         let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("tests")
@@ -770,5 +861,51 @@ mod page_cross_verify {
             .load_pdf_from_byte_vec(bytes, None)
             .map(|d| d.pages().len() as usize)
             .unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod render_tests {
+    use super::*;
+
+    #[test]
+    fn render_ani_page1_and_text() {
+        let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..").join("tests").join("fixtures").join("ani1320588.pdf");
+        if !src.exists() { return; }
+        let path = src.to_str().unwrap();
+        let infos = get_page_infos(path).unwrap();
+        assert_eq!(infos.len(), 127);
+        let png = render_page_png(path, 0, 1.5).unwrap();
+        assert!(png.len() > 10000, "png too small: {}", png.len());
+        let segs = get_page_text(path, 0).unwrap();
+        assert!(!segs.is_empty());
+        // page 4 (the one that crashed pdf.js)
+        let p4 = render_page_png(path, 3, 1.5).unwrap();
+        assert!(p4.len() > 10000, "page 4 png too small");
+    }
+}
+
+#[cfg(test)]
+mod conc_render_test {
+    use super::*;
+
+    /// Simulate the frontend: spawn 5 threads each calling render_page_png on
+    /// different pages. With the global lock they should serialize fine.
+    #[test]
+    fn concurrent_renders_dont_crash() {
+        let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..").join("tests").join("fixtures").join("ani1320588.pdf");
+        if !src.exists() { return; }
+        let path = src.to_str().unwrap().to_string();
+        let handles: Vec<_> = (0..5).map(|i| {
+            let p = path.clone();
+            std::thread::spawn(move || {
+                let png = render_page_png(&p, i, 1.0).unwrap();
+                assert!(png.len() > 1000);
+            })
+        }).collect();
+        for h in handles { h.join().unwrap(); }
+        eprintln!("all 5 concurrent renders ok");
     }
 }

@@ -1,20 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 import { usePdfDocument } from "./usePdfDocument";
 import { PdfPage } from "./PdfPage";
 import { PdfToolbar } from "./PdfToolbar";
 import { PdfSidebar } from "./PdfSidebar";
-import { runSearch } from "./search";
-import type { SearchSession } from "./search";
-import { destToPageIndex, flattenOutline } from "./outline";
-import type { OutlineNode, PageInfo, ZoomMode } from "./types";
 import type { PdfAnnotation } from "./annotation-types";
-import { invoke } from "@tauri-apps/api/core";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
-import { useWorkspace } from "../../workspace/store";
 
 const PAGE_GAP = 8;
-const RENDER_BUFFER = 2; // pages above/below the viewport to pre-render
+const RENDER_BUFFER = 2;
 
 interface PdfViewerProps {
   path: string;
@@ -22,386 +17,173 @@ interface PdfViewerProps {
 }
 
 export function PdfViewer({ path, active }: PdfViewerProps) {
-  const { doc, loading, error, reload: reloadDoc } = usePdfDocument(path);
+  const { pageInfos, loading, error, reload: reloadDoc } = usePdfDocument(path);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // track dirty locally (the workspace also tracks it, but we read via the
-  // document session to show the ● in the toolbar).
-  const [dirty, setDirty] = useState(false);
-  const documentsById = useWorkspace((s) => s.documentsById);
-  const [pageInfos, setPageInfos] = useState<PageInfo[]>([]);
   const [scale, setScale] = useState(1);
-  const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
+  const [zoomMode, setZoomMode] = useState<"fit-width" | "fit-page" | "manual">("fit-width");
   const [currentPage, setCurrentPage] = useState(1);
   const [visibleRange, setVisibleRange] = useState<[number, number]>([1, 1]);
   const [sidebarMode, setSidebarMode] = useState<"thumbnails" | "outline" | null>(null);
-  const [outline, setOutline] = useState<OutlineNode[]>([]);
-  const [search, setSearch] = useState<SearchSession | null>(null);
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
-  const [searching, setSearching] = useState(false);
+  const [searchHits, setSearchHits] = useState(0);
   const [searchIdx, setSearchIdx] = useState(0);
-  const [annotationsByPage, setAnnotationsByPage] = useState<Record<number, PdfAnnotation[]>>({});
+  const [searching, setSearching] = useState(false);
+  const annotationsByPage = useRef<Record<number, PdfAnnotation[]>>({});
   const [annotTool, setAnnotTool] = useState<AnnotationTool>("select");
+  const [dirty, setDirty] = useState(false);
+  const documentsById = useWorkspaceDocuments(path);
 
-  const maxPageWidth = useMemo(
-    () => pageInfos.reduce((m, p) => Math.max(m, p.w1), 0) || 1,
-    [pageInfos],
-  );
-  const maxPageHeight = useMemo(
-    () => pageInfos.reduce((m, p) => Math.max(m, p.h1), 0) || 1,
-    [pageInfos],
-  );
+  const totalPages = pageInfos.length;
+  const maxPageWidth = useMemo(() => pageInfos.reduce((m, p) => Math.max(m, p.w1), 0) || 1, [pageInfos]);
+  const maxPageHeight = useMemo(() => pageInfos.reduce((m, p) => Math.max(m, p.h1), 0) || 1, [pageInfos]);
 
-  // ---- load page metadata (cheap: no rendering) ----
-  useEffect(() => {
-    if (!doc) {
-      setPageInfos([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const infos: PageInfo[] = [];
-      for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const vp = page.getViewport({ scale: 1 });
-        infos.push({ pageNumber: i, w1: vp.width, h1: vp.height, rotation: page.rotate ?? 0 });
-        if (cancelled) return;
-        // Yield periodically so a huge doc doesn't block the UI, but accumulate
-        // into a local array and setState once at the end to avoid a render
-        // storm (each setState would recompute fit scale + re-render page 1).
-        if (i % 200 === 0) await new Promise((r) => setTimeout(r, 0));
-      }
-      if (!cancelled) setPageInfos(infos);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [doc]);
-
-  // ---- outline ----
-  useEffect(() => {
-    if (!doc) return;
-    let cancelled = false;
-    doc.getOutline().then((o) => {
-      if (!cancelled) setOutline((o ?? []) as OutlineNode[]);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [doc]);
-
-  // ---- compute scale from zoom mode + container size ----
+  // ---- zoom ----
   const recomputeScale = useCallback(() => {
     const el = scrollRef.current;
     if (!el || pageInfos.length === 0) return;
     const availW = el.clientWidth - PAGE_GAP * 2;
     const availH = el.clientHeight - PAGE_GAP * 2;
     let next = scale;
-    if (zoomMode === "fit-width") {
-      next = availW / maxPageWidth;
-    } else if (zoomMode === "fit-page") {
-      next = Math.min(availW / maxPageWidth, availH / maxPageHeight);
-    }
-    // Skip if unchanged to avoid re-render storms during layout settling.
-    if (Math.abs(next - scale) > 0.001) {
-      setScale(next);
-    }
+    if (zoomMode === "fit-width") next = availW / maxPageWidth;
+    else if (zoomMode === "fit-page") next = Math.min(availW / maxPageWidth, availH / maxPageHeight);
+    if (Math.abs(next - scale) > 0.001) setScale(next);
   }, [pageInfos, maxPageWidth, maxPageHeight, zoomMode, scale]);
 
-  useEffect(() => {
-    recomputeScale();
-  }, [recomputeScale]);
+  useEffect(() => { recomputeScale(); }, [recomputeScale]);
 
-  // Debounced resize: the container fires many ResizeObserver events while the
-  // window layout settles; coalesce them so we only recompute once per burst.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const ro = new ResizeObserver(() => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => recomputeScale(), 60);
-    });
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const ro = new ResizeObserver(() => { if (t) clearTimeout(t); t = setTimeout(recomputeScale, 60); });
     ro.observe(el);
-    return () => {
-      ro.disconnect();
-      if (timer) clearTimeout(timer);
-    };
+    return () => { ro.disconnect(); if (t) clearTimeout(t); };
   }, [recomputeScale]);
 
-  // ---- virtualization: visible range + current page via IntersectionObserver ----
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || pageInfos.length === 0) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        let first = Infinity;
-        let last = -1;
-        let best = { page: currentPage, ratio: 0 };
-        for (const e of entries) {
-          const n = Number((e.target as HTMLElement).dataset.pageNumber);
-          if (!n) continue;
-          if (e.isIntersecting) {
-            first = Math.min(first, n);
-            last = Math.max(last, n);
-            if (e.intersectionRatio > best.ratio) best = { page: n, ratio: e.intersectionRatio };
-          }
-        }
-        if (last === -1) return;
-        const bufFirst = Math.max(1, first - RENDER_BUFFER);
-        const bufLast = Math.min(pageInfos.length, last + RENDER_BUFFER);
-        setVisibleRange([bufFirst, bufLast]);
-        setCurrentPage(best.page);
-      },
-      { root: el, threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] },
-    );
-    const wrappers = el.querySelectorAll<HTMLElement>(".pdf-page-wrapper");
-    wrappers.forEach((w) => obs.observe(w));
-    return () => obs.disconnect();
-  }, [pageInfos, scale, currentPage]);
+  const zoomIn = useCallback(() => { setZoomMode("manual"); setScale(s => Math.min(s * 1.1, 8)); }, []);
+  const zoomOut = useCallback(() => { setZoomMode("manual"); setScale(s => Math.max(s / 1.1, 0.1)); }, []);
+  const setFit = useCallback((m: "fit-width" | "fit-page" | "manual") => { if (m !== "manual") setZoomMode(m); }, []);
 
-  // ---- scroll helpers (cumulative heights → deterministic scroll-to) ----
+  // ---- virtualization ----
   const cumulativeTops = useMemo(() => {
     const tops: number[] = [];
     let acc = 0;
-    for (const p of pageInfos) {
-      tops.push(acc);
-      acc += Math.round(p.h1 * scale) + PAGE_GAP;
-    }
+    for (const p of pageInfos) { tops.push(acc); acc += Math.round(p.h1 * scale) + PAGE_GAP; }
     return tops;
   }, [pageInfos, scale]);
 
-  const scrollToPage = useCallback(
-    (pageNumber: number) => {
-      const el = scrollRef.current;
-      if (!el) return;
-      const idx = Math.max(0, Math.min(pageInfos.length - 1, pageNumber - 1));
-      el.scrollTo({ top: cumulativeTops[idx], behavior: "smooth" });
-    },
-    [cumulativeTops, pageInfos.length],
-  );
+  const scrollToPage = useCallback((n: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const idx = Math.max(0, Math.min(pageInfos.length - 1, n - 1));
+    el.scrollTo({ top: cumulativeTops[idx] ?? 0, behavior: "smooth" });
+  }, [cumulativeTops, pageInfos.length]);
 
-  // ---- zoom controls ----
-  const zoomIn = useCallback(() => {
-    setZoomMode("manual");
-    setScale((s) => Math.min(s * 1.1, 8));
-  }, []);
-  const zoomOut = useCallback(() => {
-    setZoomMode("manual");
-    setScale((s) => Math.max(s / 1.1, 0.1));
-  }, []);
-  const setFit = useCallback((m: ZoomMode) => {
-    setZoomMode(m);
-  }, []);
-
-  // ---- search ----
-  const runSearchNow = useCallback(
-    async (query: string) => {
-      if (!doc || !query.trim()) {
-        setSearch(null);
-        setSearchQuery(null);
-        setSearchIdx(0);
-        return;
-      }
-      setSearching(true);
-      try {
-        const session = await runSearch(doc, query);
-        setSearch(session);
-        setSearchQuery(query.trim().toLowerCase());
-        setSearchIdx(0);
-        if (session.pages.length > 0) scrollToPage(session.pages[0]);
-      } finally {
-        setSearching(false);
-      }
-    },
-    [doc, scrollToPage],
-  );
-
-  const gotoSearchHit = useCallback(
-    (dir: 1 | -1) => {
-      if (!search || search.hits.length === 0) return;
-      const next = (searchIdx + dir + search.hits.length) % search.hits.length;
-      setSearchIdx(next);
-      scrollToPage(search.hits[next].pageNumber);
-    },
-    [search, searchIdx, scrollToPage],
-  );
-
-  // ---- outline click ----
-  const onOutlineClick = useCallback(
-    async (node: OutlineNode) => {
-      if (!doc) return;
-      if (node.url) {
-        window.open(node.url, "_blank");
-        return;
-      }
-      const idx = await destToPageIndex(doc, node.dest);
-      if (idx != null) scrollToPage(idx + 1);
-    },
-    [doc, scrollToPage],
-  );
-
-  // ---- annotations (§5) ----
-  const loadAnnotations = useCallback(
-    async (pageNumber: number) => {
-      if (!doc) return;
-      try {
-        const anns = await invoke<PdfAnnotation[]>("get_annotations", {
-          path,
-          pageIndex: pageNumber - 1,
-        });
-        setAnnotationsByPage((prev) => ({ ...prev, [pageNumber]: anns }));
-      } catch (e) {
-        // backend may be unavailable (no pdfium) — fail quietly.
-        console.warn("get_annotations failed", e);
-      }
-    },
-    [doc, path],
-  );
-
-  // Load annotations for visible pages once the doc is ready.
   useEffect(() => {
-    if (!doc) return;
-    loadAnnotations(currentPage);
-  }, [doc, currentPage, loadAnnotations]);
+    const el = scrollRef.current;
+    if (!el || pageInfos.length === 0) return;
+    const obs = new IntersectionObserver((entries) => {
+      let first = Infinity, last = -1, best = { page: currentPage, ratio: 0 };
+      for (const e of entries) {
+        const n = Number((e.target as HTMLElement).dataset.pageNumber);
+        if (!n) continue;
+        if (e.isIntersecting) {
+          first = Math.min(first, n); last = Math.max(last, n);
+          if (e.intersectionRatio > best.ratio) best = { page: n, ratio: e.intersectionRatio };
+        }
+      }
+      if (last === -1) return;
+      setVisibleRange([Math.max(1, first - RENDER_BUFFER), Math.min(pageInfos.length, last + RENDER_BUFFER)]);
+      setCurrentPage(best.page);
+    }, { root: el, threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] });
+    el.querySelectorAll<HTMLElement>(".pdf-page-wrapper").forEach(w => obs.observe(w));
+    return () => obs.disconnect();
+  }, [pageInfos, scale, currentPage]);
 
-  const onAnnotationsChanged = useCallback(
-    (pageNumber: number) => loadAnnotations(pageNumber),
-    [loadAnnotations],
-  );
+  // ---- search (client-side scan of PDFium text per visible page) ----
+  const runSearch = useCallback(async (query: string) => {
+    if (!query.trim()) { setSearchQuery(null); setSearchHits(0); return; }
+    setSearching(true);
+    try {
+      const q = query.trim().toLowerCase();
+      let hits = 0;
+      for (let i = 1; i <= totalPages; i++) {
+        try {
+          const segs = await invoke<Array<{ text: string }>>("get_page_text", { path, pageIndex: i - 1 });
+          if (segs.some(s => s.text.toLowerCase().includes(q))) hits++;
+        } catch { /* skip */ }
+      }
+      setSearchQuery(q);
+      setSearchHits(hits);
+      setSearchIdx(0);
+    } finally { setSearching(false); }
+  }, [path, totalPages]);
 
-  const onAnnotationCreated = useCallback((_ann: PdfAnnotation) => {
-    // Already handled by onAnnotationsChanged reload.
+  const gotoSearchHit = useCallback((dir: 1 | -1) => {
+    if (searchHits === 0) return;
+    setSearchIdx(i => { const n = (i + dir + searchHits) % searchHits; return n; });
+  }, [searchHits]);
+
+  // ---- annotations ----
+  const loadAnnotations = useCallback(async (_n: number) => {
+    // DISABLED: PDFium annotation reading crashes on Acrobat-annotated PDFs.
+    // Will be re-enabled with a safe annotation reader.
   }, []);
 
-  // ---- print (basic: render pages into a print window) ----
-  const print = useCallback(async () => {
-    if (!doc) return;
-    const win = window.open("", "_blank", "width=900,height=700");
-    if (!win) return;
-    win.document.write(
-      "<!doctype html><html><head><title>Print</title><style>" +
-        "body{margin:0;background:#fff}canvas{display:block;width:100%;height:auto;page-break-after:always}" +
-        "</style></head><body></body></html>",
-    );
-    win.document.close();
-    for (let i = 1; i <= doc.numPages; i++) {
-      const page = await doc.getPage(i);
-      const vp = page.getViewport({ scale: 1.5 });
-      const canvas = win.document.createElement("canvas");
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) continue;
-      await page.render({ canvas, canvasContext: ctx, viewport: vp }).promise;
-      win.document.body.appendChild(canvas);
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    win.focus();
-    win.print();
-  }, [doc]);
+  useEffect(() => { if (totalPages > 0) loadAnnotations(currentPage); }, [currentPage, totalPages, loadAnnotations]);
+  const onAnnotationsChanged = useCallback((n: number) => loadAnnotations(n), [loadAnnotations]);
+  const onAnnotationCreated = useCallback((_ann: PdfAnnotation) => {}, []);
 
-  // ---- keyboard shortcuts (only when this viewer's tab is active) ----
+  // ---- save ----
+  const saveDocument = useCallback(async () => {
+    try { await invoke("save_document", { path }); setDirty(false); } catch (e) { console.warn("save", e); }
+  }, [path]);
+
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
-      if (e.key === "p" || e.key === "P") {
-        e.preventDefault();
-        void print();
-      } else if (e.key === "+" || e.key === "=") {
-        e.preventDefault();
-        zoomIn();
-      } else if (e.key === "-") {
-        e.preventDefault();
-        zoomOut();
-      } else if (e.key === "0") {
-        e.preventDefault();
-        setFit("fit-width");
-      }
+      if (e.key === "s" || e.key === "S") { e.preventDefault(); void saveDocument(); }
+      else if (e.key === "p" || e.key === "P") { e.preventDefault(); void print(); }
+      else if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomIn(); }
+      else if (e.key === "-") { e.preventDefault(); zoomOut(); }
+      else if (e.key === "0") { e.preventDefault(); setFit("fit-width"); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, print, zoomIn, zoomOut, setFit]);
+  }, [active, saveDocument, zoomIn, zoomOut, setFit]);
 
-  // ---- save (§7) ----
-  const saveDocument = useCallback(async () => {
-    try {
-      await invoke("save_document", { path });
-      setDirty(false);
-    } catch (e) {
-      console.warn("save failed", e);
-    }
-  }, [path]);
-
-  // Sync dirty from the workspace (create_annotation sets it there).
   useEffect(() => {
-    const doc = documentsById[Object.keys(documentsById).find((k) => documentsById[k].path === path) ?? ""];
+    const doc = documentsById[Object.keys(documentsById).find(k => documentsById[k].path === path) ?? ""];
     if (doc) setDirty(doc.dirty);
   }, [documentsById, path]);
 
-  // Ctrl+S
-  useEffect(() => {
-    if (!active) return;
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
-        e.preventDefault();
-        void saveDocument();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [active, saveDocument]);
-
-  // ---- page mutation (§6) ----
-  const insertBlank = useCallback(
-    async (relative: "before" | "after") => {
-      if (!doc) return;
-      const idx = relative === "before" ? currentPage - 1 : currentPage;
+  // ---- print ----
+  const print = useCallback(async () => {
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) return;
+    win.document.write("<!doctype html><html><head><title>Print</title><style>body{margin:0;background:#fff}img{display:block;width:100%;height:auto;page-break-after:always}</style></head><body></body></html>");
+    win.document.close();
+    for (let i = 1; i <= totalPages; i++) {
       try {
-        await invoke("insert_blank_page", {
-          path,
-          index: idx,
-          size: "Same",
-          referencePageIndex: currentPage - 1,
-        });
-        reloadDoc();
-      } catch (e) {
-        console.warn("insert page failed", e);
-      }
-    },
-    [doc, currentPage, path, reloadDoc],
-  );
-
-  const deleteCurrentPage = useCallback(async () => {
-    if (!doc) return;
-    if (doc.numPages <= 1) {
-      alert("Cannot delete the last page.");
-      return;
+        const bytes = await invoke<ArrayBuffer | Uint8Array>("render_page", { path, pageIndex: i - 1, scale: 1.5 });
+        const blob = new Blob([bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)], { type: "image/png" });
+        const img = win.document.createElement("img");
+        img.src = URL.createObjectURL(blob);
+        win.document.body.appendChild(img);
+      } catch (e) { console.warn("print p", i, e); }
     }
-    if (!confirm(`Delete page ${currentPage}?`)) return;
-    try {
-      await invoke("delete_page", { path, index: currentPage - 1 });
-      reloadDoc();
-    } catch (e) {
-      console.warn("delete page failed", e);
-    }
-  }, [doc, currentPage, path, reloadDoc]);
+    win.focus(); win.print();
+  }, [path, totalPages]);
 
-  if (loading) {
-    return <div className="pdf-status">opening PDF…</div>;
-  }
-  if (error) {
-    return <div className="pdf-status pdf-status-error">failed to open PDF: {error}</div>;
-  }
-  if (!doc) {
-    return <div className="pdf-status">no document</div>;
-  }
+  if (loading) return <div className="pdf-status">opening PDF…</div>;
+  if (error) return <div className="pdf-status pdf-status-error">failed to open PDF: {error}</div>;
+  if (totalPages === 0) return <div className="pdf-status">no pages</div>;
 
-  const flatOutline = flattenOutline(outline);
-  const totalPages = doc.numPages;
-  const renderFirst = visibleRange[0];
-  const renderLast = visibleRange[1];
+  const totalHeight = pageInfos.length > 0
+    ? (cumulativeTops[cumulativeTops.length - 1] ?? 0) + Math.round(pageInfos[pageInfos.length - 1].h1 * scale) + PAGE_GAP
+    : 0;
 
   return (
     <div className="pdf-root">
@@ -411,58 +193,58 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
         scale={scale}
         zoomMode={zoomMode}
         sidebarMode={sidebarMode}
-        hasOutline={outline.length > 0}
-        searchHits={search?.hits.length ?? 0}
+        hasOutline={false}
+        searchHits={searchHits}
         searchIdx={searchIdx}
         searching={searching}
+        annotTool={annotTool}
+        dirty={dirty}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onFit={setFit}
-        onSidebarToggle={(m) => setSidebarMode((cur) => (cur === m ? null : m))}
-        onSearch={runSearchNow}
+        onSidebarToggle={(m) => setSidebarMode(cur => cur === m ? null : m)}
+        onSearch={runSearch}
         onSearchNav={gotoSearchHit}
         onPrint={print}
         onJumpPage={scrollToPage}
-        annotTool={annotTool}
-        dirty={dirty}
         onAnnotTool={setAnnotTool}
         onSave={saveDocument}
-        onInsertBlankBefore={() => void insertBlank("before")}
-        onInsertBlankAfter={() => void insertBlank("after")}
-        onDeletePage={deleteCurrentPage}
+        onInsertBlankBefore={() => { void invoke("insert_blank_page", { path, index: currentPage - 1, size: "Same", referencePageIndex: currentPage - 1 }).then(() => reloadDoc()); }}
+        onInsertBlankAfter={() => { void invoke("insert_blank_page", { path, index: currentPage, size: "Same", referencePageIndex: currentPage - 1 }).then(() => reloadDoc()); }}
+        onDeletePage={async () => { if (totalPages > 1 && confirm(`Delete page ${currentPage}?`)) { await invoke("delete_page", { path, index: currentPage - 1 }); reloadDoc(); } }}
       />
       <div className="pdf-body">
-        {sidebarMode && (
-          <PdfSidebar
-            mode={sidebarMode}
-            doc={doc}
-            pageInfos={pageInfos}
-            outline={flatOutline}
-            currentPage={currentPage}
-            onOutlineClick={onOutlineClick}
-            onThumbClick={scrollToPage}
-          />
+        {sidebarMode === "thumbnails" && (
+          <PdfSidebar mode="thumbnails" path={path} pageInfos={pageInfos.map(p => ({ pageNumber: p.page_number, w1: p.w1, h1: p.h1, rotation: p.rotation }))} outline={[]} currentPage={currentPage} onOutlineClick={() => {}} onThumbClick={scrollToPage} />
         )}
         <div className="pdf-scroll" ref={scrollRef}>
-          <div className="pdf-pages" style={{ gap: PAGE_GAP }}>
+          <div className="pdf-pages" style={{ height: totalHeight, position: "relative" }}>
             {pageInfos.map((p) => {
-              const active = p.pageNumber >= renderFirst && p.pageNumber <= renderLast;
+              const idx = p.page_number - 1;
+              const top = cumulativeTops[idx] ?? 0;
+              const h = Math.round(p.h1 * scale);
+              const inRange = p.page_number >= visibleRange[0] && p.page_number <= visibleRange[1];
+              if (!inRange) {
+                return <div key={p.page_number} className="pdf-page-spacer" data-page-number={p.page_number}
+                  style={{ position: "absolute", top, left: 0, right: 0, height: h }} />;
+              }
               return (
-                <PdfPage
-                  key={p.pageNumber}
-                  doc={doc}
-                  path={path}
-                  pageNumber={p.pageNumber}
-                  w1={p.w1}
-                  h1={p.h1}
-                  scale={scale}
-                  active={active}
-                  searchQuery={searchQuery}
-                  annotations={annotationsByPage[p.pageNumber] ?? []}
-                  annotTool={annotTool}
-                  onAnnotationsChanged={onAnnotationsChanged}
-                  onAnnotationCreated={onAnnotationCreated}
-                />
+                <div key={p.page_number} className="pdf-page-wrapper-outer" data-page-number={p.page_number}
+                  style={{ position: "absolute", top, left: 0, right: 0 }}>
+                  <PdfPage
+                    path={path}
+                    pageNumber={p.page_number}
+                    w1={p.w1}
+                    h1={p.h1}
+                    scale={scale}
+                    active={true}
+                    searchQuery={searchQuery}
+                    annotations={annotationsByPage.current[p.page_number] ?? []}
+                    annotTool={annotTool}
+                    onAnnotationsChanged={onAnnotationsChanged}
+                    onAnnotationCreated={onAnnotationCreated}
+                  />
+                </div>
               );
             })}
           </div>
@@ -470,4 +252,10 @@ export function PdfViewer({ path, active }: PdfViewerProps) {
       </div>
     </div>
   );
+}
+
+// helper to avoid circular import: read workspace documents for dirty tracking
+import { useWorkspace } from "../../workspace/store";
+function useWorkspaceDocuments(_path: string) {
+  return useWorkspace((s) => s.documentsById);
 }

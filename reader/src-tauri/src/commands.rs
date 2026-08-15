@@ -480,3 +480,22 @@ fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &s
     }
     broadcast(app, ws.inner());
 }
+
+
+// ---- PDFium page rendering (replaces pdf.js entirely) ----
+
+#[tauri::command]
+pub fn get_page_infos(path: String) -> Result<Vec<crate::pdf::pdfium::PageInfoDTO>, String> {
+    Ok(crate::pdf::pdfium::get_page_infos(&path)?)
+}
+
+#[tauri::command]
+pub fn render_page(path: String, page_index: usize, scale: f32) -> Result<Response, String> {
+    let bytes = crate::pdf::pdfium::render_page_png(&path, page_index, scale)?;
+    Ok(Response::new(bytes))
+}
+
+#[tauri::command]
+pub fn get_page_text(path: String, page_index: usize) -> Result<Vec<crate::pdf::pdfium::TextSegment>, String> {
+    Ok(crate::pdf::pdfium::get_page_text(&path, page_index)?)
+}

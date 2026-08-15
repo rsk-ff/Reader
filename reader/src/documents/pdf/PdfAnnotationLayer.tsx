@@ -1,13 +1,12 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { PDFDocumentProxy } from "pdfjs-dist";
 
 import { pageCssSize, pdfToScreen, quadsBounds, rectToQuad, screenToPdf } from "./coordinates";
 import type { PageGeom, Point, Quad } from "./coordinates";
 import type { PdfAnnotation } from "./annotation-types";
 
 interface AnnotationOverlayProps {
-  doc: PDFDocumentProxy;
+  doc?: unknown;
   path: string;
   pageNumber: number;
   geom: PageGeom;

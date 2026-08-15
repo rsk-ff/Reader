@@ -785,3 +785,23 @@ body,
 .tab-drag-over {
   border-left: 2px solid var(--accent);
 }
+
+/* ---- PDFium page rendering ---- */
+.pdf-page-img {
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+  position: relative;
+  z-index: 1;
+}
+.pdf-text-span {
+  color: transparent;
+  font-size: 0;
+  cursor: text;
+  white-space: pre;
+}
+.pdf-text-hit {
+  background: rgba(255, 213, 79, 0.5) !important;
+}
+.pdf-page-spacer {
+  background: #2a2a2e;
+}

@@ -16,7 +16,7 @@ interface PdfToolbarProps {
   dirty: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  onFit: (m: ZoomMode) => void;
+  onFit: (m: "fit-width" | "fit-page") => void;
   onSidebarToggle: (m: "thumbnails" | "outline") => void;
   onSearch: (q: string) => void;
   onSearchNav: (dir: 1 | -1) => void;
