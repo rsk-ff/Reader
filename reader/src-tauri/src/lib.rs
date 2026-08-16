@@ -24,6 +24,13 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default();
 
+    // Page rendering via URI scheme: the browser fetches page PNGs like <img src>,
+    // fully async — no IPC blocking. The handler renders via PDFium + returns PNG.
+    builder = builder.register_asynchronous_uri_scheme_protocol(
+        "reader-page",
+        crate::pdf::handle_page_render,
+    );
+
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(

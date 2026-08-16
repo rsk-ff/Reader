@@ -9,7 +9,7 @@ pub mod annotation;
 pub mod pdfium;
 
 pub use annotation::{AnnotationType, PageSize, PdfAnnotation, Point, Quad, Rect};
-pub use pdfium::PdfiumBackend;
+pub use pdfium::{PdfiumBackend, handle_page_render, page_img_url};
 
 /// The mutation contract every backend must satisfy (§4). All coordinates are
 /// in PDF user space (origin bottom-left, y up, units = points).

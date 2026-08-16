@@ -909,3 +909,70 @@ mod conc_render_test {
         eprintln!("all 5 concurrent renders ok");
     }
 }
+
+/// URI-scheme page renderer: `reader-page://localhost/<encoded-path>?page=<n>&scale=<f>`
+/// The browser fetches this like an <img src> URL — fully async, no IPC blocking.
+/// The handler acquires the PDFium lock, renders the page, and returns PNG bytes.
+pub fn handle_page_render<R: tauri::Runtime>(
+    _ctx: tauri::UriSchemeContext<'_, R>,
+    request: http::Request<Vec<u8>>,
+    responder: tauri::UriSchemeResponder,
+) {
+    let uri = request.uri().to_string();
+    // Parse: reader-page://localhost/<path>?page=N&scale=F
+    // or:   http://reader-page.localhost/<path>?page=N&scale=F
+    let path_part = uri
+        .strip_prefix("reader-page://localhost/")
+        .or_else(|| uri.strip_prefix("http://reader-page.localhost/"))
+        .or_else(|| uri.strip_prefix("https://reader-page.localhost/"))
+        .unwrap_or("");
+    let (encoded_path, query) = path_part.split_once('?').unwrap_or((path_part, ""));
+    let path = percent_decode(encoded_path);
+    let mut page: usize = 0;
+    let mut scale: f32 = 1.0;
+    for kv in query.split('&') {
+        if let Some(v) = kv.strip_prefix("page=") { page = v.parse().unwrap_or(0); }
+        else if let Some(v) = kv.strip_prefix("scale=") { scale = v.parse().unwrap_or(1.0); }
+    }
+    match render_page_png(&path, page, scale) {
+        Ok(png) => {
+            let resp = http::Response::builder()
+                .status(200)
+                .header("Content-Type", "image/png")
+                .header("Cache-Control", "max-age=3600")
+                .header("Access-Control-Allow-Origin", "*")
+                .body(png)
+                .unwrap();
+            responder.respond(resp);
+        }
+        Err(e) => {
+            log::warn!("page render {uri}: {e}");
+            let resp = http::Response::builder()
+                .status(500)
+                .body(e.into_bytes())
+                .unwrap();
+            responder.respond(resp);
+        }
+    }
+}
+
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' && i + 2 < b.len() {
+            if let Ok(h) = u8::from_str_radix(std::str::from_utf8(&b[i+1..i+3]).unwrap_or(""), 16) {
+                out.push(h); i += 3; continue;
+            }
+        }
+        out.push(b[i]); i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Build the page-img URL for the frontend.
+pub fn page_img_url(path: &str, page: usize, scale: f32) -> String {
+    let enc = urlencoding::encode(path);
+    format!("http://reader-page.localhost/{enc}?page={page}&scale={scale}")
+}
