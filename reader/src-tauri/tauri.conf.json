@@ -10,13 +10,14 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
         "title": "Reader",
         "width": 1100,
         "height": 760,
-        "minWidth": 640,
+        "minWidth": 330,
         "minHeight": 480,
         "decorations": false,
         "resizable": true

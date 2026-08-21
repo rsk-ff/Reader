@@ -29,6 +29,19 @@ pub fn run() {
     builder = builder
         .register_asynchronous_uri_scheme_protocol("reader-file", crate::pdf::handle_reader_file);
 
+    // Custom frame controls + native Windows 11 Snap Layout overlay for the
+    // frameless titlebar. The plugin's page-load hook covers every webview
+    // window (main + dynamically created/restored), so no per-window overlay
+    // is installed here. On non-Windows targets the plugin is a no-op.
+    builder = builder.plugin(
+        tauri_plugin_frame::FramePluginBuilder::new()
+            .titlebar_height(36)
+            .button_width(46)
+            .auto_titlebar(true)
+            .snap_overlay(true)
+            .build(),
+    );
+
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {

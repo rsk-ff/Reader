@@ -1,8 +1,15 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import appIconUrl from "../../src-tauri/icons/32x32.png";
 import { TabStrip } from "./TabStrip";
 import { useWindowDragRegion } from "./windowDrag";
+import {
+  snapPhaseClass,
+  snapPhaseReducer,
+  type SnapEventKind,
+  type SnapPhase,
+} from "./snapInteraction";
 
 /**
  * Custom title bar that merges the application icon, the tab strip, and
@@ -17,6 +24,15 @@ import { useWindowDragRegion } from "./windowDrag";
  * - The right side exposes minimize / toggle-maximize / close controls. Close
  *   routes through the Tauri `close()` API so App.tsx's unsaved-change handler
  *   remains authoritative (it never calls `destroy()` directly here).
+ *
+ * On Windows 11, `tauri-plugin-frame` installs a native Snap Layout overlay over
+ * the maximize button. The overlay owns the non-client mouse input there, so
+ * the webview's own `:hover`/`:active`/`click` never fire while it is active.
+ * The plugin emits five events on the current window; we subscribe to them
+ * here to render equivalent hover/pressed classes and to call `toggleMaximize`
+ * on the native click. The React `onClick` remains as the fallback on platforms
+ * without the overlay, and the container is marked so the plugin does not
+ * inject duplicate controls.
  *
  * Every window-action promise gets an explicit rejection handler.
  */
@@ -35,10 +51,66 @@ function makeControls(win: ReturnType<typeof getCurrentWindow>) {
   };
 }
 
+/** The native snap overlay events emitted by `tauri-plugin-frame`. */
+const SNAP_EVENTS: SnapEventKind[] = [
+  "mouseenter",
+  "mouseleave",
+  "mousedown",
+  "mouseup",
+  "click",
+];
+
 export function WindowTitleBar() {
   const drag = useWindowDragRegion();
-  const win = getCurrentWindow();
+  const win = useMemo(() => getCurrentWindow(), []);
   const controls = useMemo(() => makeControls(win), [win]);
+
+  const [snapPhase, setSnapPhase] = useState<SnapPhase>("idle");
+
+  useEffect(() => {
+    let cancelled = false;
+    const unlisteners: UnlistenFn[] = [];
+
+    const register = async () => {
+      for (const ev of SNAP_EVENTS) {
+        try {
+          const un = await win.listen(`tauri-frame://snap/${ev}`, (event) => {
+            const kind = event.event.replace("tauri-frame://snap/", "") as SnapEventKind;
+            if (kind === "click") {
+              // The native child HWND owns this pointer event, so it cannot
+              // also reach the React button underneath.
+              controls.toggleMaximize();
+            } else {
+              setSnapPhase((prev) => snapPhaseReducer(prev, kind));
+            }
+          });
+          if (cancelled) {
+            un();
+          } else {
+            unlisteners.push(un);
+          }
+        } catch {
+          // A failed listener registration must not crash the title bar; the
+          // React onClick fallback still covers platforms without the overlay.
+        }
+      }
+    };
+
+    void register().catch(() => {});
+
+    return () => {
+      cancelled = true;
+      for (const un of unlisteners) {
+        try {
+          un();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [controls, win]);
+
+  const snapClass = snapPhaseClass(snapPhase);
 
   return (
     <div className="window-titlebar" role="banner">
@@ -50,9 +122,15 @@ export function WindowTitleBar() {
         <img src={appIconUrl} alt="" draggable={false} />
       </div>
       <TabStrip />
-      <div className="titlebar-controls" role="group" aria-label="Window controls">
+      <div
+        className="titlebar-controls"
+        role="group"
+        aria-label="Window controls"
+        data-tauri-frame-tb
+      >
         <button
           type="button"
+          id="frame-tb-minimize"
           className="winctl winctl-minimize"
           aria-label="Minimize"
           title="Minimize"
@@ -64,7 +142,8 @@ export function WindowTitleBar() {
         </button>
         <button
           type="button"
-          className="winctl winctl-maximize"
+          id="frame-tb-maximize"
+          className={"winctl winctl-maximize" + (snapClass ? " " + snapClass : "")}
           aria-label="Maximize"
           title="Maximize / Restore"
           onClick={controls.toggleMaximize}
@@ -83,6 +162,7 @@ export function WindowTitleBar() {
         </button>
         <button
           type="button"
+          id="frame-tb-close"
           className="winctl winctl-close"
           aria-label="Close"
           title="Close"

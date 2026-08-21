@@ -118,6 +118,19 @@ body,
   color: #fff;
 }
 
+/* Native Snap Layout overlay (tauri-plugin-frame) owns the pointer over the
+   maximize button on Windows, so the webview :hover/:active never fire there.
+   These explicit classes mirror that feedback while the overlay is active. */
+.winctl-maximize.winctl-snap-hover {
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text);
+}
+
+.winctl-maximize.winctl-snap-pressed {
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--text);
+}
+
 /* ---- Tab strip (hosted inside the merged title bar) ---- */
 
 .tabstrip {
@@ -133,6 +146,7 @@ body,
 
 .tab {
   -webkit-app-region: no-drag;
+  touch-action: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1103,17 +1117,16 @@ body.pdf-sidebar-resizing * {
 
 /* ---- Tab drag (§17, §18) ---- */
 
-.tab[draggable="true"] {
-  -webkit-user-drag: element;
-  cursor: grab;
-}
-
 .tab-dragging {
   opacity: 0.4;
 }
 
 .tab-drag-over {
   border-left: 2px solid var(--accent);
+}
+
+.tab-drag-over-after {
+  border-right: 2px solid var(--accent);
 }
 
 /* ---- PDFium page rendering ---- */
