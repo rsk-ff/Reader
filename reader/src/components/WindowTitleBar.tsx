@@ -46,7 +46,6 @@ export function WindowTitleBar() {
         className="titlebar-icon"
         aria-hidden="true"
         onMouseDown={drag.onMouseDown}
-        onDoubleClick={drag.onDoubleClick}
       >
         <img src={appIconUrl} alt="" draggable={false} />
       </div>

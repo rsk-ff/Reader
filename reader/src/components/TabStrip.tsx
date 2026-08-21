@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useWorkspace } from "../workspace/store";
 import type { TabId, WindowTab } from "../workspace/types";
 import { useWindowDragRegion } from "./windowDrag";
+import { allowMoveDrop, startMoveDrag } from "./tabDrag";
 
 /**
  * Tab strip with drag-to-reorder and drag-out-to-detach (§17, §18, Test 9/10).
@@ -26,12 +27,14 @@ export function TabStrip() {
 
   function onDragStart(e: React.DragEvent, tab: WindowTab) {
     setDraggingId(tab.id);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", tab.id);
+    startMoveDrag(e.dataTransfer, tab.id);
   }
 
   function onDragOver(e: React.DragEvent, tab: WindowTab) {
     e.preventDefault();
+    // Explicitly advertise an allowed move drop so WebView2 renders a move
+    // cursor (rather than the prohibited-drop glyph) and the drop fires.
+    allowMoveDrop(e.dataTransfer);
     if (draggingId && draggingId !== tab.id) {
       setDragOverId(tab.id);
     }
@@ -139,7 +142,6 @@ export function TabStrip() {
       <div
         className="tabstrip-spacer"
         onMouseDown={drag.onMouseDown}
-        onDoubleClick={drag.onDoubleClick}
       />
     </div>
   );

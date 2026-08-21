@@ -8,6 +8,15 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
  * the custom chrome must drive the OS move loop via the Tauri `startDragging`
  * command, and double-clicking a blank region toggles maximize/restore.
  *
+ * Both actions are handled inside a single primary `mousedown` handler, per
+ * the official Tauri v2 window-customization guidance for a manual drag
+ * region: when the primary button is down, `event.detail === 2` (the second
+ * click of a double-click) calls `toggleMaximize()`; otherwise it calls
+ * `startDragging()`. Relying on the browser's separate `dblclick` event is
+ * unreliable because the native move loop started by `startDragging()` on the
+ * first `mousedown` consumes the pointer sequence, so the `dblclick` may never
+ * fire.
+ *
  * Interactive elements (tabs, window controls) are *not* drag regions: they are
  * separate elements without these handlers, and any draggable child glyph uses
  * `pointer-events: none` so the mousedown lands on the drag region itself.
@@ -22,6 +31,9 @@ export type DragWindow = {
 /** The shape of the pointer events the handlers consume. */
 export interface DragPointerEvent {
   button: number;
+  /** The click count, as exposed by `MouseEvent.detail`. 1 = single click,
+   * 2 = the second click of a double-click, etc. */
+  detail: number;
   target: unknown;
   currentTarget: unknown;
   preventDefault: () => void;
@@ -30,8 +42,6 @@ export interface DragPointerEvent {
 export interface WindowDragHandlers {
   /** Attach to `onMouseDown` of a drag region element. */
   onMouseDown: (event: DragPointerEvent) => void;
-  /** Attach to `onDoubleClick` of a drag region element. */
-  onDoubleClick: (event: { target: unknown; currentTarget: unknown }) => void;
 }
 
 /**
@@ -59,17 +69,19 @@ export function createWindowDragHandlers(win: DragWindow): WindowDragHandlers {
     if (event.button !== 0) return;
     if (isInteractiveTarget(event)) return;
     event.preventDefault();
+    if (event.detail === 2) {
+      // Second click of a double-click: toggle maximize/restore *without*
+      // starting a drag, which would otherwise fight the toggle.
+      win.toggleMaximize().catch(() => {
+        // A failed maximize toggle is non-fatal.
+      });
+      return;
+    }
     win.startDragging().catch(() => {
       // A failed drag is non-fatal: the window simply will not move.
     });
   };
-  const onDoubleClick: WindowDragHandlers["onDoubleClick"] = (event) => {
-    if (isInteractiveTarget(event)) return;
-    win.toggleMaximize().catch(() => {
-      // A failed maximize toggle is non-fatal.
-    });
-  };
-  return { onMouseDown, onDoubleClick };
+  return { onMouseDown };
 }
 
 /** React hook: drag handlers for the current window. */

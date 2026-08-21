@@ -89,24 +89,32 @@ body,
   color: var(--text-dim);
   font: inherit;
   cursor: default;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.winctl:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -3px;
 }
 
 .winctl:hover {
-  background: rgba(30, 44, 64, 0.08);
+  background: rgba(0, 0, 0, 0.09);
   color: var(--text);
 }
 
 .winctl:active {
-  background: rgba(30, 44, 64, 0.14);
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--text);
 }
 
 .winctl-close:hover {
-  background: #e81123;
+  background: #c42b1c;
   color: #fff;
 }
 
 .winctl-close:active {
-  background: #f1707a;
+  background: #8a1d12;
   color: #fff;
 }
 
