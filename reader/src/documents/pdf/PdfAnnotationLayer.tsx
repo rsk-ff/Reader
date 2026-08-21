@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import { pageCssSize, pdfToScreen, quadsBounds, rectToQuad, screenToPdf } from "./coordinates";
+import { clipScreenRect, pageCssSize, pdfRectToScreen, pdfToScreen, quadsBounds, rectToQuad, screenToPdf } from "./coordinates";
 import type { PageGeom, Point, Quad } from "./coordinates";
 import type { PdfAnnotation } from "./annotation-types";
+import { toPdfPageIndex } from "./pdfModel";
 
 interface AnnotationOverlayProps {
   doc?: unknown;
@@ -13,7 +14,8 @@ interface AnnotationOverlayProps {
   annotations: PdfAnnotation[];
   /** current tool: null = select; otherwise create mode */
   tool: AnnotationTool;
-  onAnnotationsChanged: (pageNumber: number) => void;
+  renderVisuals: boolean;
+  onAnnotationsChanged: (pageNumber: number, deletedId?: string) => void;
   onAnnotationCreated: (ann: PdfAnnotation) => void;
 }
 
@@ -27,42 +29,44 @@ export type AnnotationTool =
   | "ink";
 
 /**
- * SVG/DOM overlay sitting above the PDF.js canvas + text layer (§5). Existing
- * annotations render here; new ones are captured via selection (text markup)
- * or pointer drawing (ink / note / freetext) and written through the Rust
- * `create_annotation` command.
+ * SVG/DOM overlay sitting above PDF.js (§5). PDF.js owns rendering and its text
+ * layer owns selection; this overlay only captures mutation gestures and sends
+ * them to the Rust `create_annotation` command.
  */
 export function AnnotationOverlay(props: AnnotationOverlayProps) {
-  const { doc, path, pageNumber, geom, annotations, tool, onAnnotationsChanged, onAnnotationCreated } = props;
+  const { doc, path, pageNumber, geom, annotations, tool, renderVisuals, onAnnotationsChanged, onAnnotationCreated } = props;
   const svgRef = useRef<SVGSVGElement>(null);
+  const [draftInk, setDraftInk] = useState<Point[]>([]);
 
   const { w: cssW, h: cssH } = pageCssSize(geom);
+  const isTextMarkupTool = tool === "highlight" || tool === "underline" || tool === "strikeout";
+  const capturesPointer = tool === "note" || tool === "freetext" || tool === "ink";
 
   // Highlight creation: when a text-markup tool is active, listen for selection
   // changes inside the sibling text layer and convert the range to quads.
   useEffect(() => {
     if (tool !== "highlight" && tool !== "underline" && tool !== "strikeout") return;
-    const root = svgRef.current?.parentElement;
-    if (!root) return;
+    const host = svgRef.current?.parentElement;
+    const pageElement = host?.parentElement;
+    if (!host || !pageElement) return;
 
     const onMouseUp = async () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) return;
       const range = sel.getRangeAt(0);
-      const pageEl = root.querySelector(".pdf-page-shadow") as HTMLElement | null;
-      if (!pageEl) return;
-      const pageRect = pageEl.getBoundingClientRect();
+      const pageRect = host.getBoundingClientRect();
       const clientRects = range.getClientRects();
       const quads: Quad[] = [];
       for (let i = 0; i < clientRects.length; i++) {
-        const r = clientRects[i];
+        const clipped = clipScreenRect(clientRects[i], pageRect);
+        if (!clipped) continue;
         quads.push(
           rectToQuad(
             geom,
-            r.left - pageRect.left,
-            r.top - pageRect.top,
-            r.right - pageRect.left,
-            r.bottom - pageRect.top,
+            clipped.left - pageRect.left,
+            clipped.top - pageRect.top,
+            clipped.right - pageRect.left,
+            clipped.bottom - pageRect.top,
           ),
         );
       }
@@ -71,7 +75,7 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
       const bounds = quadsBounds(quads)!;
       const ann: PdfAnnotation = {
         id: `page:${pageNumber}:new:${Date.now()}`,
-        page_index: pageNumber,
+        page_index: toPdfPageIndex(pageNumber),
         annotation_type: tool,
         rect: { left: bounds.left, right: bounds.right, bottom: bounds.bottom, top: bounds.top },
         quad_points: quads,
@@ -91,8 +95,10 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
       }
     };
 
-    root.addEventListener("mouseup", onMouseUp);
-    return () => root.removeEventListener("mouseup", onMouseUp);
+    // The PDF.js text layer is a sibling of our host. Listen on their shared
+    // page element so a selection mouseup bubbles into this handler.
+    pageElement.addEventListener("mouseup", onMouseUp);
+    return () => pageElement.removeEventListener("mouseup", onMouseUp);
   }, [tool, doc, path, pageNumber, geom, onAnnotationsChanged, onAnnotationCreated]);
 
   // Note / FreeText creation: click to place.
@@ -106,16 +112,18 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
       const sy = e.clientY - rect.top;
       const p = screenToPdf(geom, sx, sy);
       const size = 24;
+      const text = window.prompt(tool === "freetext" ? "Free text" : "Note text", "");
+      if (text == null) return;
       const ann: PdfAnnotation = {
         id: `page:${pageNumber}:new:${Date.now()}`,
-        page_index: pageNumber,
+        page_index: toPdfPageIndex(pageNumber),
         annotation_type: tool,
         rect: { left: p.x, right: p.x + size, bottom: p.y - size, top: p.y },
         quad_points: [],
         ink_paths: [],
         color: defaultColor(tool),
         opacity: 1,
-        text: tool === "freetext" ? "text" : tool === "note" ? "" : null,
+        text,
         created_at: null,
         modified_at: null,
       };
@@ -140,24 +148,37 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
     if (!svg) return;
     let currentPath: Point[] = [];
     let drawing = false;
+    let pointerId: number | null = null;
 
     const onDown = (e: PointerEvent) => {
+      e.preventDefault();
       drawing = true;
+      pointerId = e.pointerId;
       currentPath = [];
       const rect = svg.getBoundingClientRect();
       currentPath.push(screenToPdf(geom, e.clientX - rect.left, e.clientY - rect.top));
+      setDraftInk([...currentPath]);
+      svg.setPointerCapture(e.pointerId);
     };
     const onMove = (e: PointerEvent) => {
-      if (!drawing) return;
+      if (!drawing || e.pointerId !== pointerId) return;
       const rect = svg.getBoundingClientRect();
       currentPath.push(screenToPdf(geom, e.clientX - rect.left, e.clientY - rect.top));
+      setDraftInk([...currentPath]);
     };
-    const onUp = async () => {
-      if (!drawing) return;
+    const onUp = async (e: PointerEvent) => {
+      if (!drawing || e.pointerId !== pointerId) return;
       drawing = false;
-      if (currentPath.length < 2) return;
+      pointerId = null;
+      if (svg.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId);
+      const finishedPath = currentPath;
+      currentPath = [];
+      if (finishedPath.length < 2) {
+        setDraftInk([]);
+        return;
+      }
       let left = Infinity, right = -Infinity, bottom = Infinity, top = -Infinity;
-      for (const p of currentPath) {
+      for (const p of finishedPath) {
         left = Math.min(left, p.x);
         right = Math.max(right, p.x);
         bottom = Math.min(bottom, p.y);
@@ -165,11 +186,11 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
       }
       const ann: PdfAnnotation = {
         id: `page:${pageNumber}:new:${Date.now()}`,
-        page_index: pageNumber,
+        page_index: toPdfPageIndex(pageNumber),
         annotation_type: "ink",
         rect: { left, right, bottom, top },
         quad_points: [],
-        ink_paths: [currentPath],
+        ink_paths: [finishedPath],
         color: "#e06c75",
         opacity: 1,
         text: null,
@@ -182,29 +203,60 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
         onAnnotationsChanged(pageNumber);
       } catch (err) {
         console.warn("create ink failed", err);
+      } finally {
+        setDraftInk([]);
       }
+    };
+
+    const onCancel = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
+      drawing = false;
+      pointerId = null;
       currentPath = [];
+      setDraftInk([]);
     };
 
     svg.addEventListener("pointerdown", onDown);
     svg.addEventListener("pointermove", onMove);
     svg.addEventListener("pointerup", onUp);
+    svg.addEventListener("pointercancel", onCancel);
     return () => {
       svg.removeEventListener("pointerdown", onDown);
       svg.removeEventListener("pointermove", onMove);
       svg.removeEventListener("pointerup", onUp);
+      svg.removeEventListener("pointercancel", onCancel);
+      setDraftInk([]);
     };
   }, [tool, doc, path, pageNumber, geom, onAnnotationsChanged, onAnnotationCreated]);
 
   return (
     <svg
       ref={svgRef}
-      className={"pdf-annotation-layer" + (tool !== "select" ? " pdf-annot-tool" : "")}
+      className={
+        "pdf-annotation-layer" +
+        (capturesPointer ? " pdf-annot-tool" : "") +
+        (isTextMarkupTool ? " pdf-annot-text-tool" : "")
+      }
       width={cssW}
       height={cssH}
       viewBox={`0 0 ${cssW} ${cssH}`}
     >
-      {annotations.map((ann) => renderAnnotation(ann, geom, path, pageNumber, onAnnotationsChanged))}
+      {annotations.map((ann) => renderAnnotation(ann, geom, path, pageNumber, renderVisuals, onAnnotationsChanged))}
+      {draftInk.length > 1 && (
+        <path
+          d={draftInk
+            .map((point, index) => {
+              const screenPoint = pdfToScreen(geom, point.x, point.y);
+              return `${index === 0 ? "M" : "L"} ${screenPoint.x} ${screenPoint.y}`;
+            })
+            .join(" ")}
+          fill="none"
+          stroke="#e06c75"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
     </svg>
   );
 }
@@ -214,12 +266,13 @@ function renderAnnotation(
   geom: PageGeom,
   path: string,
   pageNumber: number,
-  onAnnotationsChanged: (n: number) => void,
+  renderVisuals: boolean,
+  onAnnotationsChanged: (n: number, deletedId?: string) => void,
 ) {
   const del = async () => {
     try {
-      await invoke("delete_annotation", { path, pageIndex: pageNumber, id: ann.id });
-      onAnnotationsChanged(pageNumber);
+      await invoke("delete_annotation", { path, pageIndex: toPdfPageIndex(pageNumber), id: ann.id });
+      onAnnotationsChanged(pageNumber, ann.id);
     } catch (e) {
       console.warn("delete annotation failed", e);
     }
@@ -227,7 +280,7 @@ function renderAnnotation(
 
   if (ann.annotation_type === "highlight" || ann.annotation_type === "underline" || ann.annotation_type === "strikeout") {
     return (
-      <g key={ann.id} onDoubleClick={del}>
+      <g key={ann.id} opacity={renderVisuals ? 1 : 0} onDoubleClick={del}>
         {ann.quad_points.map((q, i) => {
           const tl = pdfToScreen(geom, q.x3, q.y3);
           const tr = pdfToScreen(geom, q.x4, q.y4);
@@ -251,18 +304,15 @@ function renderAnnotation(
   }
 
   // note / freetext
-  const tl = pdfToScreen(geom, ann.rect.left, ann.rect.top);
-  const br = pdfToScreen(geom, ann.rect.right, ann.rect.bottom);
-  const w = br.x - tl.x;
-  const h = tl.y - br.y;
+  const box = pdfRectToScreen(geom, ann.rect);
   if (ann.annotation_type === "note") {
     return (
-      <g key={ann.id} onDoubleClick={del}>
+      <g key={ann.id} opacity={renderVisuals ? 1 : 0} onDoubleClick={del}>
         <rect
-          x={tl.x}
-          y={br.y}
-          width={Math.max(w, 18)}
-          height={Math.max(h, 18)}
+          x={box.x}
+          y={box.y}
+          width={Math.max(box.width, 18)}
+          height={Math.max(box.height, 18)}
           rx={3}
           fill={ann.color}
           fillOpacity={ann.opacity}
@@ -270,7 +320,7 @@ function renderAnnotation(
           strokeWidth={0.5}
         />
         {ann.text && (
-          <text x={tl.x + 4} y={br.y + 12} fontSize={9} fill="#333">
+          <text x={box.x + 4} y={box.y + 12} fontSize={9} fill="#333">
             {ann.text.slice(0, 20)}
           </text>
         )}
@@ -279,18 +329,18 @@ function renderAnnotation(
   }
   if (ann.annotation_type === "freetext") {
     return (
-      <g key={ann.id} onDoubleClick={del}>
+      <g key={ann.id} opacity={renderVisuals ? 1 : 0} onDoubleClick={del}>
         <rect
-          x={tl.x}
-          y={br.y}
-          width={w}
-          height={h}
+          x={box.x}
+          y={box.y}
+          width={box.width}
+          height={box.height}
           fill={ann.color}
           fillOpacity={0.15}
           stroke={ann.color}
           strokeWidth={1}
         />
-        <text x={tl.x + 4} y={br.y + 14} fontSize={11} fill={ann.color}>
+        <text x={box.x + 4} y={box.y + 14} fontSize={11} fill={ann.color}>
           {ann.text ?? ""}
         </text>
       </g>
@@ -298,7 +348,7 @@ function renderAnnotation(
   }
   if (ann.annotation_type === "ink") {
     return (
-      <g key={ann.id} onDoubleClick={del}>
+      <g key={ann.id} opacity={renderVisuals ? 1 : 0} onDoubleClick={del}>
         {ann.ink_paths.map((pathPts, pi) => {
           if (pathPts.length < 2) return null;
           const pts = pathPts.map((p) => pdfToScreen(geom, p.x, p.y));
@@ -340,4 +390,3 @@ function defaultColor(tool: AnnotationTool): string {
       return "#ffd54f";
   }
 }
-

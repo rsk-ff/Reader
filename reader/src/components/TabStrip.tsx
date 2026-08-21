@@ -63,7 +63,11 @@ export function TabStrip() {
       e.clientY < r.top - 8 ||
       e.clientY > r.bottom + 40; // allow a little downward leeway
     if (outside) {
-      await detachTab(tab.id);
+      try {
+        await detachTab(tab.id);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      }
     }
   }
 
@@ -101,7 +105,6 @@ export function TabStrip() {
             onMouseDown={(e) => {
               if (e.button === 1) {
                 e.preventDefault();
-                void closeTab(tab.id);
                 return;
               }
               if (e.button === 0) void focusTab(tab.id);

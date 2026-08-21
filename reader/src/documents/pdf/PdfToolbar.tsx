@@ -149,7 +149,11 @@ export function PdfToolbar(props: PdfToolbarProps) {
             type="search"
             placeholder="search"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSearchInput(value);
+              if (!value) onSearch("");
+            }}
             aria-label="search"
           />
         </form>

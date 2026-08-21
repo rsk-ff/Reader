@@ -1,9 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": ["main"],
+  "description": "Capability for Reader windows",
+  "windows": ["main", "win-*"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-destroy"
   ]
 }

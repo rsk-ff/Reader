@@ -1,9 +1,14 @@
 import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { useWorkspace } from "../workspace/store";
 import { TabStrip } from "../components/TabStrip";
 import { EmptyState } from "../components/EmptyState";
 import { DocumentView } from "../documents/DocumentView";
+import {
+  prepareDocumentForClose,
+  UnsavedChangesDialog,
+} from "../workspace/documentLifecycle";
 import "../styles.css";
 
 export default function App() {
@@ -13,25 +18,53 @@ export default function App() {
   const activeTabId = useWorkspace((s) => s.active_tab_id);
   const focusTab = useWorkspace((s) => s.focusTab);
   const closeTab = useWorkspace((s) => s.closeTab);
-  const myWindowId = useWorkspace((s) => s.myWindowId);
 
   useEffect(() => {
     void init();
   }, [init]);
 
-  // Report window destruction to the backend so it can drop tab slots (§26).
+  // Resolve every dirty document before allowing the native window to close.
   useEffect(() => {
     const win = getCurrentWindow();
-    const unlistenP = win.onCloseRequested(async () => {
-      // Non-main windows: let the backend remove_window clean up.
-      await import("@tauri-apps/api/core").then(({ invoke }) =>
-        invoke("remove_window", { windowId: myWindowId }).catch(() => {}),
-      );
+    let allowNativeClose = false;
+    let closeInProgress = false;
+    const unlistenP = win.onCloseRequested(async (event) => {
+      if (allowNativeClose) return;
+      event.preventDefault();
+      if (closeInProgress) return;
+      closeInProgress = true;
+
+      const state = useWorkspace.getState();
+      const { tabs: currentTabs, documentsById } = state;
+      try {
+        for (const tab of currentTabs) {
+          const document = documentsById[tab.document_id];
+          if (document?.dirty && !(await prepareDocumentForClose(document, tab.title))) {
+            closeInProgress = false;
+            return;
+          }
+        }
+        await invoke("save_session");
+        allowNativeClose = true;
+        // The decision is complete. Destroy is explicitly permitted by the
+        // app capability and avoids issuing a re-entrant close request.
+        window.setTimeout(() => {
+          void win.destroy().catch((error: unknown) => {
+            allowNativeClose = false;
+            closeInProgress = false;
+            window.alert(`Could not close this window: ${String(error)}`);
+          });
+        }, 0);
+      } catch (error) {
+        allowNativeClose = false;
+        closeInProgress = false;
+        window.alert(`Could not close this window: ${String(error)}`);
+      }
     });
     return () => {
       void unlistenP.then((un) => un());
     };
-  }, [myWindowId]);
+  }, []);
 
   // Keyboard navigation (§17): Ctrl+W close, Ctrl+Tab / Ctrl+Shift+Tab cycle.
   useEffect(() => {
@@ -81,6 +114,7 @@ export default function App() {
           <EmptyState />
         )}
       </div>
+      <UnsavedChangesDialog />
     </div>
   );
 }

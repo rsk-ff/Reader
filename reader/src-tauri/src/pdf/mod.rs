@@ -2,14 +2,16 @@
 //!
 //! `PdfMutationBackend` is the seam that keeps the application layer free of
 //! concrete `pdfium-render` types. The current implementation uses pdfium-render
-//! + the dynamic PDFium library; a future backend can swap in without touching
+//! plus the dynamic PDFium library. A future backend can swap in without touching
 //! the command layer or the frontend.
 
 pub mod annotation;
+pub mod file_protocol;
 pub mod pdfium;
 
 pub use annotation::{AnnotationType, PageSize, PdfAnnotation, Point, Quad, Rect};
-pub use pdfium::{PdfiumBackend, handle_page_render, page_img_url};
+pub use file_protocol::handle_reader_file;
+pub use pdfium::PdfiumBackend;
 
 /// The mutation contract every backend must satisfy (§4). All coordinates are
 /// in PDF user space (origin bottom-left, y up, units = points).

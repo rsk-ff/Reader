@@ -4,7 +4,7 @@
 //! from OS double-click (single-instance plugin / opened-files event), CLI
 //! args at first launch, drag-in, or a frontend File→Open action.
 
-use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder, ipc::Response};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::workspace::{
     AppWorkspace, SharedWorkspace, TabId, WindowId, WindowSnapshot, MAIN_WINDOW,
@@ -34,7 +34,9 @@ pub fn broadcast(app: &AppHandle, ws: &SharedWorkspace) {
 /// `open_document` Tauri command. Targets the main window by default
 /// (single-instance / CLI have no window context).
 pub fn open_document(app: &AppHandle, ws: &SharedWorkspace, path: &str) -> Result<TabId, String> {
-    let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
     guard.ensure_main();
     let tab_id = guard.open_document(path, &MAIN_WINDOW.to_string())?;
     drop(guard);
@@ -92,7 +94,9 @@ pub fn get_workspace(
     window_id: WindowId,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<WindowSnapshot, String> {
-    let guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
     Ok(guard.snapshot_for(&window_id))
 }
 
@@ -103,7 +107,9 @@ pub fn open_document_command(
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<TabId, String> {
-    let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
     guard.ensure_main();
     let tab_id = guard.open_document(&path, &window_id)?;
     drop(guard);
@@ -112,8 +118,14 @@ pub fn open_document_command(
 }
 
 #[tauri::command]
-pub fn focus_tab(tab_id: TabId, app: AppHandle, ws: State<'_, SharedWorkspace>) -> Result<(), String> {
-    let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+pub fn focus_tab(
+    tab_id: TabId,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
     guard.focus_tab(&tab_id)?;
     drop(guard);
     broadcast(&app, &ws);
@@ -121,9 +133,15 @@ pub fn focus_tab(tab_id: TabId, app: AppHandle, ws: State<'_, SharedWorkspace>) 
 }
 
 #[tauri::command]
-pub fn close_tab(tab_id: TabId, app: AppHandle, ws: State<'_, SharedWorkspace>) -> Result<(), String> {
+pub fn close_tab(
+    tab_id: TabId,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
     let close_window = {
-        let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        let mut guard = ws
+            .lock()
+            .map_err(|e| format!("workspace lock poisoned: {e}"))?;
         let owner = guard.close_tab(&tab_id)?;
         // Non-main window with no tabs left → close the native window.
         owner != MAIN_WINDOW
@@ -137,7 +155,9 @@ pub fn close_tab(tab_id: TabId, app: AppHandle, ws: State<'_, SharedWorkspace>) 
         // Determine which window to close by re-reading; simplest: the tab's
         // owning window is gone now, so find the empty non-main window.
         let empty_win = {
-            let guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+            let guard = ws
+                .lock()
+                .map_err(|e| format!("workspace lock poisoned: {e}"))?;
             guard
                 .windows
                 .iter()
@@ -162,7 +182,9 @@ pub fn reorder_tabs(
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<(), String> {
-    let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
     guard.reorder_tabs(&window_id, &tab_ids)?;
     drop(guard);
     broadcast(&app, &ws);
@@ -178,19 +200,18 @@ pub fn detach_tab(
     ws: State<'_, SharedWorkspace>,
 ) -> Result<WindowId, String> {
     let new_window = {
-        let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        let mut guard = ws
+            .lock()
+            .map_err(|e| format!("workspace lock poisoned: {e}"))?;
         guard.detach_tab(&tab_id)?
     };
 
     // Create the native window with the same label the workspace just minted.
-    let mut builder = WebviewWindowBuilder::new(
-        &app,
-        &new_window,
-        WebviewUrl::App("index.html".into()),
-    )
-    .title("Reader")
-    .inner_size(900.0, 700.0)
-    .min_inner_size(640.0, 480.0);
+    let mut builder =
+        WebviewWindowBuilder::new(&app, &new_window, WebviewUrl::App("index.html".into()))
+            .title("Reader")
+            .inner_size(900.0, 700.0)
+            .min_inner_size(640.0, 480.0);
     builder = builder.position(120.0, 120.0);
     builder
         .build()
@@ -209,7 +230,9 @@ pub fn move_tab(
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<(), String> {
-    let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
     guard.move_tab(&tab_id, &target_window, position)?;
     drop(guard);
     broadcast(&app, &ws);
@@ -225,7 +248,9 @@ pub fn remove_window(
     ws: State<'_, SharedWorkspace>,
 ) -> Result<(), String> {
     {
-        let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        let mut guard = ws
+            .lock()
+            .map_err(|e| format!("workspace lock poisoned: {e}"))?;
         guard.remove_window(&window_id);
     }
     broadcast(&app, &ws);
@@ -235,7 +260,9 @@ pub fn remove_window(
 /// Persist the workspace to AppData for session restore (§26).
 pub fn save_session_impl(app: &AppHandle, ws: &SharedWorkspace) -> Result<(), String> {
     let serialized = {
-        let guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        let guard = ws
+            .lock()
+            .map_err(|e| format!("workspace lock poisoned: {e}"))?;
         guard.serialize()
     };
 
@@ -293,23 +320,12 @@ pub fn try_restore_session(app: &AppHandle) {
             .collect()
     };
     for id in detached {
-        let _ = WebviewWindowBuilder::new(
-            app,
-            &id,
-            WebviewUrl::App("index.html".into()),
-        )
-        .title("Reader")
-        .inner_size(900.0, 700.0)
-        .build();
+        let _ = WebviewWindowBuilder::new(app, &id, WebviewUrl::App("index.html".into()))
+            .title("Reader")
+            .inner_size(900.0, 700.0)
+            .build();
     }
     broadcast(app, ws);
-}
-
-/// Read a file's raw bytes. Used by the PDF adapter to feed `pdfjs.getDocument`.
-#[tauri::command]
-pub fn read_file_bytes(path: String) -> Result<Response, String> {
-    let bytes = std::fs::read(&path).map_err(|e| format!("read '{path}': {e}"))?;
-    Ok(Response::new(bytes))
 }
 
 /// Sink for frontend runtime errors (webview console → Rust log).
@@ -339,7 +355,8 @@ pub fn save_file_text(path: String, content: String) -> Result<(), String> {
         .write(true)
         .open(&tmp)
         .map_err(|e| format!("reopen tmp '{tmp}': {e}"))?;
-    f.sync_all().map_err(|e| format!("fsync tmp '{tmp}': {e}"))?;
+    f.sync_all()
+        .map_err(|e| format!("fsync tmp '{tmp}': {e}"))?;
     drop(f);
     std::fs::rename(&tmp, &path).map_err(|e| format!("rename '{tmp}' -> '{path}': {e}"))?;
     Ok(())
@@ -361,7 +378,9 @@ pub fn set_dirty(
     ws: State<'_, SharedWorkspace>,
 ) -> Result<(), String> {
     {
-        let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        let mut guard = ws
+            .lock()
+            .map_err(|e| format!("workspace lock poisoned: {e}"))?;
         guard.set_dirty(&document_id, dirty);
     }
     broadcast(&app, &ws);
@@ -376,55 +395,193 @@ fn backend() -> PdfiumBackend {
     PdfiumBackend::new()
 }
 
-#[tauri::command]
-pub fn get_annotations(path: String, page_index: usize) -> Result<Vec<PdfAnnotation>, String> {
-    backend().get_annotations(&path, page_index)
+fn pdf_working_path(ws: &State<'_, SharedWorkspace>, path: &str) -> Result<String, String> {
+    let mut guard = ws
+        .lock()
+        .map_err(|error| format!("workspace lock poisoned: {error}"))?;
+    guard
+        .ensure_pdf_working_copy(path)
+        .map(|working_copy| working_copy.to_string_lossy().into_owned())
+}
+
+async fn pdf_worker<T>(
+    operation: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String>
+where
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(operation)
+        .await
+        .map_err(|error| format!("PDF worker failed: {error}"))?
+}
+
+fn commit_pdf_working_copy(original_path: &str, working_path: &str) -> Result<u64, String> {
+    let bytes = std::fs::read(working_path)
+        .map_err(|error| format!("read PDF working copy '{working_path}': {error}"))?;
+    crate::pdf::pdfium::atomic_write(original_path, &bytes)
 }
 
 #[tauri::command]
-pub fn create_annotation(
+pub async fn create_annotation(
     path: String,
     annotation: PdfAnnotation,
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<PdfAnnotation, String> {
-    let ann = backend().create_annotation(&path, annotation)?;
+    let worker_path = pdf_working_path(&ws, &path)?;
+    let ann = pdf_worker(move || {
+        crate::pdf::pdfium::with_pdfium_lock(|| {
+            backend().create_annotation(&worker_path, annotation)
+        })
+    })
+    .await?;
     mark_dirty_by_path(&app, &ws, &path);
     Ok(ann)
 }
 
 #[tauri::command]
-pub fn update_annotation(path: String, annotation: PdfAnnotation) -> Result<(), String> {
-    backend().update_annotation(&path, annotation)
+pub async fn update_annotation(
+    path: String,
+    annotation: PdfAnnotation,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    let worker_path = pdf_working_path(&ws, &path)?;
+    pdf_worker(move || {
+        crate::pdf::pdfium::with_pdfium_lock(|| {
+            backend().update_annotation(&worker_path, annotation)
+        })
+    })
+    .await?;
+    mark_dirty_by_path(&app, &ws, &path);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn delete_annotation(path: String, page_index: usize, id: String) -> Result<(), String> {
-    backend().delete_annotation(&path, page_index, &id)
+pub async fn delete_annotation(
+    path: String,
+    page_index: usize,
+    id: String,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    let worker_path = pdf_working_path(&ws, &path)?;
+    pdf_worker(move || {
+        crate::pdf::pdfium::with_pdfium_lock(|| {
+            backend().delete_annotation(&worker_path, page_index, &id)
+        })
+    })
+    .await?;
+    mark_dirty_by_path(&app, &ws, &path);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn save_document(
+pub async fn save_document(
     path: String,
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<u64, String> {
-    let len = backend().save(&path)?;
-    mark_dirty_by_path(&app, &ws, &path);
-    // save clears dirty
-    {
-        let mut guard = ws.lock().map_err(|e| format!("workspace lock poisoned: {e}"))?;
-        let doc_id = guard
+    let (document_id, original_path, working_copy) = {
+        let guard = ws
+            .lock()
+            .map_err(|error| format!("workspace lock poisoned: {error}"))?;
+        let document = guard
             .documents
             .values()
-            .find(|d| d.path.to_str() == Some(&path))
-            .map(|d| d.id.clone());
-        if let Some(id) = doc_id {
-            guard.set_dirty(&id, false);
+            .find(|document| document.path.to_str() == Some(&path))
+            .ok_or_else(|| format!("document is not open: {path}"))?;
+        (
+            document.id.clone(),
+            document.path.to_string_lossy().into_owned(),
+            document
+                .pdf_working_copy
+                .as_ref()
+                .map(|working_copy| working_copy.to_string_lossy().into_owned()),
+        )
+    };
+
+    let len = if let Some(worker_path) = working_copy.clone() {
+        pdf_worker(move || {
+            crate::pdf::pdfium::with_pdfium_lock(|| {
+                // Every mutation already produced a complete PDFium-saved file.
+                // Save only commits those staged bytes to the original path.
+                commit_pdf_working_copy(&original_path, &worker_path)
+            })
+        })
+        .await?
+    } else {
+        std::fs::metadata(&original_path)
+            .map(|metadata| metadata.len())
+            .map_err(|error| format!("read PDF metadata '{original_path}': {error}"))?
+    };
+
+    let working_copy_to_remove = {
+        let mut guard = ws
+            .lock()
+            .map_err(|error| format!("workspace lock poisoned: {error}"))?;
+        let document = guard
+            .documents
+            .get_mut(&document_id)
+            .ok_or_else(|| format!("document disappeared while saving: {document_id}"))?;
+        document.file_size = Some(len);
+        let working_copy = document.pdf_working_copy.take();
+        guard.set_dirty(&document_id, false);
+        working_copy
+    };
+    if let Some(working_copy) = working_copy_to_remove {
+        if let Err(error) = std::fs::remove_file(&working_copy) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                log::warn!(
+                    "remove saved PDF working copy '{}': {error}",
+                    working_copy.display()
+                );
+            }
         }
     }
     broadcast(&app, &ws);
     Ok(len)
+}
+
+/// Abandon staged PDFium writes and return PDF.js to the untouched original.
+#[tauri::command]
+pub fn discard_pdf_changes(
+    path: String,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    let working_copy = {
+        let mut guard = ws
+            .lock()
+            .map_err(|error| format!("workspace lock poisoned: {error}"))?;
+        let document_id = guard
+            .documents
+            .values()
+            .find(|document| document.path.to_str() == Some(&path))
+            .map(|document| document.id.clone())
+            .ok_or_else(|| format!("document is not open: {path}"))?;
+        let document = guard
+            .documents
+            .get_mut(&document_id)
+            .expect("document exists while discarding its PDF changes");
+        let working_copy = document.pdf_working_copy.take();
+        document.revision += 1;
+        document.dirty = false;
+        document.last_saved_revision = document.revision;
+        working_copy
+    };
+    if let Some(working_copy) = working_copy {
+        if let Err(error) = std::fs::remove_file(&working_copy) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                return Err(format!(
+                    "remove PDF working copy '{}': {error}",
+                    working_copy.display()
+                ));
+            }
+        }
+    }
+    broadcast(&app, &ws);
+    Ok(())
 }
 
 // ---- PDF page mutation commands (§6) ----
@@ -432,7 +589,7 @@ pub fn save_document(
 use crate::pdf::PageSize;
 
 #[tauri::command]
-pub fn insert_blank_page(
+pub async fn insert_blank_page(
     path: String,
     index: usize,
     size: PageSize,
@@ -440,21 +597,29 @@ pub fn insert_blank_page(
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<usize, String> {
-    let backend = PdfiumBackend::new();
-    let landed = backend.insert_blank_page(&path, index, size, reference_page_index)?;
+    let worker_path = pdf_working_path(&ws, &path)?;
+    let landed = pdf_worker(move || {
+        crate::pdf::pdfium::with_pdfium_lock(|| {
+            backend().insert_blank_page(&worker_path, index, size, reference_page_index)
+        })
+    })
+    .await?;
     mark_dirty_by_path(&app, &ws, &path);
     Ok(landed)
 }
 
 #[tauri::command]
-pub fn delete_page(
+pub async fn delete_page(
     path: String,
     index: usize,
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<(), String> {
-    let backend = PdfiumBackend::new();
-    backend.delete_page(&path, index)?;
+    let worker_path = pdf_working_path(&ws, &path)?;
+    pdf_worker(move || {
+        crate::pdf::pdfium::with_pdfium_lock(|| backend().delete_page(&worker_path, index))
+    })
+    .await?;
     mark_dirty_by_path(&app, &ws, &path);
     Ok(())
 }
@@ -481,21 +646,53 @@ fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &s
     broadcast(app, ws.inner());
 }
 
+#[cfg(test)]
+mod tests {
+    use super::{commit_pdf_working_copy, read_file_text, save_file_text};
 
-// ---- PDFium page rendering (replaces pdf.js entirely) ----
+    #[test]
+    fn markdown_save_replaces_an_existing_file_atomically() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+        let path = std::env::temp_dir().join(format!("reader-markdown-save-{unique}.md"));
+        std::fs::write(&path, "old").expect("seed markdown file");
+        let path_string = path.to_string_lossy().into_owned();
 
-#[tauri::command]
-pub fn get_page_infos(path: String) -> Result<Vec<crate::pdf::pdfium::PageInfoDTO>, String> {
-    Ok(crate::pdf::pdfium::get_page_infos(&path)?)
-}
+        save_file_text(path_string.clone(), "first".into()).expect("first save");
+        save_file_text(path_string.clone(), "second".into()).expect("replacement save");
 
-#[tauri::command]
-pub fn render_page(path: String, page_index: usize, scale: f32) -> Result<Response, String> {
-    let bytes = crate::pdf::pdfium::render_page_png(&path, page_index, scale)?;
-    Ok(Response::new(bytes))
-}
+        assert_eq!(
+            read_file_text(path_string.clone()).expect("read saved file"),
+            "second"
+        );
+        assert!(!std::path::Path::new(&format!("{path_string}.tmp")).exists());
 
-#[tauri::command]
-pub fn get_page_text(path: String, page_index: usize) -> Result<Vec<crate::pdf::pdfium::TextSegment>, String> {
-    Ok(crate::pdf::pdfium::get_page_text(&path, page_index)?)
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn explicit_pdf_save_commits_the_working_copy() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+        let original = std::env::temp_dir().join(format!("reader-pdf-save-{unique}.pdf"));
+        let working = std::env::temp_dir().join(format!("reader-pdf-save-{unique}.working.pdf"));
+        std::fs::write(&original, b"%PDF-original").expect("seed original PDF");
+        std::fs::write(&working, b"%PDF-working").expect("seed working PDF");
+
+        let length = commit_pdf_working_copy(
+            original.to_str().expect("UTF-8 original path"),
+            working.to_str().expect("UTF-8 working path"),
+        )
+        .expect("commit PDF working copy");
+
+        assert_eq!(length, 12);
+        assert_eq!(std::fs::read(&original).unwrap(), b"%PDF-working");
+        assert_eq!(std::fs::read(&working).unwrap(), b"%PDF-working");
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(working);
+    }
 }

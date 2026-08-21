@@ -4,6 +4,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { useMarkdownText, useMarkdownSave } from "./useMarkdownText";
 import { MilkdownCrepe } from "./MilkdownCrepe";
 import { MarkdownToolbar } from "./MarkdownToolbar";
+import { MarkdownScrollbar } from "./MarkdownScrollbar";
+import { saveCoversCurrentRevision } from "./saveRevision";
+import { useWorkspace } from "../../workspace/store";
+import { registerDocumentLifecycle } from "../../workspace/documentLifecycle";
 
 interface MarkdownEditorProps {
   path: string;
@@ -15,7 +19,8 @@ type Mode = "wysiwyg" | "source";
 
 export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
   const { text, loading, error } = useMarkdownText(path);
-  const { save } = useMarkdownSave(path, docId);
+  const { save } = useMarkdownSave(path);
+  const setDocumentDirtyLocal = useWorkspace((state) => state.setDocumentDirtyLocal);
 
   const [mode, setMode] = useState<Mode>("wysiwyg");
   /** Current working text. The single source of truth for both modes. */
@@ -24,24 +29,45 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
   const [crepeVersion, setCrepeVersion] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editRevisionRef = useRef(0);
+  const saveInFlightRef = useRef<Promise<void> | null>(null);
+  const dirtyRef = useRef(false);
+  const dirtySyncRef = useRef<Promise<void>>(Promise.resolve());
+  const lastSavedTextRef = useRef<string | null>(null);
 
   // When the file finishes loading, seed the working text.
   useEffect(() => {
     if (text != null && workingText == null) {
       setWorkingText(text);
+      lastSavedTextRef.current = text;
     }
   }, [text, workingText]);
 
+  const syncDirty = useCallback(
+    (nextDirty: boolean) => {
+      setDocumentDirtyLocal(docId, nextDirty);
+      const pending = dirtySyncRef.current
+        .catch(() => {})
+        .then(() => invoke<void>("set_dirty", { documentId: docId, dirty: nextDirty }));
+      dirtySyncRef.current = pending;
+      return pending;
+    },
+    [docId, setDocumentDirtyLocal],
+  );
+
   const markDirty = useCallback(
     (next: string) => {
+      editRevisionRef.current += 1;
       setWorkingText(next);
-      if (!dirty) {
+      if (!dirtyRef.current) {
+        dirtyRef.current = true;
         setDirty(true);
-        void invoke("set_dirty", { documentId: docId, dirty: true }).catch(() => {});
+        void syncDirty(true).catch(() => {});
       }
     },
-    [dirty, docId],
+    [syncDirty],
   );
 
   // WYSIWYG edit handler.
@@ -72,32 +98,81 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
   );
 
   // Ctrl+S save (§7). Only when this tab is active.
-  const doSave = useCallback(async () => {
-    if (saving || !dirty || workingText == null) return;
+  const doSave = useCallback((): Promise<void> => {
+    if (saveInFlightRef.current) return saveInFlightRef.current;
+    if (workingText == null) return Promise.reject(new Error("Markdown text is still loading."));
+    if (!dirtyRef.current) return dirtySyncRef.current;
+    const savedRevision = editRevisionRef.current;
+    const textToSave = workingText;
     setSaving(true);
+    const operation = (async () => {
+      try {
+        await save(textToSave);
+        lastSavedTextRef.current = textToSave;
+        const savedLatest = saveCoversCurrentRevision(savedRevision, editRevisionRef.current);
+        dirtyRef.current = !savedLatest;
+        setDirty(!savedLatest);
+        await syncDirty(!savedLatest);
+        void invoke("log_frontend", {
+          level: "info",
+          message: `markdown saved: ${path}`,
+        }).catch(() => {});
+      } catch (e) {
+        void invoke("log_frontend", {
+          level: "error",
+          message: `markdown save failed: ${e}`,
+        }).catch(() => {});
+        throw e;
+      } finally {
+        setSaving(false);
+      }
+    })();
+    saveInFlightRef.current = operation;
+    void operation.then(
+      () => {
+        if (saveInFlightRef.current === operation) saveInFlightRef.current = null;
+      },
+      () => {
+        if (saveInFlightRef.current === operation) saveInFlightRef.current = null;
+      },
+    );
+    return operation;
+  }, [workingText, save, path, syncDirty]);
+
+  const discardChanges = useCallback(async () => {
+    await saveInFlightRef.current?.catch(() => {});
+    const savedText = lastSavedTextRef.current;
+    if (savedText == null) throw new Error("The last saved Markdown text is unavailable.");
+    dirtyRef.current = false;
+    setDirty(false);
+    setWorkingText(savedText);
+    setCrepeVersion((version) => version + 1);
     try {
-      await save(workingText);
-      setDirty(false);
-      void invoke("log_frontend", {
-        level: "info",
-        message: `markdown saved: ${path}`,
-      }).catch(() => {});
-    } catch (e) {
-      void invoke("log_frontend", {
-        level: "error",
-        message: `markdown save failed: ${e}`,
-      }).catch(() => {});
-    } finally {
-      setSaving(false);
+      await syncDirty(false);
+    } catch (error) {
+      dirtyRef.current = true;
+      setDirty(true);
+      throw error;
     }
-  }, [saving, dirty, workingText, save, path]);
+  }, [syncDirty]);
+
+  useEffect(
+    () => registerDocumentLifecycle(docId, { save: doSave, discard: discardChanges }),
+    [docId, doSave, discardChanges],
+  );
+
+  const saveFromEditor = useCallback(() => {
+    void doSave().catch((error: unknown) => {
+      window.alert(`Markdown save failed: ${String(error)}`);
+    });
+  }, [doSave]);
 
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
         e.preventDefault();
-        void doSave();
+        saveFromEditor();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "/") {
         e.preventDefault();
@@ -106,7 +181,7 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, doSave, switchMode, mode]);
+  }, [active, saveFromEditor, switchMode, mode]);
 
   if (loading) return <div className="md-status">opening markdown…</div>;
   if (error) return <div className="md-status md-status-error">failed to open: {error}</div>;
@@ -119,25 +194,33 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
         dirty={dirty}
         saving={saving}
         onSwitch={switchMode}
-        onSave={doSave}
+        onSave={saveFromEditor}
       />
-      <div className="md-content">
-        {mode === "wysiwyg" ? (
-          <MilkdownCrepe
-            key={crepeVersion}
-            value={workingText}
-            onChange={onChange}
-          />
-        ) : (
-          <textarea
-            ref={textareaRef}
-            className="md-source"
-            value={workingText}
-            onChange={onSourceChange}
-            spellCheck={false}
-            placeholder="# Markdown source"
-          />
-        )}
+      <div className="md-viewport">
+        <div ref={contentRef} className="md-content">
+          {mode === "wysiwyg" ? (
+            <MilkdownCrepe
+              key={crepeVersion}
+              value={workingText}
+              onChange={onChange}
+            />
+          ) : (
+            <textarea
+              ref={textareaRef}
+              className="md-source"
+              value={workingText}
+              onChange={onSourceChange}
+              spellCheck={false}
+              placeholder="# Markdown source"
+            />
+          )}
+        </div>
+        <MarkdownScrollbar
+          containerRef={contentRef}
+          sourceRef={textareaRef}
+          mode={mode}
+          contentVersion={crepeVersion + workingText.length}
+        />
       </div>
     </div>
   );

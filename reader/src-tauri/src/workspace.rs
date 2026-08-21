@@ -9,7 +9,8 @@
 //! new windows, and moved between windows — all without recreating the
 //! underlying DocumentSession (so dirty state survives, Test 10).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -56,6 +57,10 @@ pub struct DocumentSession {
     pub revision: u64,
     pub last_saved_revision: u64,
     pub file_size: Option<u64>,
+    /// PDFium mutations are written here until the user explicitly saves.
+    /// This is process-local state and must never leak into session snapshots.
+    #[serde(skip)]
+    pub pdf_working_copy: Option<PathBuf>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -131,11 +136,7 @@ impl AppWorkspace {
 
     /// The single open_document entry point (§16). `target_window` selects
     /// which window receives the new tab (or focuses the existing one).
-    pub fn open_document(
-        &mut self,
-        path: &str,
-        target_window: &WindowId,
-    ) -> Result<TabId, String> {
+    pub fn open_document(&mut self, path: &str, target_window: &WindowId) -> Result<TabId, String> {
         self.ensure_main();
         let canon = Self::canonicalize(path)?;
 
@@ -143,7 +144,11 @@ impl AppWorkspace {
         if let Some(tab) = self
             .tabs
             .values()
-            .find(|t| self.documents.get(&t.document_id).map_or(false, |d| d.path == canon))
+            .find(|t| {
+                self.documents
+                    .get(&t.document_id)
+                    .is_some_and(|d| d.path == canon)
+            })
             .cloned()
         {
             self.focus_tab(&tab.id)?;
@@ -170,6 +175,7 @@ impl AppWorkspace {
             revision: 1,
             last_saved_revision: 1,
             file_size,
+            pdf_working_copy: None,
         };
         self.documents.insert(doc_id.clone(), session);
 
@@ -183,14 +189,15 @@ impl AppWorkspace {
             active: true,
         };
         self.tabs.insert(tab_id.clone(), tab);
-        let win = self.windows.entry(target_window.clone()).or_insert_with(|| {
-            WindowState {
+        let win = self
+            .windows
+            .entry(target_window.clone())
+            .or_insert_with(|| WindowState {
                 id: target_window.clone(),
                 tab_ids: vec![],
                 active_tab: None,
                 bounds: None,
-            }
-        });
+            });
         win.tab_ids.push(tab_id.clone());
         self.focus_tab(&tab_id)?;
         Ok(tab_id)
@@ -230,7 +237,9 @@ impl AppWorkspace {
         // drop session if nothing references it
         let still_referenced = self.tabs.values().any(|t| t.document_id == tab.document_id);
         if !still_referenced {
-            self.documents.remove(&tab.document_id);
+            if let Some(document) = self.documents.remove(&tab.document_id) {
+                remove_pdf_working_copy(&document);
+            }
         }
         Ok(tab.window_id)
     }
@@ -315,7 +324,9 @@ impl AppWorkspace {
                     let still_referenced =
                         self.tabs.values().any(|t| t.document_id == tab.document_id);
                     if !still_referenced {
-                        self.documents.remove(&tab.document_id);
+                        if let Some(document) = self.documents.remove(&tab.document_id) {
+                            remove_pdf_working_copy(&document);
+                        }
                     }
                 }
             }
@@ -336,6 +347,76 @@ impl AppWorkspace {
                 d.revision += 1;
             }
         }
+    }
+
+    /// Return the currently readable PDF source for a canonical, open path.
+    /// Unsaved PDFium writes live in a private working copy; PDF.js reads that
+    /// copy while the original remains untouched until an explicit save.
+    pub fn pdf_source_path(&self, canonical_path: &Path) -> Option<PathBuf> {
+        let document = self.documents.values().find(|document| {
+            document.path == canonical_path && document.doc_type == DocumentType::Pdf
+        })?;
+        Some(
+            document
+                .pdf_working_copy
+                .as_ref()
+                .filter(|path| path.is_file())
+                .unwrap_or(&document.path)
+                .clone(),
+        )
+    }
+
+    /// Materialize a private working copy for a PDF mutation. Repeated writes
+    /// for the same open document reuse the same copy.
+    pub fn ensure_pdf_working_copy(&mut self, path: &str) -> Result<PathBuf, String> {
+        let canonical = Self::canonicalize(path)?;
+        let document_id = self
+            .documents
+            .values()
+            .find(|document| document.path == canonical)
+            .map(|document| document.id.clone())
+            .ok_or_else(|| format!("PDF is not open in this workspace: {path}"))?;
+
+        let document = self
+            .documents
+            .get(&document_id)
+            .ok_or_else(|| format!("document not found: {document_id}"))?;
+        if document.doc_type != DocumentType::Pdf {
+            return Err(format!("document is not a PDF: {path}"));
+        }
+        if let Some(working_copy) = document
+            .pdf_working_copy
+            .as_ref()
+            .filter(|working_copy| working_copy.is_file())
+        {
+            return Ok(working_copy.clone());
+        }
+
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        canonical.hash(&mut hasher);
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+        let directory = std::env::temp_dir().join("reader-pdf-working");
+        std::fs::create_dir_all(&directory)
+            .map_err(|error| format!("create PDF working directory: {error}"))?;
+        let working_copy = directory.join(format!(
+            "reader-{}-{:016x}-{nonce}.pdf",
+            std::process::id(),
+            hasher.finish(),
+        ));
+        let temporary_copy = working_copy.with_extension("pdf.tmp");
+        std::fs::copy(&canonical, &temporary_copy)
+            .map_err(|error| format!("create PDF working copy: {error}"))?;
+        std::fs::rename(&temporary_copy, &working_copy)
+            .map_err(|error| format!("activate PDF working copy: {error}"))?;
+
+        self.documents
+            .get_mut(&document_id)
+            .expect("document exists while creating its PDF working copy")
+            .pdf_working_copy = Some(working_copy.clone());
+        Ok(working_copy)
     }
 
     /// Snapshot for a specific window — only that window's tabs, but all
@@ -411,11 +492,73 @@ impl AppWorkspace {
             let id = t.id.clone();
             ws.tabs.insert(id, t);
         }
-        for d in s.documents {
+        for mut d in s.documents {
+            // Working copies are intentionally process-local. A legacy/crash
+            // session can therefore not truthfully restore a dirty PDF.
+            if d.doc_type == DocumentType::Pdf && d.dirty {
+                d.dirty = false;
+                d.last_saved_revision = d.revision;
+            }
             ws.documents.insert(d.id.clone(), d);
         }
+
+        // A document is globally unique in the workspace. Older session files
+        // may contain duplicate tabs from the pre-fix ID-counter collision;
+        // collapse them while preserving the first tab in window order.
+        let mut seen_documents = HashSet::new();
+        let mut retained_tabs = HashSet::new();
+        for window in ws.windows.values_mut() {
+            window.tab_ids.retain(|tab_id| {
+                let Some(tab) = ws.tabs.get(tab_id) else {
+                    return false;
+                };
+                if !ws.documents.contains_key(&tab.document_id)
+                    || !seen_documents.insert(tab.document_id.clone())
+                {
+                    return false;
+                }
+                retained_tabs.insert(tab_id.clone());
+                true
+            });
+            if window
+                .active_tab
+                .as_ref()
+                .is_none_or(|tab_id| !window.tab_ids.contains(tab_id))
+            {
+                window.active_tab = window.tab_ids.last().cloned();
+            }
+        }
+        ws.tabs.retain(|id, _| retained_tabs.contains(id));
+        let retained_documents: HashSet<_> = ws
+            .tabs
+            .values()
+            .map(|tab| tab.document_id.clone())
+            .collect();
+        ws.documents.retain(|id, _| retained_documents.contains(id));
+
+        // fresh_id() uses a process-local counter. Resume it beyond every
+        // persisted numeric suffix so opening a file after restore cannot
+        // overwrite a restored document, tab, or window.
+        ws.next_id = ws
+            .documents
+            .keys()
+            .chain(ws.tabs.keys())
+            .chain(ws.windows.keys())
+            .filter_map(|id| id.rsplit('-').next()?.parse::<u64>().ok())
+            .max()
+            .unwrap_or(0);
         ws.ensure_main();
         Some(ws)
+    }
+}
+
+fn remove_pdf_working_copy(document: &DocumentSession) {
+    if let Some(path) = &document.pdf_working_copy {
+        if let Err(error) = std::fs::remove_file(path) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("remove PDF working copy '{}': {error}", path.display());
+            }
+        }
     }
 }
 
@@ -468,10 +611,18 @@ mod tests {
         let c = tmp_file("c.markdown", "# md");
         let d = tmp_file("d.txt", "plain");
 
-        let t1 = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let t2 = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let t3 = ws.open_document(c.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let t4 = ws.open_document(d.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let t1 = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let t2 = ws
+            .open_document(b.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let t3 = ws
+            .open_document(c.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let t4 = ws
+            .open_document(d.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         assert_ne!(t1, t2);
         assert_ne!(t2, t3);
         assert_ne!(t3, t4);
@@ -480,8 +631,22 @@ mod tests {
         assert_eq!(snap.tabs.len(), 4);
         assert_eq!(snap.documents.len(), 4);
         // doc_type detection
-        assert_eq!(snap.documents.iter().find(|d| d.file_name.ends_with("a.pdf")).unwrap().doc_type, DocumentType::Pdf);
-        assert_eq!(snap.documents.iter().find(|d| d.file_name.ends_with("b.md")).unwrap().doc_type, DocumentType::Markdown);
+        assert_eq!(
+            snap.documents
+                .iter()
+                .find(|d| d.file_name.ends_with("a.pdf"))
+                .unwrap()
+                .doc_type,
+            DocumentType::Pdf
+        );
+        assert_eq!(
+            snap.documents
+                .iter()
+                .find(|d| d.file_name.ends_with("b.md"))
+                .unwrap()
+                .doc_type,
+            DocumentType::Markdown
+        );
     }
 
     #[test]
@@ -489,8 +654,12 @@ mod tests {
         let mut ws = AppWorkspace::default();
         ws.ensure_main();
         let path = tmp_file("dedup.pdf", "%PDF");
-        let t1 = ws.open_document(path.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let t2 = ws.open_document(path.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let t1 = ws
+            .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let t2 = ws
+            .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         assert_eq!(t1, t2, "same path must return the existing tab id");
         let snap = ws.snapshot_for(&MAIN_WINDOW.into());
         assert_eq!(snap.tabs.len(), 1);
@@ -503,12 +672,18 @@ mod tests {
         ws.ensure_main();
         let a = tmp_file("x.pdf", "%PDF");
         let b = tmp_file("y.md", "# y");
-        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let tb = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let ta = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let tb = ws
+            .open_document(b.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         let snap = ws.snapshot_for(&MAIN_WINDOW.into());
         assert_eq!(snap.active_tab_id, Some(tb));
         // re-open a → a becomes active again, no new tab
-        let ta2 = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let ta2 = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         assert_eq!(ta2, ta);
         let snap2 = ws.snapshot_for(&MAIN_WINDOW.into());
         assert_eq!(snap2.tabs.len(), 2);
@@ -522,14 +697,23 @@ mod tests {
         let a = tmp_file("a.pdf", "%PDF");
         let b = tmp_file("b.md", "# b");
         let c = tmp_file("c.pdf", "%PDF");
-        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let tb = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let tc = ws.open_document(c.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let ta = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let tb = ws
+            .open_document(b.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let tc = ws
+            .open_document(c.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         ws.close_tab(&tb).unwrap();
         let snap = ws.snapshot_for(&MAIN_WINDOW.into());
         assert_eq!(snap.tabs.len(), 2);
         // repacked positions 0,1
-        assert_eq!(snap.tabs.iter().map(|t| t.position).collect::<Vec<_>>(), vec![0, 1]);
+        assert_eq!(
+            snap.tabs.iter().map(|t| t.position).collect::<Vec<_>>(),
+            vec![0, 1]
+        );
         // remaining tabs are a and c
         let ids: Vec<_> = snap.tabs.iter().map(|t| t.id.clone()).collect();
         assert!(ids.contains(&ta) && ids.contains(&tc));
@@ -540,7 +724,9 @@ mod tests {
         let mut ws = AppWorkspace::default();
         ws.ensure_main();
         let a = tmp_file("only.pdf", "%PDF");
-        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let ta = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         ws.close_tab(&ta).unwrap();
         let snap = ws.snapshot_for(&MAIN_WINDOW.into());
         assert!(snap.tabs.is_empty());
@@ -554,7 +740,9 @@ mod tests {
         let mut ws = AppWorkspace::default();
         ws.ensure_main();
         let a = tmp_file("detach.pdf", "%PDF");
-        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let ta = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone();
 
         // mark dirty to prove dirty state survives the detach
@@ -564,12 +752,18 @@ mod tests {
         assert_ne!(new_win, MAIN_WINDOW);
 
         // session still exists, still dirty
-        let doc = ws.documents.get(&doc_id).expect("session must survive detach");
+        let doc = ws
+            .documents
+            .get(&doc_id)
+            .expect("session must survive detach");
         assert!(doc.dirty, "dirty state must survive detach");
 
         // tab now lives in the new window
         let snap_main = ws.snapshot_for(&MAIN_WINDOW.into());
-        assert!(snap_main.tabs.is_empty(), "main should be empty after detach");
+        assert!(
+            snap_main.tabs.is_empty(),
+            "main should be empty after detach"
+        );
         let snap_new = ws.snapshot_for(&new_win);
         assert_eq!(snap_new.tabs.len(), 1);
         assert_eq!(snap_new.tabs[0].id, ta);
@@ -580,7 +774,9 @@ mod tests {
         let mut ws = AppWorkspace::default();
         ws.ensure_main();
         let a = tmp_file("move.pdf", "%PDF");
-        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let ta = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
         let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone();
         ws.set_dirty(&doc_id, true);
 
@@ -601,17 +797,27 @@ mod tests {
         let a = tmp_file("a.pdf", "%PDF");
         let b = tmp_file("b.md", "# b");
         let c = tmp_file("c.pdf", "%PDF");
-        let ta = ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let tb = ws.open_document(b.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
-        let tc = ws.open_document(c.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        let ta = ws
+            .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let tb = ws
+            .open_document(b.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let tc = ws
+            .open_document(c.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
 
         // reverse order
-        ws.reorder_tabs(&MAIN_WINDOW.into(), &[tc.clone(), tb.clone(), ta.clone()]).unwrap();
+        ws.reorder_tabs(&MAIN_WINDOW.into(), &[tc.clone(), tb.clone(), ta.clone()])
+            .unwrap();
         let snap = ws.snapshot_for(&MAIN_WINDOW.into());
         assert_eq!(snap.tabs[0].id, tc);
         assert_eq!(snap.tabs[1].id, tb);
         assert_eq!(snap.tabs[2].id, ta);
-        assert_eq!(snap.tabs.iter().map(|t| t.position).collect::<Vec<_>>(), vec![0, 1, 2]);
+        assert_eq!(
+            snap.tabs.iter().map(|t| t.position).collect::<Vec<_>>(),
+            vec![0, 1, 2]
+        );
     }
 
     #[test]
@@ -619,12 +825,120 @@ mod tests {
         let mut ws = AppWorkspace::default();
         ws.ensure_main();
         let a = tmp_file("persist.pdf", "%PDF");
-        ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into()).unwrap();
+        ws.open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
 
         let serialized = ws.serialize();
         let restored = AppWorkspace::restore(&serialized).expect("restore");
         let snap = restored.snapshot_for(&MAIN_WINDOW.into());
         assert_eq!(snap.tabs.len(), 1);
         assert_eq!(snap.documents.len(), 1);
+    }
+
+    #[test]
+    fn pdf_working_copy_keeps_original_untouched_and_is_discarded_on_close() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let original = tmp_file("working-copy.pdf", "%PDF-original");
+        let tab_id = ws
+            .open_document(original.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+
+        let working_copy = ws
+            .ensure_pdf_working_copy(original.to_str().unwrap())
+            .expect("create working copy");
+        std::fs::write(&working_copy, b"%PDF-modified").expect("mutate working copy");
+
+        assert_eq!(std::fs::read(&original).unwrap(), b"%PDF-original");
+        assert_eq!(
+            ws.pdf_source_path(&original.canonicalize().unwrap()),
+            Some(working_copy.clone())
+        );
+
+        ws.close_tab(&tab_id).expect("close tab");
+        assert!(
+            !working_copy.exists(),
+            "closing without save discards the working copy"
+        );
+        assert_eq!(std::fs::read(&original).unwrap(), b"%PDF-original");
+        let _ = std::fs::remove_file(original);
+    }
+
+    #[test]
+    fn restored_session_never_claims_an_unrecoverable_pdf_is_dirty() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let original = tmp_file("dirty-restore.pdf", "%PDF-original");
+        let tab_id = ws
+            .open_document(original.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let document_id = ws.tabs[&tab_id].document_id.clone();
+        let working_copy = ws
+            .ensure_pdf_working_copy(original.to_str().unwrap())
+            .expect("create working copy");
+        ws.set_dirty(&document_id, true);
+
+        let restored = AppWorkspace::restore(&ws.serialize()).expect("restore");
+        let restored_document = restored
+            .documents
+            .get(&document_id)
+            .expect("restored document");
+        assert!(!restored_document.dirty);
+        assert!(restored_document.pdf_working_copy.is_none());
+
+        let _ = std::fs::remove_file(working_copy);
+        let _ = std::fs::remove_file(original);
+    }
+
+    #[test]
+    fn opening_after_restore_does_not_reuse_persisted_ids() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let first = tmp_file("restore-first.pdf", "%PDF");
+        let second = tmp_file("restore-second.pdf", "%PDF");
+        ws.open_document(first.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+
+        let serialized = ws.serialize();
+        let mut restored = AppWorkspace::restore(&serialized).expect("restore");
+        restored
+            .open_document(second.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+
+        let snapshot = restored.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snapshot.tabs.len(), 2);
+        assert_eq!(snapshot.documents.len(), 2);
+        assert_ne!(snapshot.tabs[0].document_id, snapshot.tabs[1].document_id);
+    }
+
+    #[test]
+    fn restore_collapses_duplicate_tabs_for_one_document() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let path = tmp_file("restore-duplicate.pdf", "%PDF");
+        let original_tab = ws
+            .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let document_id = ws.tabs[&original_tab].document_id.clone();
+        let duplicate_tab = ws.fresh_id("tab");
+        ws.tabs.insert(
+            duplicate_tab.clone(),
+            WindowTab {
+                id: duplicate_tab.clone(),
+                window_id: MAIN_WINDOW.into(),
+                document_id,
+                title: "duplicate".into(),
+                position: 1,
+                active: true,
+            },
+        );
+        let main = ws.windows.get_mut(MAIN_WINDOW).expect("main window");
+        main.tab_ids.push(duplicate_tab.clone());
+        main.active_tab = Some(duplicate_tab);
+
+        let restored = AppWorkspace::restore(&ws.serialize()).expect("restore");
+        let snapshot = restored.snapshot_for(&MAIN_WINDOW.into());
+        assert_eq!(snapshot.tabs.len(), 1);
+        assert_eq!(snapshot.documents.len(), 1);
     }
 }

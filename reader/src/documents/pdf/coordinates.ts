@@ -15,34 +15,101 @@ export interface PageGeom {
   scale: number;
   /** rotation in degrees (0/90/180/270) */
   rotation?: number;
+  /** PDF user-space to rendered-page affine transform at scale 1. */
+  transform?: PdfPageTransform;
 }
+
+export type PdfPageTransform = [number, number, number, number, number, number];
 
 /** CSS pixel width/height of the page at the current scale. */
 export function pageCssSize(g: PageGeom): { w: number; h: number } {
-  // TODO: handle rotation when PdfPage passes rotation through.
   return { w: Math.round(g.w1 * g.scale), h: Math.round(g.h1 * g.scale) };
+}
+
+function pageTransform(g: PageGeom): PdfPageTransform {
+  return g.transform ?? [1, 0, 0, -1, 0, g.h1];
 }
 
 /** Screen (CSS px, top-left origin) → PDF (points, bottom-left origin). */
 export function screenToPdf(g: PageGeom, sx: number, sy: number): Point {
-  // Inverse of pdfToScreen: y_pdf = h1 - (sy / scale)
+  const [a, b, c, d, e, f] = pageTransform(g);
+  const determinant = a * d - b * c;
+  if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-8) {
+    throw new RangeError("invalid PDF page transform");
+  }
+  const x = sx / g.scale - e;
+  const y = sy / g.scale - f;
   return {
-    x: sx / g.scale,
-    y: g.h1 - sy / g.scale,
+    x: (d * x - c * y) / determinant,
+    y: (-b * x + a * y) / determinant,
   };
 }
 
 /** PDF (points, bottom-left origin) → Screen (CSS px, top-left origin). */
 export function pdfToScreen(g: PageGeom, px: number, py: number): Point {
+  const [a, b, c, d, e, f] = pageTransform(g);
   return {
-    x: px * g.scale,
-    y: (g.h1 - py) * g.scale,
+    x: (a * px + c * py + e) * g.scale,
+    y: (b * px + d * py + f) * g.scale,
+  };
+}
+
+export interface PdfRectLike {
+  left: number;
+  bottom: number;
+  right: number;
+  top: number;
+}
+
+/** Axis-aligned screen bounds for a PDF-space rectangle, including rotation. */
+export function pdfRectToScreen(g: PageGeom, rect: PdfRectLike): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const corners = [
+    pdfToScreen(g, rect.left, rect.bottom),
+    pdfToScreen(g, rect.left, rect.top),
+    pdfToScreen(g, rect.right, rect.bottom),
+    pdfToScreen(g, rect.right, rect.top),
+  ];
+  const xs = corners.map((point) => point.x);
+  const ys = corners.map((point) => point.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return {
+    x,
+    y,
+    width: Math.max(...xs) - x,
+    height: Math.max(...ys) - y,
   };
 }
 
 export interface Point {
   x: number;
   y: number;
+}
+
+export interface ScreenRectEdges {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** Intersect a selection rectangle with one rendered page. */
+export function clipScreenRect(
+  rect: ScreenRectEdges,
+  bounds: ScreenRectEdges,
+): ScreenRectEdges | null {
+  const clipped = {
+    left: Math.max(rect.left, bounds.left),
+    top: Math.max(rect.top, bounds.top),
+    right: Math.min(rect.right, bounds.right),
+    bottom: Math.min(rect.bottom, bounds.bottom),
+  };
+  return clipped.right > clipped.left && clipped.bottom > clipped.top ? clipped : null;
 }
 
 /** Convert a DOM Range rect (relative to page) to a PDF Quad. */

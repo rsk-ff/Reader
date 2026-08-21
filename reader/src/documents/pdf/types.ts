@@ -1,3 +1,5 @@
+import type { PdfPageTransform } from "./coordinates";
+
 export interface PageInfo {
   pageNumber: number;
   /** unscaled width (scale=1) */
@@ -5,6 +7,7 @@ export interface PageInfo {
   /** unscaled height (scale=1) */
   h1: number;
   rotation: number;
+  transform: PdfPageTransform;
 }
 
 export type ZoomMode = "fit-width" | "fit-page" | "manual";
@@ -19,13 +22,4 @@ export interface OutlineNode {
   unsafeUrl?: string;
   newWindow?: boolean;
   items: OutlineNode[];
-}
-
-export interface SearchHit {
-  pageNumber: number;
-  /** index into the page's text content items array */
-  itemIndex: number;
-  /** char offset within that item's str */
-  offset: number;
-  length: number;
 }

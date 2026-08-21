@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Crepe } from "@milkdown/crepe";
-import "@milkdown/crepe/theme/nord.css";
+import "@milkdown/crepe/theme/common/style.css";
+import "github-markdown-css/github-markdown-light.css";
 
 interface MilkdownCrepeProps {
   /** Initial markdown value. Re-mounts when this string identity changes. */
@@ -27,6 +28,51 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
     const root = rootRef.current;
     if (!root) return;
     let destroyed = false;
+    let hasEditIntent = false;
+
+    const markEditIntent = (event: Event) => {
+      if (event.isTrusted) hasEditIntent = true;
+    };
+    const onEditingKey = (event: KeyboardEvent) => {
+      if (!event.isTrusted) return;
+      const key = event.key.toLowerCase();
+      const plainEditingKey =
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        (event.key.length === 1 ||
+          ["Enter", "Backspace", "Delete", "Tab"].includes(event.key));
+      const editingShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        ["z", "y", "b", "i", "u", "k", "enter"].includes(key);
+      if (event.isComposing || plainEditingKey || editingShortcut) {
+        hasEditIntent = true;
+      }
+    };
+    const onEditingControlPointer = (event: PointerEvent) => {
+      if (
+        !event.isTrusted ||
+        event.button !== 0 ||
+        !(event.target instanceof Element)
+      ) {
+        return;
+      }
+      if (
+        event.target.closest(
+          "button, input, select, textarea, [role='button'], .label-wrapper",
+        )
+      ) {
+        hasEditIntent = true;
+      }
+    };
+
+    root.addEventListener("beforeinput", markEditIntent, true);
+    root.addEventListener("compositionstart", markEditIntent, true);
+    root.addEventListener("paste", markEditIntent, true);
+    root.addEventListener("cut", markEditIntent, true);
+    root.addEventListener("drop", markEditIntent, true);
+    root.addEventListener("keydown", onEditingKey, true);
+    root.addEventListener("pointerdown", onEditingControlPointer, true);
 
     const crepe = new Crepe({
       root,
@@ -38,10 +84,20 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
         [Crepe.Feature.TopBar]: false,
         [Crepe.Feature.AI]: false,
       },
+      featureConfigs: {
+        // Crepe defaults to oneDark even when the outer editor is light. Null
+        // deliberately bypasses that default and lets CodeMirror basicSetup use
+        // its maintained light theme. The public type does not expose "none".
+        [Crepe.Feature.CodeMirror]: { theme: null as never },
+      },
     });
 
     crepe.on((listener) => {
       listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
+        // Crepe normalizes valid GFM again as async table/task-list features
+        // mount. Only publish changes after a trusted editing gesture so those
+        // bootstrap transactions cannot make a freshly opened file dirty.
+        if (!hasEditIntent) return;
         // Only fire on actual content change, not selection/attribute updates.
         if (markdown !== prevMarkdown) onChange(markdown);
       });
@@ -67,11 +123,18 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
 
     return () => {
       destroyed = true;
+      root.removeEventListener("beforeinput", markEditIntent, true);
+      root.removeEventListener("compositionstart", markEditIntent, true);
+      root.removeEventListener("paste", markEditIntent, true);
+      root.removeEventListener("cut", markEditIntent, true);
+      root.removeEventListener("drop", markEditIntent, true);
+      root.removeEventListener("keydown", onEditingKey, true);
+      root.removeEventListener("pointerdown", onEditingControlPointer, true);
       void crepe.destroy();
       crepeRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  return <div ref={rootRef} className="milkdown-root" />;
+  return <div ref={rootRef} className="milkdown-root markdown-body" />;
 }

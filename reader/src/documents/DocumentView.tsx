@@ -23,7 +23,7 @@ export function DocumentView({ tab, active }: { tab: WindowTab; active: boolean 
     case "pdf":
       return (
         <Suspense fallback={<div className="pdf-status">loading PDF engine…</div>}>
-          <PdfViewer path={doc.path} active={active} />
+          <PdfViewer path={doc.path} docId={doc.id} active={active} />
         </Suspense>
       );
     case "markdown":

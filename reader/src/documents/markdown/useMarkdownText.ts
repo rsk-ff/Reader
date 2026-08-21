@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface UseMarkdownTextResult {
@@ -50,20 +50,9 @@ export function useMarkdownText(path: string | null): UseMarkdownTextResult {
  */
 export function useMarkdownSave(
   path: string,
-  docId: string,
 ): { save: (text: string) => Promise<void> } {
-  const savingRef = useRef(false);
-  return {
-    save: async (text: string) => {
-      if (savingRef.current) return;
-      savingRef.current = true;
-      try {
-        await invoke("save_file_text", { path, content: text });
-        // clear dirty on the workspace so the tab ● disappears (§7).
-        await invoke("set_dirty", { documentId: docId, dirty: false });
-      } finally {
-        savingRef.current = false;
-      }
-    },
-  };
+  const save = useCallback(async (text: string) => {
+    await invoke("save_file_text", { path, content: text });
+  }, [path]);
+  return { save };
 }

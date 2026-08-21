@@ -12,9 +12,9 @@ mod commands;
 pub mod pdf;
 mod workspace;
 
-use tauri::{Manager, WindowEvent};
 #[cfg(target_os = "macos")]
 use tauri::RunEvent;
+use tauri::{Manager, WindowEvent};
 use workspace::new_shared;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,20 +24,16 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default();
 
-    // Page rendering via URI scheme: the browser fetches page PNGs like <img src>,
-    // fully async — no IPC blocking. The handler renders via PDFium + returns PNG.
-    builder = builder.register_asynchronous_uri_scheme_protocol(
-        "reader-page",
-        crate::pdf::handle_page_render,
-    );
+    // PDF.js streams only documents already opened in the workspace. All PDF
+    // mutations remain behind explicit PDFium commands below.
+    builder = builder
+        .register_asynchronous_uri_scheme_protocol("reader-file", crate::pdf::handle_reader_file);
 
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(
-            |app, argv, _cwd| {
-                commands::handle_single_instance(app, argv);
-            },
-        ));
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            commands::handle_single_instance(app, argv);
+        }));
     }
 
     builder
@@ -69,25 +65,33 @@ pub fn run() {
             commands::move_tab,
             commands::remove_window,
             commands::save_session,
-            commands::read_file_bytes,
             commands::log_frontend,
             commands::read_file_text,
             commands::save_file_text,
             commands::canonicalize_path,
             commands::set_dirty,
-            commands::get_annotations,
             commands::create_annotation,
             commands::update_annotation,
             commands::delete_annotation,
             commands::save_document,
+            commands::discard_pdf_changes,
             commands::insert_blank_page,
             commands::delete_page,
-            commands::get_page_infos,
-            commands::render_page,
-            commands::get_page_text,
-
         ])
         .setup(|app| {
+            let bundled_pdfium = app.path().resource_dir()?.join("pdfium.dll");
+            let development_pdfium = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("lib")
+                .join("bin")
+                .join("pdfium.dll");
+            let pdfium_path = if bundled_pdfium.is_file() {
+                bundled_pdfium
+            } else {
+                development_pdfium
+            };
+            crate::pdf::pdfium::configure_pdfium_library(pdfium_path)
+                .map_err(std::io::Error::other)?;
+
             // Restore the previous session BEFORE opening CLI files so that
             // the freshly-double-clicked file wins focus (§26: current file
             // takes priority over session restore).
@@ -99,7 +103,10 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             // Persist on exit so the next launch can restore (§26).
-            if matches!(event, tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }) {
+            if matches!(
+                event,
+                tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
+            ) {
                 let ws = app_handle.state::<workspace::SharedWorkspace>().inner();
                 let _ = commands::save_session_impl(app_handle, ws);
             }
@@ -111,9 +118,7 @@ pub fn run() {
                     for url in urls {
                         if let Ok(path) = url.to_file_path() {
                             if let Some(s) = path.to_str() {
-                                let ws = app_handle
-                                    .state::<workspace::SharedWorkspace>()
-                                    .inner();
+                                let ws = app_handle.state::<workspace::SharedWorkspace>().inner();
                                 if let Err(e) = commands::open_document(app_handle, ws, s) {
                                     log::warn!("open_document('{s}') failed: {e}");
                                 }

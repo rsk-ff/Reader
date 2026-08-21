@@ -2,7 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import App from "./app/App";
+import { preventBrowserContextMenu } from "./app/browserGuards";
 import { useFileDrop } from "./workspace/useFileDrop";
+import "pdfjs-dist/web/pdf_viewer.css";
 import "./styles.css";
 
 function Root() {
@@ -38,6 +40,9 @@ window.addEventListener("error", (e) => {
 });
 window.addEventListener("unhandledrejection", (e) => {
   report("error", e.reason);
+});
+document.addEventListener("contextmenu", preventBrowserContextMenu, {
+  capture: true,
 });
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<Root />);
