@@ -40,16 +40,87 @@ body,
   height: 100%;
 }
 
-/* ---- Tab strip ---- */
+/* ---- Merged title bar (icon + tabs + window controls) ---- */
 
-.tabstrip {
+.window-titlebar {
   display: flex;
   align-items: stretch;
-  height: 34px;
+  height: 36px;
+  min-height: 36px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.titlebar-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  /* The icon glyph is decorative: pointer-events:none so the mousedown that
+     starts a window drag lands on this drag region itself. */
+  cursor: default;
+}
+
+.titlebar-icon img {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.titlebar-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+}
+
+.winctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  cursor: default;
+}
+
+.winctl:hover {
+  background: rgba(30, 44, 64, 0.08);
+  color: var(--text);
+}
+
+.winctl:active {
+  background: rgba(30, 44, 64, 0.14);
+}
+
+.winctl-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.winctl-close:active {
+  background: #f1707a;
+  color: #fff;
+}
+
+/* ---- Tab strip (hosted inside the merged title bar) ---- */
+
+.tabstrip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
   padding: 0 6px;
-  -webkit-app-region: drag; /* let the tab strip act as a titlebar drag area */
+  background: transparent;
+  overflow: hidden;
 }
 
 .tab {
@@ -68,6 +139,7 @@ body,
   cursor: default;
   font: inherit;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab:hover {
@@ -110,7 +182,9 @@ body,
 }
 
 .tabstrip-spacer {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: default;
 }
 
 /* ---- Content ---- */

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspace } from "../workspace/store";
-import { TabStrip } from "../components/TabStrip";
+import { WindowTitleBar } from "../components/WindowTitleBar";
 import { EmptyState } from "../components/EmptyState";
 import { DocumentView } from "../documents/DocumentView";
 import {
@@ -92,7 +92,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <TabStrip />
+      <WindowTitleBar />
       <div className="content-area">
         {!ready ? (
           <div className="boot">loading…</div>

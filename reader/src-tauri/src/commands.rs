@@ -211,7 +211,8 @@ pub fn detach_tab(
         WebviewWindowBuilder::new(&app, &new_window, WebviewUrl::App("index.html".into()))
             .title("Reader")
             .inner_size(900.0, 700.0)
-            .min_inner_size(640.0, 480.0);
+            .min_inner_size(640.0, 480.0)
+            .decorations(false);
     builder = builder.position(120.0, 120.0);
     builder
         .build()
@@ -323,6 +324,7 @@ pub fn try_restore_session(app: &AppHandle) {
         let _ = WebviewWindowBuilder::new(app, &id, WebviewUrl::App("index.html".into()))
             .title("Reader")
             .inner_size(900.0, 700.0)
+            .decorations(false)
             .build();
     }
     broadcast(app, ws);

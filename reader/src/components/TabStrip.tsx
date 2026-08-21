@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useWorkspace } from "../workspace/store";
 import type { TabId, WindowTab } from "../workspace/types";
+import { useWindowDragRegion } from "./windowDrag";
 
 /**
  * Tab strip with drag-to-reorder and drag-out-to-detach (§17, §18, Test 9/10).
@@ -21,6 +22,7 @@ export function TabStrip() {
 
   const [draggingId, setDraggingId] = useState<TabId | null>(null);
   const [dragOverId, setDragOverId] = useState<TabId | null>(null);
+  const drag = useWindowDragRegion();
 
   function onDragStart(e: React.DragEvent, tab: WindowTab) {
     setDraggingId(tab.id);
@@ -134,7 +136,11 @@ export function TabStrip() {
           </button>
         );
       })}
-      <div className="tabstrip-spacer" />
+      <div
+        className="tabstrip-spacer"
+        onMouseDown={drag.onMouseDown}
+        onDoubleClick={drag.onDoubleClick}
+      />
     </div>
   );
 }
