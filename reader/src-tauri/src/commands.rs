@@ -194,7 +194,9 @@ pub fn reorder_tabs(
 /// Detach a tab into a brand-new native window. The DocumentSession is not
 /// recreated — only the tab's window_id changes (§18, Test 10).
 #[tauri::command]
-pub fn detach_tab(
+// WebviewWindowBuilder::build deadlocks on Windows from a synchronous command;
+// keep this async so Tauri executes the window creation off the IPC main thread.
+pub async fn detach_tab(
     tab_id: TabId,
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
