@@ -7,7 +7,7 @@
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::workspace::{
-    AppWorkspace, SharedWorkspace, TabId, WindowId, WindowSnapshot, MAIN_WINDOW,
+    SharedWorkspace, TabId, WindowId, WindowSnapshot, MAIN_WINDOW,
 };
 
 /// Broadcast a wake-up to every open window; each re-fetches its own snapshot
@@ -283,51 +283,6 @@ pub fn save_session_impl(app: &AppHandle, ws: &SharedWorkspace) -> Result<(), St
 #[tauri::command]
 pub fn save_session(app: AppHandle, ws: State<'_, SharedWorkspace>) -> Result<(), String> {
     save_session_impl(&app, ws.inner())
-}
-
-/// Load the persisted session (§26). Called once during setup. Files passed
-/// on the command line at this launch take priority — they open after restore
-/// so they end up focused.
-pub fn try_restore_session(app: &AppHandle) {
-    let path = match app.path().app_data_dir() {
-        Ok(d) => d.join("session.json"),
-        Err(_) => return,
-    };
-    let data = match std::fs::read_to_string(&path) {
-        Ok(d) => d,
-        Err(_) => return,
-    };
-    let restored = match AppWorkspace::restore(&data) {
-        Some(ws) => ws,
-        None => return,
-    };
-    let ws = app.state::<SharedWorkspace>().inner();
-    if let Ok(mut guard) = ws.lock() {
-        *guard = restored;
-        guard.ensure_main();
-    }
-    // Re-create detached native windows that were open last time (skip main —
-    // it's created from tauri.conf.json).
-    let detached: Vec<WindowId> = {
-        let guard = match ws.lock() {
-            Ok(g) => g,
-            Err(_) => return,
-        };
-        guard
-            .windows
-            .keys()
-            .filter(|id| *id != MAIN_WINDOW)
-            .cloned()
-            .collect()
-    };
-    for id in detached {
-        let _ = WebviewWindowBuilder::new(app, &id, WebviewUrl::App("index.html".into()))
-            .title("Reader")
-            .inner_size(900.0, 700.0)
-            .decorations(false)
-            .build();
-    }
-    broadcast(app, ws);
 }
 
 /// Sink for frontend runtime errors (webview console → Rust log).

@@ -3,7 +3,8 @@
 //! Wires up:
 //!   - single-instance plugin (OS double-click funnels into the running app)
 //!   - first-launch argv file parsing
-//!   - session restore (§26) — windows/tabs/files survive a restart
+//!   - session persistence (§26) — workspace is saved for potential future
+//!     recovery; automatic restore on launch is intentionally disabled
 //!   - multi-window tab system (§17, §18) — reorder, detach, attach
 //!   - the workspace state + open_document router (§16)
 //!   - high-level commands (§24)
@@ -105,10 +106,9 @@ pub fn run() {
             crate::pdf::pdfium::configure_pdfium_library(pdfium_path)
                 .map_err(std::io::Error::other)?;
 
-            // Restore the previous session BEFORE opening CLI files so that
-            // the freshly-double-clicked file wins focus (§26: current file
-            // takes priority over session restore).
-            commands::try_restore_session(app.handle());
+            // Open files supplied on the command line / via OS double-click.
+            // Automatic session restore is intentionally disabled: a normal
+            // launch starts with no previously opened documents/tabs (§26).
             commands::open_initial_files(app.handle());
             Ok(())
         })

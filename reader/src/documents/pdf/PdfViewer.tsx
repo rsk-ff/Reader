@@ -226,7 +226,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
       eventBus,
       linkService,
       findController,
-      annotationMode: AnnotationMode.ENABLE,
+      annotationMode: AnnotationMode.ENABLE_FORMS,
       imageResourcesPath: pdfAssetUrl("images"),
       supportsPinchToZoom: true,
       maxCanvasPixels: 32 * 1024 * 1024,
