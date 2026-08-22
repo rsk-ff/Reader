@@ -28,6 +28,7 @@ import type { PdfAnnotation } from "./annotation-types";
 import { PdfJsAnnotationPortals } from "./PdfJsAnnotationPortals";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { blankPageInsertArgs, pdfFileUrl } from "./pdfModel";
+import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
 import { PdfToolbar } from "./PdfToolbar";
 import type { OutlineNode, PageInfo, ZoomMode } from "./types";
@@ -146,6 +147,13 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
   const [viewerGeneration, setViewerGeneration] = useState(0);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [overlayEpoch, setOverlayEpoch] = useState(0);
+  // Sticky activation flag: a tab loads only after it has been active once.
+  // Initialized from `active` so a tab that mounts active loads exactly once
+  // instead of loading, tearing down, and reloading under StrictMode.
+  const [hasActivated, setHasActivated] = useState(() => active);
+  // Last measured container size, used to suppress no-op ResizeObserver work.
+  const lastSizeRef = useRef<Size>({ width: 0, height: 0 });
+  const activeRef = useRef(active);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -181,6 +189,11 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
   useEffect(() => {
     zoomModeRef.current = zoomMode;
   }, [zoomMode]);
+
+  useEffect(() => {
+    activeRef.current = active;
+    if (active) setHasActivated(true);
+  }, [active]);
 
   useEffect(() => {
     setLocalDirty(false);
@@ -333,6 +346,14 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
     const findController = findControllerRef.current;
     if (!viewer || !linkService || !findController || viewerGeneration === 0) return;
 
+    // A tab that has never been active must not start getDocument. Once it has
+    // been active it stays loaded while inactive; toggling `active` does not
+    // appear in the dependency array, so switching away/back never reloads.
+    if (!shouldLoadPdf(active, hasActivated)) {
+      setLoading(false);
+      return;
+    }
+
     let disposed = false;
     setLoading(true);
     setLoadError(null);
@@ -396,16 +417,25 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
       findController.setDocument(null as unknown as PDFDocumentProxy);
       viewer.setDocument(null as unknown as PDFDocumentProxy);
     };
-  }, [path, sourceRevision, viewerGeneration]);
+  }, [path, sourceRevision, viewerGeneration, hasActivated]);
 
   useEffect(() => {
     if (!containerElement || viewerGeneration === 0) return;
+    // Reset the size baseline whenever a new viewer/container is bound so the
+    // first positive observation is treated as a change.
+    lastSizeRef.current = { width: 0, height: 0 };
     let frame = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const viewer = viewerRef.current;
         if (!viewer) return;
+        const next: Size = {
+          width: containerElement.clientWidth,
+          height: containerElement.clientHeight,
+        };
+        if (!shouldRefit(activeRef.current, lastSizeRef.current, next)) return;
+        lastSizeRef.current = next;
         if (zoomModeRef.current === "fit-width") viewer.currentScaleValue = "page-width";
         else if (zoomModeRef.current === "fit-page") viewer.currentScaleValue = "page-fit";
         else viewer.update();
@@ -734,6 +764,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
         pageInfos={pageInfos}
         annotationsByPage={annotationsByPage}
         tool={annotTool}
+        active={active}
         onAnnotationsChanged={onAnnotationsChanged}
         onAnnotationCreated={onAnnotationCreated}
       />
