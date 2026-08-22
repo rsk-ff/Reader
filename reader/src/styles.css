@@ -40,6 +40,24 @@ body,
   height: 100%;
 }
 
+/* ---- tauri-plugin-frame duplicate-titlebar fallback ----
+
+   The initial-HTML sentinel in reader/index.html makes the plugin's
+   titlebar.js / controls.js no-op at page load. As a second line of defense,
+   if a race or future plugin change still injects a duplicate titlebar, that
+   injected element is always a *direct* <body> child carrying
+   [data-tauri-frame-tb] (see plugin titlebar.js). Reader's own marker lives
+   on .titlebar-controls, which is nested under #root and is therefore NOT a
+   direct body child. Scope the fallback to body > [data-tauri-frame-tb] so
+   only a plugin-injected body-level titlebar is suppressed; #root,
+   .titlebar-controls, and the real React window-control buttons stay visible
+   and clickable. This also covers the inert sentinel, which is already
+   display:none, so it is a harmless no-op there. */
+body > [data-tauri-frame-tb] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 /* ---- Merged title bar (icon + tabs + window controls) ---- */
 
 .window-titlebar {

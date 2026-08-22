@@ -7,6 +7,39 @@
     <title>Reader</title>
   </head>
   <body>
+    <!--
+      tauri-plugin-frame 1.1.8 sentinel guard.
+
+      The pinned plugin runs its build_scripts (titlebar.js / controls.js)
+      during page load, before this module script executes. titlebar.js looks
+      for an existing [data-tauri-frame-tb] element and, if none is present,
+      injects its own full-width body-level titlebar with a data-tauri-drag-
+      region that covers Reader's tabs. controls.js likewise looks for an
+      element whose id starts with "frame-tb-" and, if absent, injects a
+      duplicate set of minimize/maximize/close buttons.
+
+      Reader's React WindowTitleBar supplies those exact markers, but it only
+      mounts after this module script runs, so the plugin's earlier check is
+      racy and frequently injects the duplicate titlebar anyway. To make both
+      plugin scripts no-op at their earliest check, ship an inert, hidden
+      sentinel directly in the initial HTML carrying both markers.
+
+      React renders into #root and never touches this sentinel, so it may
+      safely remain in the DOM. The plugin's injection decision is final by
+      the time React mounts, so even if React later removed the sentinel the
+      guard would already have taken effect. The element is hidden,
+      aria-hidden, inert and contains no visible text.
+    -->
+    <div
+      data-tauri-frame-tb
+      hidden
+      inert
+      aria-hidden="true"
+      tabindex="-1"
+      style="display:none !important; width:0; height:0; overflow:hidden;"
+    >
+      <span id="frame-tb-sentinel" aria-hidden="true" tabindex="-1"></span>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
