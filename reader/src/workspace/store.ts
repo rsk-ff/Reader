@@ -16,6 +16,7 @@ interface WorkspaceState extends WorkspaceSnapshot {
   closeTab: (id: TabId) => Promise<void>;
   reorderTabs: (tabIds: TabId[]) => Promise<void>;
   detachTab: (id: TabId) => Promise<WindowId>;
+  completeTabDrag: (id: TabId, detachOnMiss: boolean) => Promise<WindowId>;
   setDocumentDirtyLocal: (documentId: string, dirty: boolean) => void;
   refresh: () => Promise<void>;
 }
@@ -112,5 +113,24 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       throw new Error("Save Markdown changes before moving this tab to another window.");
     }
     return await invoke<WindowId>("detach_tab", { tabId: id });
+  },
+
+  completeTabDrag: async (id, detachOnMiss) => {
+    const state = get();
+    const tab = state.tabs.find((candidate) => candidate.id === id);
+    const document = tab ? state.documentsById[tab.document_id] : undefined;
+    if (document?.dirty && document.doc_type === "markdown") {
+      if (detachOnMiss) {
+        throw new Error("Save Markdown changes before moving this tab to another window.");
+      }
+      // A one-tab drag may still move its native window, but dirty Markdown
+      // must not cross a window boundary.
+      return state.myWindowId;
+    }
+    return await invoke<WindowId>("complete_tab_drag", {
+      tabId: id,
+      sourceWindow: state.myWindowId,
+      detachOnMiss,
+    });
   },
 }));

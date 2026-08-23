@@ -42,6 +42,10 @@ export interface DragPointerEvent {
 export interface WindowDragHandlers {
   /** Attach to `onMouseDown` of a drag region element. */
   onMouseDown: (event: DragPointerEvent) => void;
+  /** Start the native move loop directly (used by a single-tab titlebar). */
+  startDragging: () => Promise<void>;
+  /** Toggle maximize/restore directly (used by a single-tab titlebar). */
+  toggleMaximize: () => Promise<void>;
 }
 
 /**
@@ -81,7 +85,11 @@ export function createWindowDragHandlers(win: DragWindow): WindowDragHandlers {
       // A failed drag is non-fatal: the window simply will not move.
     });
   };
-  return { onMouseDown };
+  return {
+    onMouseDown,
+    startDragging: () => win.startDragging(),
+    toggleMaximize: () => win.toggleMaximize(),
+  };
 }
 
 /** React hook: drag handlers for the current window. */

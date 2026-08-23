@@ -7,8 +7,55 @@
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::workspace::{
-    SharedWorkspace, TabId, WindowId, WindowSnapshot, MAIN_WINDOW,
+    DocumentType, SharedWorkspace, TabId, WindowId, WindowSnapshot, MAIN_WINDOW,
 };
+
+const CUSTOM_TITLEBAR_HEIGHT_CSS: f64 = 36.0;
+
+fn point_in_titlebar_zone(
+    cursor_x: f64,
+    cursor_y: f64,
+    left: f64,
+    top: f64,
+    width: f64,
+    scale_factor: f64,
+) -> bool {
+    let titlebar_height = CUSTOM_TITLEBAR_HEIGHT_CSS * scale_factor.max(0.1);
+    cursor_x >= left
+        && cursor_x < left + width
+        && cursor_y >= top
+        && cursor_y < top + titlebar_height
+}
+
+fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
+    let cursor = app.cursor_position().ok()?;
+    app.webview_windows()
+        .into_iter()
+        .find_map(|(label, window)| {
+            if label == source_window
+                || (label != MAIN_WINDOW && !label.starts_with("win-"))
+                || !window.is_visible().unwrap_or(false)
+            {
+                return None;
+            }
+            let position = window.outer_position().ok()?;
+            let size = window.outer_size().ok()?;
+            let scale_factor = window.scale_factor().ok()?;
+            point_in_titlebar_zone(
+                cursor.x,
+                cursor.y,
+                f64::from(position.x),
+                f64::from(position.y),
+                f64::from(size.width),
+                scale_factor,
+            )
+            .then_some(label)
+        })
+}
+
+fn should_detach_on_miss(detach_on_miss: bool, source_tab_count: usize) -> bool {
+    detach_on_miss && source_tab_count > 1
+}
 
 /// Broadcast a wake-up to every open window; each re-fetches its own snapshot
 /// via `get_workspace(own_label)`. Cheap (no payload) and avoids serializing
@@ -240,6 +287,97 @@ pub fn move_tab(
     drop(guard);
     broadcast(&app, &ws);
     Ok(())
+}
+
+/// Finish a tab drag at the current global cursor position. A titlebar hit on
+/// another Reader window joins that window; otherwise a multi-tab source may
+/// detach while a one-tab source always remains its native window.
+#[tauri::command]
+pub async fn complete_tab_drag(
+    tab_id: TabId,
+    source_window: WindowId,
+    detach_on_miss: bool,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<WindowId, String> {
+    let (current_window, source_tab_count, dirty_markdown) = {
+        let guard = ws
+            .lock()
+            .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        let tab = guard
+            .tabs
+            .get(&tab_id)
+            .ok_or_else(|| format!("tab not found: {tab_id}"))?;
+        let document = guard.documents.get(&tab.document_id);
+        (
+            tab.window_id.clone(),
+            guard
+                .windows
+                .get(&source_window)
+                .map(|window| window.tab_ids.len())
+                .unwrap_or(0),
+            document.is_some_and(|document| {
+                document.dirty && document.doc_type == DocumentType::Markdown
+            }),
+        )
+    };
+
+    // A duplicate/stale completion is harmless: report where the tab already
+    // lives instead of moving or duplicating it again.
+    if current_window != source_window {
+        return Ok(current_window);
+    }
+    if dirty_markdown {
+        return Ok(source_window);
+    }
+
+    if let Some(target_window) = find_dock_target(&app, &source_window) {
+        let source_empty = {
+            let mut guard = ws
+                .lock()
+                .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+            let current = guard
+                .tabs
+                .get(&tab_id)
+                .map(|tab| tab.window_id.clone())
+                .ok_or_else(|| format!("tab not found: {tab_id}"))?;
+            if current != source_window {
+                return Ok(current);
+            }
+            let position = guard
+                .windows
+                .get(&target_window)
+                .map(|window| window.tab_ids.len())
+                .unwrap_or(0);
+            guard.move_tab(&tab_id, &target_window, position)?;
+            guard
+                .windows
+                .get(&source_window)
+                .map(|window| window.tab_ids.is_empty())
+                .unwrap_or(true)
+        };
+
+        broadcast(&app, &ws);
+        if let Some(target) = app.get_webview_window(&target_window) {
+            let _ = target.unminimize();
+            let _ = target.set_focus();
+        }
+        if source_empty && source_window != MAIN_WINDOW {
+            if let Some(source) = app.get_webview_window(&source_window) {
+                // Workspace state already proves this detached window empty.
+                // Destroy directly so its frontend close guard cannot inspect
+                // a stale pre-broadcast tab snapshot and prompt for a tab that
+                // has already moved successfully.
+                let _ = source.destroy();
+            }
+        }
+        return Ok(target_window);
+    }
+
+    if should_detach_on_miss(detach_on_miss, source_tab_count) {
+        return detach_tab(tab_id, app, ws).await;
+    }
+    Ok(source_window)
 }
 
 /// Called when a native window is destroyed (user closed it). Drops the
@@ -607,7 +745,33 @@ fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &s
 
 #[cfg(test)]
 mod tests {
-    use super::{commit_pdf_working_copy, read_file_text, save_file_text};
+    use super::{
+        commit_pdf_working_copy, point_in_titlebar_zone, read_file_text, save_file_text,
+        should_detach_on_miss,
+    };
+
+    #[test]
+    fn docking_hit_test_uses_scaled_titlebar_band() {
+        assert!(point_in_titlebar_zone(
+            150.0, 140.0, 100.0, 100.0, 500.0, 1.25
+        ));
+        assert!(!point_in_titlebar_zone(
+            150.0, 146.0, 100.0, 100.0, 500.0, 1.25
+        ));
+        assert!(!point_in_titlebar_zone(
+            99.0, 120.0, 100.0, 100.0, 500.0, 1.25
+        ));
+        assert!(!point_in_titlebar_zone(
+            600.0, 120.0, 100.0, 100.0, 500.0, 1.25
+        ));
+    }
+
+    #[test]
+    fn a_last_tab_never_detaches_on_a_missed_drop() {
+        assert!(!should_detach_on_miss(true, 1));
+        assert!(!should_detach_on_miss(false, 2));
+        assert!(should_detach_on_miss(true, 2));
+    }
 
     #[test]
     fn markdown_save_replaces_an_existing_file_atomically() {

@@ -28,7 +28,7 @@ export function TabStrip() {
   const focusTab = useWorkspace((s) => s.focusTab);
   const closeTab = useWorkspace((s) => s.closeTab);
   const reorderTabs = useWorkspace((s) => s.reorderTabs);
-  const detachTab = useWorkspace((s) => s.detachTab);
+  const completeTabDrag = useWorkspace((s) => s.completeTabDrag);
 
   const drag = useWindowDragRegion();
 
@@ -80,6 +80,9 @@ export function TabStrip() {
     const el = e.currentTarget as HTMLElement;
     // Focus immediately on primary down so a plain click still selects the tab.
     void focusTab(tab.id).catch(() => {});
+    // A lone tab is part of the native titlebar: its mouse handler below moves
+    // the whole window, so it must never enter reorder/detach pointer capture.
+    if (tabsRef.current.length === 1) return;
     try {
       el.setPointerCapture(e.pointerId);
     } catch {
@@ -146,8 +149,8 @@ export function TabStrip() {
     }
     if (isOutsideStripBounds(e.clientX, e.clientY, stripRect)) {
       clearSession();
-      void detachTab(tabId).catch((error: unknown) => {
-        // Preserve the user-visible detach error reporting.
+      void completeTabDrag(tabId, true).catch((error: unknown) => {
+        // Preserve the user-visible move/detach error reporting.
         window.alert(error instanceof Error ? error.message : String(error));
       });
       return;
@@ -222,7 +225,20 @@ export function TabStrip() {
             onMouseDown={(e) => {
               if (e.button === 1) {
                 e.preventDefault();
+                return;
               }
+              if (e.button !== 0 || tabsRef.current.length !== 1) return;
+              e.preventDefault();
+              if (e.detail === 2) {
+                void drag.toggleMaximize().catch(() => {});
+                return;
+              }
+              // Tauri resolves startDragging after the native Windows move
+              // loop ends, so the global cursor is now the user's drop point.
+              void drag
+                .startDragging()
+                .then(() => completeTabDrag(tab.id, false))
+                .catch(() => {});
             }}
             onAuxClick={(e) => {
               if (e.button === 1) {
@@ -243,6 +259,7 @@ export function TabStrip() {
                 e.stopPropagation();
                 void closeTab(tab.id);
               }}
+              onMouseDown={(e) => e.stopPropagation()}
             >
               {dirty ? "●" : "✕"}
             </span>

@@ -77,6 +77,7 @@ pub fn run() {
             commands::reorder_tabs,
             commands::detach_tab,
             commands::move_tab,
+            commands::complete_tab_drag,
             commands::remove_window,
             commands::save_session,
             commands::log_frontend,

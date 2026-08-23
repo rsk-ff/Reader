@@ -802,9 +802,79 @@ body.pdf-sidebar-resizing * {
   cursor: default;
 }
 
+.md-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.md-outline {
+  flex: 0 0 220px;
+  width: 220px;
+  min-width: 0;
+  overflow: auto;
+  padding: 10px 8px 18px;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-dim);
+}
+
+.md-outline-title {
+  padding: 0 8px 8px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.md-outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.md-outline-item {
+  display: block;
+  width: 100%;
+  height: 28px;
+  overflow: hidden;
+  padding-top: 0;
+  padding-right: 8px;
+  padding-bottom: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 28px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.md-outline-item:hover {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
+.md-outline-item:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.md-outline-empty {
+  padding: 8px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
 .md-viewport {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   position: relative;
   overflow: hidden;
   background: var(--bg-elev);
@@ -895,8 +965,8 @@ body.pdf-sidebar-resizing * {
     "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
   --crepe-font-default: -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
-  --crepe-font-code: ui-monospace, "SFMono-Regular", "SF Mono", Menlo,
-    Consolas, "Liberation Mono", monospace;
+  --crepe-font-code: "Cascadia Mono", "Cascadia Code", Consolas,
+    "SFMono-Regular", "SF Mono", Menlo, "Liberation Mono", monospace;
   --crepe-shadow-1: 0 1px 3px rgba(31, 35, 40, 0.12),
     0 1px 2px rgba(31, 35, 40, 0.08);
   --crepe-shadow-2: 0 4px 12px rgba(31, 35, 40, 0.16);
@@ -968,7 +1038,9 @@ body.pdf-sidebar-resizing * {
   background: #818b981f;
   border: 0;
   border-radius: 6px;
-  font-family: var(--crepe-font-code);
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SFMono-Regular",
+    "SF Mono", Menlo, "Liberation Mono", monospace;
+  font-variant-ligatures: none;
   font-size: 85%;
   line-height: normal;
   white-space: break-spaces;
@@ -981,6 +1053,9 @@ body.pdf-sidebar-resizing * {
   background: #f6f8fa;
   border: 0;
   border-radius: 6px;
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SFMono-Regular",
+    "SF Mono", Menlo, "Liberation Mono", monospace;
+  font-variant-ligatures: none;
   font-size: 85%;
   line-height: 1.45;
 }
@@ -1042,6 +1117,44 @@ body.pdf-sidebar-resizing * {
   border-radius: 6px;
 }
 
+.milkdown-root > .milkdown .milkdown-code-block .cm-editor,
+.milkdown-root > .milkdown .milkdown-code-block .cm-scroller,
+.milkdown-root > .milkdown .milkdown-code-block .cm-content,
+.milkdown-root > .milkdown .milkdown-code-block .cm-line {
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SFMono-Regular",
+    "SF Mono", Menlo, "Liberation Mono", monospace !important;
+  font-variant-ligatures: none;
+}
+
+.milkdown-root > .milkdown .milkdown-list-item-block {
+  margin: 0 0 16px;
+}
+
+.milkdown-root > .milkdown .milkdown-list-item-block > .list-item {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.milkdown-root > .milkdown .milkdown-list-item-block li .label-wrapper,
+.milkdown-root > .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  height: 24px;
+  line-height: 24px;
+}
+
+.milkdown-root > .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  padding: 0;
+}
+
+.milkdown-root > .milkdown .milkdown-list-item-block li .label-wrapper svg {
+  width: 20px;
+  height: 20px;
+}
+
+.milkdown-root > .milkdown .milkdown-list-item-block > .list-item > .children > p:first-child {
+  min-height: 24px;
+  line-height: 24px;
+}
+
 .milkdown-root > .milkdown .milkdown-table-block {
   margin: 0 0 16px;
 }
@@ -1060,6 +1173,11 @@ body.pdf-sidebar-resizing * {
 }
 
 @media (max-width: 767px) {
+  .md-outline {
+    flex-basis: 168px;
+    width: 168px;
+  }
+
   .milkdown-root.markdown-body {
     padding-right: 0;
     padding-left: 0;
@@ -1083,7 +1201,9 @@ body.pdf-sidebar-resizing * {
   scrollbar-width: none;
   background: var(--bg-elev);
   color: var(--text);
-  font-family: "JetBrains Mono", "SF Mono", Consolas, Menlo, monospace;
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SFMono-Regular",
+    "SF Mono", Menlo, "Liberation Mono", monospace;
+  font-variant-ligatures: none;
   font-size: 13px;
   line-height: 1.6;
   tab-size: 2;

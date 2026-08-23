@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import { useMarkdownText, useMarkdownSave } from "./useMarkdownText";
 import { MilkdownCrepe } from "./MilkdownCrepe";
 import { MarkdownToolbar } from "./MarkdownToolbar";
 import { MarkdownScrollbar } from "./MarkdownScrollbar";
+import { MarkdownOutline } from "./MarkdownOutline";
+import { extractMarkdownHeadings, type MarkdownHeading } from "./markdownHeadingModel";
 import { saveCoversCurrentRevision } from "./saveRevision";
 import { useWorkspace } from "../../workspace/store";
 import { registerDocumentLifecycle } from "../../workspace/documentLifecycle";
@@ -183,6 +185,33 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, saveFromEditor, switchMode, mode]);
 
+  const headings = useMemo(
+    () => extractMarkdownHeadings(workingText ?? ""),
+    [workingText],
+  );
+
+  const navigateToHeading = useCallback(
+    (heading: MarkdownHeading, index: number) => {
+      if (mode === "wysiwyg") {
+        const renderedHeadings = contentRef.current?.querySelectorAll<HTMLElement>(
+          ".milkdown-root .ProseMirror h1, .milkdown-root .ProseMirror h2, " +
+            ".milkdown-root .ProseMirror h3, .milkdown-root .ProseMirror h4, " +
+            ".milkdown-root .ProseMirror h5, .milkdown-root .ProseMirror h6",
+        );
+        renderedHeadings?.[index]?.scrollIntoView({ block: "start" });
+        return;
+      }
+
+      const source = textareaRef.current;
+      if (!source) return;
+      source.focus();
+      source.setSelectionRange(heading.offset, heading.offset);
+      const lineHeight = Number.parseFloat(window.getComputedStyle(source).lineHeight) || 20.8;
+      source.scrollTop = Math.max(0, heading.line * lineHeight - 24);
+    },
+    [mode],
+  );
+
   if (loading) return <div className="md-status">opening markdown…</div>;
   if (error) return <div className="md-status md-status-error">failed to open: {error}</div>;
   if (workingText == null) return <div className="md-status">no content</div>;
@@ -196,31 +225,34 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
         onSwitch={switchMode}
         onSave={saveFromEditor}
       />
-      <div className="md-viewport">
-        <div ref={contentRef} className="md-content">
-          {mode === "wysiwyg" ? (
-            <MilkdownCrepe
-              key={crepeVersion}
-              value={workingText}
-              onChange={onChange}
-            />
-          ) : (
-            <textarea
-              ref={textareaRef}
-              className="md-source"
-              value={workingText}
-              onChange={onSourceChange}
-              spellCheck={false}
-              placeholder="# Markdown source"
-            />
-          )}
+      <div className="md-workspace">
+        <MarkdownOutline headings={headings} onNavigate={navigateToHeading} />
+        <div className="md-viewport">
+          <div ref={contentRef} className="md-content">
+            {mode === "wysiwyg" ? (
+              <MilkdownCrepe
+                key={crepeVersion}
+                value={workingText}
+                onChange={onChange}
+              />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                className="md-source"
+                value={workingText}
+                onChange={onSourceChange}
+                spellCheck={false}
+                placeholder="# Markdown source"
+              />
+            )}
+          </div>
+          <MarkdownScrollbar
+            containerRef={contentRef}
+            sourceRef={textareaRef}
+            mode={mode}
+            contentVersion={crepeVersion + workingText.length}
+          />
         </div>
-        <MarkdownScrollbar
-          containerRef={contentRef}
-          sourceRef={textareaRef}
-          mode={mode}
-          contentVersion={crepeVersion + workingText.length}
-        />
       </div>
     </div>
   );
