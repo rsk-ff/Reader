@@ -69,17 +69,6 @@ fn point_in_titlebar_zone(
         && cursor_y < top + titlebar_height
 }
 
-fn point_in_window_bounds(
-    cursor_x: f64,
-    cursor_y: f64,
-    left: f64,
-    top: f64,
-    width: f64,
-    height: f64,
-) -> bool {
-    cursor_x >= left && cursor_x < left + width && cursor_y >= top && cursor_y < top + height
-}
-
 fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
     let cursor = app.cursor_position().ok()?;
     app.webview_windows()
@@ -107,34 +96,10 @@ fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
 }
 
 fn find_hover_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
-    // Prefer a titlebar hit when overlapping Reader windows both contain the
-    // cursor. It is the only zone that can complete a dock.
-    if let Some(target) = find_dock_target(app, source_window) {
-        return Some(target);
-    }
-
-    let cursor = app.cursor_position().ok()?;
-    app.webview_windows()
-        .into_iter()
-        .find_map(|(label, window)| {
-            if label == source_window
-                || (label != MAIN_WINDOW && !label.starts_with("win-"))
-                || !window.is_visible().unwrap_or(false)
-            {
-                return None;
-            }
-            let position = window.outer_position().ok()?;
-            let size = window.outer_size().ok()?;
-            point_in_window_bounds(
-                cursor.x,
-                cursor.y,
-                f64::from(position.x),
-                f64::from(position.y),
-                f64::from(size.width),
-                f64::from(size.height),
-            )
-            .then_some(label)
-        })
+    // Raising a target is intentionally limited to the same titlebar band
+    // that can complete a dock. Passing over document content must not change
+    // the native window stacking order.
+    find_dock_target(app, source_window)
 }
 
 fn cursor_in_window_titlebar(app: &AppHandle, window_id: &str) -> bool {
@@ -1309,8 +1274,8 @@ fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &s
 mod tests {
     use super::{
         commit_pdf_working_copy, cursor_moved_enough, detached_window_position_from_cursor,
-        encode_query_component, point_in_titlebar_zone, point_in_window_bounds, read_file_text,
-        save_file_text, should_detach_on_miss,
+        encode_query_component, point_in_titlebar_zone, read_file_text, save_file_text,
+        should_detach_on_miss,
     };
 
     #[test]
@@ -1330,15 +1295,12 @@ mod tests {
     }
 
     #[test]
-    fn hover_hit_test_uses_the_complete_window_bounds() {
-        assert!(point_in_window_bounds(
-            450.0, 500.0, 100.0, 100.0, 500.0, 600.0
+    fn hover_raise_does_not_use_the_window_content_area() {
+        assert!(point_in_titlebar_zone(
+            450.0, 140.0, 100.0, 100.0, 500.0, 1.25
         ));
-        assert!(!point_in_window_bounds(
-            600.0, 500.0, 100.0, 100.0, 500.0, 600.0
-        ));
-        assert!(!point_in_window_bounds(
-            450.0, 700.0, 100.0, 100.0, 500.0, 600.0
+        assert!(!point_in_titlebar_zone(
+            450.0, 500.0, 100.0, 100.0, 500.0, 1.25
         ));
     }
 

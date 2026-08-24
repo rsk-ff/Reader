@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`tasks/active/2026-08-24-tab-drag-interaction.md`](tasks/active/2026-08-24-tab-drag-interaction.md) — `waiting_user_acceptance`；已修复单标签释放后延迟合并，增加跨窗口跟随预览、释放点窗口定位和目标窗口临时抬升，自动化验证已通过。
+- [`tasks/active/2026-08-24-tab-drag-interaction.md`](tasks/active/2026-08-24-tab-drag-interaction.md) — `waiting_user_acceptance`；已修复单标签释放后延迟合并，增加跨窗口跟随预览、释放点窗口定位，并把目标窗口抬升限制到标签页栏，自动化验证已通过。
 
 ## Implemented at the application baseline
 
@@ -40,7 +40,7 @@
 
 ## Waiting for user acceptance
 
-- 标签拖动修复：单标签窗口释放即合并、跨窗口跟随预览、释放点窗口定位和被遮挡目标窗口抬升。
+- 标签拖动修复：单标签窗口释放即合并、跨窗口跟随预览、释放点窗口定位，以及只由目标标签页栏触发的窗口抬升。
 - Markdown 左侧目录、代码字体和列表对齐的最终视觉效果。
 - `0.1.0` 安装包的实际安装、升级和卸载流程。
 
