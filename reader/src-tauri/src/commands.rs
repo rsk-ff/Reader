@@ -25,6 +25,7 @@ const TAB_DRAG_RELEASED_EVENT: &str = "tab-drag://released";
 struct ActiveTabDrag {
     tab_id: TabId,
     source_window: WindowId,
+    source_is_drag_carrier: bool,
     detach_on_miss: bool,
     grab_offset_x: f64,
     grab_offset_y: f64,
@@ -69,12 +70,79 @@ fn point_in_titlebar_zone(
         && cursor_y < top + titlebar_height
 }
 
-fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
+#[cfg(any(target_os = "windows", test))]
+fn first_titlebar_candidate_by_z_order(
+    candidates: &[(WindowId, isize)],
+    z_order: &[isize],
+) -> Option<WindowId> {
+    z_order.iter().find_map(|handle| {
+        candidates
+            .iter()
+            .find(|(_, candidate_handle)| candidate_handle == handle)
+            .map(|(window_id, _)| window_id.clone())
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn native_window_z_order() -> Vec<isize> {
+    const GW_HWNDNEXT: u32 = 2;
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetTopWindow(window: isize) -> isize;
+        fn GetWindow(window: isize, command: u32) -> isize;
+    }
+
+    let mut z_order = Vec::new();
+    // SAFETY: both functions return desktop-owned HWND values and receive no
+    // borrowed pointers. GW_HWNDNEXT eventually returns a null handle.
+    let mut window = unsafe { GetTopWindow(0) };
+    while window != 0 && z_order.len() < 4096 {
+        z_order.push(window);
+        window = unsafe { GetWindow(window, GW_HWNDNEXT) };
+    }
+    z_order
+}
+
+#[cfg(target_os = "windows")]
+fn find_titlebar_target(app: &AppHandle, excluded_window: Option<&str>) -> Option<WindowId> {
+    let cursor = app.cursor_position().ok()?;
+    let candidates = app
+        .webview_windows()
+        .into_iter()
+        .filter_map(|(label, window)| {
+            if excluded_window == Some(label.as_str())
+                || (label != MAIN_WINDOW && !label.starts_with("win-"))
+                || !window.is_visible().unwrap_or(false)
+            {
+                return None;
+            }
+            let position = window.outer_position().ok()?;
+            let size = window.outer_size().ok()?;
+            let scale_factor = window.scale_factor().ok()?;
+            if !point_in_titlebar_zone(
+                cursor.x,
+                cursor.y,
+                f64::from(position.x),
+                f64::from(position.y),
+                f64::from(size.width),
+                scale_factor,
+            ) {
+                return None;
+            }
+            let native_handle = window.hwnd().ok()?.0 as isize;
+            Some((label, native_handle))
+        })
+        .collect::<Vec<_>>();
+    first_titlebar_candidate_by_z_order(&candidates, &native_window_z_order())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn find_titlebar_target(app: &AppHandle, excluded_window: Option<&str>) -> Option<WindowId> {
     let cursor = app.cursor_position().ok()?;
     app.webview_windows()
         .into_iter()
         .find_map(|(label, window)| {
-            if label == source_window
+            if excluded_window == Some(label.as_str())
                 || (label != MAIN_WINDOW && !label.starts_with("win-"))
                 || !window.is_visible().unwrap_or(false)
             {
@@ -95,11 +163,27 @@ fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
         })
 }
 
-fn find_hover_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
+fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
+    find_titlebar_target(app, Some(source_window))
+}
+
+fn find_hover_target(
+    app: &AppHandle,
+    source_window: &str,
+    include_source: bool,
+) -> Option<WindowId> {
     // Raising a target is intentionally limited to the same titlebar band
-    // that can complete a dock. Passing over document content must not change
-    // the native window stacking order.
-    find_dock_target(app, source_window)
+    // that can complete a dock. Multi-tab drags also include their stationary
+    // source so returning to its visible strip restores it above prior targets.
+    find_titlebar_target(app, (!include_source).then_some(source_window))
+}
+
+fn drag_carrier_window<'a>(
+    source_window: &'a str,
+    preview_window: Option<&'a str>,
+    source_is_drag_carrier: bool,
+) -> Option<&'a str> {
+    preview_window.or(source_is_drag_carrier.then_some(source_window))
 }
 
 fn cursor_in_window_titlebar(app: &AppHandle, window_id: &str) -> bool {
@@ -247,7 +331,7 @@ fn update_drag_hover(
     generation: u64,
     hover_target: Option<WindowId>,
 ) -> bool {
-    let (old_target, new_target) = {
+    let (old_target, new_target, drag_carrier) = {
         let mut guard = match monitor.0.lock() {
             Ok(guard) => guard,
             Err(error) => {
@@ -266,11 +350,20 @@ fn update_drag_hover(
         }
         let old_target = active.hover_target.take();
         active.hover_target = hover_target.clone();
-        (old_target, hover_target)
+        let drag_carrier = drag_carrier_window(
+            &active.source_window,
+            active.preview_window.as_deref(),
+            active.source_is_drag_carrier,
+        )
+        .map(str::to_owned);
+        (old_target, hover_target, drag_carrier)
     };
 
     set_temporary_topmost(app, old_target.as_deref(), false);
     set_temporary_topmost(app, new_target.as_deref(), true);
+    // The target belongs in the topmost band, but the visual object being
+    // dragged must be placed after it so the target cannot cover that object.
+    set_temporary_topmost(app, drag_carrier.as_deref(), true);
 
     // A completion/cancellation can race the native topmost call. Re-check and
     // immediately undo the new target if this drag is no longer active.
@@ -287,6 +380,7 @@ fn update_drag_hover(
         .unwrap_or(false);
     if !still_current {
         set_temporary_topmost(app, new_target.as_deref(), false);
+        set_temporary_topmost(app, drag_carrier.as_deref(), false);
     }
     still_current
 }
@@ -297,7 +391,7 @@ fn stop_tab_drag_monitor(
     tab_id: &str,
     source_window: &str,
 ) {
-    let (hover_target, preview_window) = {
+    let (source_window, hover_target, preview_window) = {
         let mut guard = match monitor.0.lock() {
             Ok(guard) => guard,
             Err(error) => {
@@ -316,10 +410,17 @@ fn stop_tab_drag_monitor(
         guard
             .active
             .take()
-            .map(|active| (active.hover_target, active.preview_window))
-            .unwrap_or((None, None))
+            .map(|active| {
+                (
+                    Some(active.source_window),
+                    active.hover_target,
+                    active.preview_window,
+                )
+            })
+            .unwrap_or((None, None, None))
     };
     set_temporary_topmost(app, hover_target.as_deref(), false);
+    set_temporary_topmost(app, source_window.as_deref(), false);
     destroy_tab_drag_preview(app, preview_window.as_deref());
 }
 
@@ -357,6 +458,7 @@ fn finish_monitored_tab_drag(
         let _ = app.emit_to(&active.source_window, TAB_DRAG_RELEASED_EVENT, payload);
     }
     set_temporary_topmost(app, active.hover_target.as_deref(), false);
+    set_temporary_topmost(app, Some(&active.source_window), false);
     destroy_tab_drag_preview(app, active.preview_window.as_deref());
 }
 
@@ -380,29 +482,42 @@ pub fn begin_tab_drag(
 ) -> Result<(), String> {
     let initially_down = primary_mouse_button_down();
     let start_cursor = app.cursor_position().ok();
-    let (generation, previous_hover, previous_preview) = {
+    let (generation, previous_source, previous_hover, previous_preview) = {
         let mut guard = monitor
             .0
             .lock()
             .map_err(|error| format!("tab drag monitor lock poisoned: {error}"))?;
         guard.generation = guard.generation.wrapping_add(1);
         let generation = guard.generation;
-        let (previous_hover, previous_preview) = guard
+        let (previous_source, previous_hover, previous_preview) = guard
             .active
             .take()
-            .map(|active| (active.hover_target, active.preview_window))
-            .unwrap_or((None, None));
+            .map(|active| {
+                (
+                    Some(active.source_window),
+                    active.hover_target,
+                    active.preview_window,
+                )
+            })
+            .unwrap_or((None, None, None));
         guard.active = Some(ActiveTabDrag {
             tab_id,
             source_window: source_window.clone(),
+            source_is_drag_carrier: !already_started,
             detach_on_miss,
             grab_offset_x,
             grab_offset_y,
             hover_target: None,
             preview_window: None,
         });
-        (generation, previous_hover, previous_preview)
+        (
+            generation,
+            previous_source,
+            previous_hover,
+            previous_preview,
+        )
     };
+    set_temporary_topmost(&app, previous_source.as_deref(), false);
     set_temporary_topmost(&app, previous_hover.as_deref(), false);
     destroy_tab_drag_preview(&app, previous_preview.as_deref());
 
@@ -463,26 +578,21 @@ pub fn begin_tab_drag(
                     moved |= cursor_moved_enough(start.x, start.y, cursor.x, cursor.y);
                 }
                 if moved {
-                    // While reordering in the source titlebar, do not raise an
-                    // overlapped Reader window merely because its rectangle is
-                    // geometrically behind the active strip. A single-tab
-                    // native move is different: the source window travels with
-                    // the cursor, so underlying Reader windows must be eligible.
                     let in_source_titlebar = cursor_in_window_titlebar(&app, &source_window);
-                    let allow_hover = !already_started || !in_source_titlebar;
-                    let hover_target = allow_hover
-                        .then(|| find_hover_target(&app, &source_window))
-                        .flatten();
+                    let hover_target = find_hover_target(&app, &source_window, already_started);
                     if !update_drag_hover(&app, &monitor, generation, hover_target.clone()) {
                         return;
                     }
                     if let Some(preview_window) = preview_window.as_deref() {
+                        let over_other_window = hover_target
+                            .as_deref()
+                            .is_some_and(|target| target != source_window);
                         update_tab_drag_preview(
                             &app,
                             preview_window,
                             grab_offset_x,
                             grab_offset_y,
-                            !in_source_titlebar || hover_target.is_some(),
+                            !in_source_titlebar || over_other_window,
                         );
                     }
                 }
@@ -1274,8 +1384,8 @@ fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &s
 mod tests {
     use super::{
         commit_pdf_working_copy, cursor_moved_enough, detached_window_position_from_cursor,
-        encode_query_component, point_in_titlebar_zone, read_file_text, save_file_text,
-        should_detach_on_miss,
+        drag_carrier_window, encode_query_component, first_titlebar_candidate_by_z_order,
+        point_in_titlebar_zone, read_file_text, save_file_text, should_detach_on_miss,
     };
 
     #[test]
@@ -1302,6 +1412,33 @@ mod tests {
         assert!(!point_in_titlebar_zone(
             450.0, 500.0, 100.0, 100.0, 500.0, 1.25
         ));
+    }
+
+    #[test]
+    fn hover_target_follows_native_z_order_and_can_return_to_source() {
+        let candidates = vec![
+            ("A".to_owned(), 10),
+            ("B".to_owned(), 20),
+            ("C".to_owned(), 30),
+        ];
+        assert_eq!(
+            first_titlebar_candidate_by_z_order(&candidates, &[99, 20, 10, 30]),
+            Some("B".to_owned())
+        );
+        assert_eq!(
+            first_titlebar_candidate_by_z_order(&candidates, &[99, 10, 20, 30]),
+            Some("A".to_owned())
+        );
+    }
+
+    #[test]
+    fn drag_preview_or_native_source_stays_above_the_hover_target() {
+        assert_eq!(
+            drag_carrier_window("A", Some("preview"), false),
+            Some("preview")
+        );
+        assert_eq!(drag_carrier_window("B", None, true), Some("B"));
+        assert_eq!(drag_carrier_window("A", None, false), None);
     }
 
     #[test]
