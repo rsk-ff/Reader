@@ -1,6 +1,6 @@
 # Repair tab drag interaction across native windows
 
-- Status: `waiting_user_acceptance`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-08-24`
 - Last updated: `2026-08-24`
@@ -60,13 +60,13 @@
 
 ## Acceptance criteria
 
-- [ ] 单标签窗口拖到另一 Reader 标签栏并释放后立即合并，无需第二次点击。
-- [ ] 标签拖动期间有跟随指针的预览；拖出后窗口出现在释放点附近。
-- [ ] 被遮挡的 Reader 窗口仅在指针进入其标签页栏时上浮；返回来源标签页栏会重新抬升来源，经过内容区不触发，离开或结束后不残留置顶状态。
-- [ ] 跟随指针的标签预览或单标签来源窗口始终位于临时上浮目标之上。
-- [ ] 同窗口标签排序、标签关闭、外部文件拖入和脏 Markdown 限制没有回归。
+- [x] 单标签窗口拖到另一 Reader 标签栏并释放后立即合并，无需第二次点击。
+- [x] 标签拖动期间有跟随指针的预览；拖出后窗口出现在释放点附近。
+- [x] 被遮挡的 Reader 窗口仅在指针进入其标签页栏时上浮；返回来源标签页栏会重新抬升来源，经过内容区不触发，离开或结束后不残留置顶状态。
+- [x] 跟随指针的标签预览或单标签来源窗口始终位于临时上浮目标之上。
+- [x] 同窗口标签排序、标签关闭、外部文件拖入和脏 Markdown 限制没有回归。
 - [x] 前端测试、前端生产构建、Rust 测试、格式检查、Clippy 和文档检查通过。
-- [ ] 用户在真实 Windows 桌面完成本任务交互验收。
+- [x] 用户在真实 Windows 桌面完成本任务交互验收。
 - [x] 文档已更新、提交已创建、工作树干净。
 
 ## Progress
@@ -79,7 +79,7 @@
 - [x] 把目标窗口上浮命中区从整个窗口收窄到标签页栏并完成回归验证。
 - [x] 按原生 Z 序选择悬停窗口、允许多标签来源重新上浮，并保持拖动物位于目标之上。
 - [x] 用同步 Win32 `SetWindowPos` 替换拖动期间的异步 topmost 状态更新。
-- [ ] 等待用户在真实 Windows 桌面验收交互。
+- [x] 用户在真实 Windows 桌面完成交互验收，确认没有问题。
 
 ## Discoveries
 
@@ -102,32 +102,30 @@
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml` — `passed`; 39 tests。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check` — `passed`。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — `passed`。
-- `powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1` — `passed`; 19 Markdown files、1 active task、2 archived tasks、2 decision records。
+- `powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1` — `passed`; 19 Markdown files、0 active tasks、3 archived tasks、2 decision records。
 - 用户反馈修订后，定向回归 `hover_raise_does_not_use_the_window_content_area`、完整 36 项 Rust 测试、格式检查、Clippy 和文档检查再次通过；前端未改，沿用本任务上一提交已通过的 89 项测试和生产构建证据。
 - 第二轮反馈修订新增原生 Z 序选择、返回来源和拖动载体优先级测试；完整 38 项 Rust 测试、格式检查、Clippy 和文档检查均已通过。
 - 第三轮反馈修订新增同步 Win32 topmost 插入策略测试；完整 39 项 Rust 测试及最终检查结果见本节。
 
 ## User acceptance
 
-`waiting`：
+`accepted`（2026-08-24）：用户完成真实 Windows 桌面验收并确认没有问题，包括：
 
-1. 在有多个标签的窗口内拖动标签，确认预览跟随鼠标且原有排序正常。
-2. 把该标签拖到桌面空白处释放，确认跨窗口预览连续，新窗口在释放点附近生成。
-3. 把只有一个标签的窗口拖到另一个 Reader 窗口标签栏并释放，确认立即合并且不需要第二次点击。
-4. 建立 A/B/C 三个窗口（标签数分别为 2/1/1），从 A 拖动标签至 B、C 标签页栏：目标应上浮，但跟随指针的标签始终在目标之上；不松手返回 A 标签页栏，A 应重新上浮并可正常合并回去。
-5. 从单标签 B 拖动整个窗口至 A 或 C 标签页栏：目标应上浮，但随鼠标移动的 B 始终在目标之上。
-6. 指针经过任一窗口内容区时不应触发上浮；离开或完成后确认没有窗口永久置顶。
-7. 确认脏 Markdown 仍不会跨窗口移动，外部文件仍可拖入打开。
-8. 完成检查后最后关闭开发版 Reader 窗口。
+1. 多标签拖动预览、同窗口排序、拖出后释放点定位。
+2. 单标签窗口释放到另一标签页栏后立即合并。
+3. A/B/C 三窗口标签页栏悬停上浮、返回来源窗口上浮及合并。
+4. 跟随标签或单标签来源窗口始终高于临时上浮目标。
+5. 内容区不触发上浮，拖动结束后不残留临时置顶。
+6. 脏 Markdown 跨窗口限制和外部文件拖入没有回归。
 
 ## Risks and remaining work
 
-- 原生窗口移动循环、WebView2 指针捕获、被第三方窗口遮挡时的 Z 序和多显示器缩放仍需要真实 Windows 桌面交互验收；自动化测试只能覆盖几何、状态转换和构建完整性。
+- 用户已在真实 Windows 桌面通过本任务交互验收。自动化与本次人工验收没有穷举所有第三方 topmost 软件和多显示器缩放组合，属于非阻塞的环境覆盖风险。
 
 ## Next action
 
-启动已提交的开发版本，让用户按 `User acceptance` 清单验收；根据反馈继续本任务，或在全部通过后归档任务并更新应用基线。
+无。本任务完成；下一个独立需求应新建会话。
 
 ## Outcome
 
-已实现可靠释放合并、跨窗口拖动预览、释放点窗口定位、仅由标签页栏触发且遵循原生 Z 序的窗口临时抬升，以及通过同步 Win32 调用保证拖动载体高于目标。主修复提交主题为 `fix: repair cross-window tab dragging`，上浮范围修订提交主题为 `fix: limit tab drag window raise to titlebar`，原生 Z 序选择提交主题为 `fix: preserve tab drag carrier z order`，同步层级修复提交主题为 `fix: enforce native tab drag z order`；最终提交哈希以 Git 历史为准。等待用户交互验收。
+已实现可靠释放合并、跨窗口拖动预览、释放点窗口定位、仅由标签页栏触发且遵循原生 Z 序的窗口临时抬升，以及通过同步 Win32 调用保证拖动载体高于目标；用户于 2026-08-24 完成真实桌面验收并确认没有问题。实现提交主题依次为 `fix: repair cross-window tab dragging`、`fix: limit tab drag window raise to titlebar`、`fix: preserve tab drag carrier z order` 和 `fix: enforce native tab drag z order`；归档提交主题为 `docs: archive accepted tab drag task`，哈希以 Git 历史为准。
