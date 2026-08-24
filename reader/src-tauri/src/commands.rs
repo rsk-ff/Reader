@@ -232,6 +232,60 @@ fn primary_mouse_button_down() -> bool {
     false
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn temporary_topmost_insert_after(topmost: bool) -> isize {
+    if topmost {
+        -1 // HWND_TOPMOST
+    } else {
+        -2 // HWND_NOTOPMOST
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn set_temporary_topmost(app: &AppHandle, window_id: Option<&str>, topmost: bool) {
+    const SWP_NOSIZE: u32 = 0x0001;
+    const SWP_NOMOVE: u32 = 0x0002;
+    const SWP_NOACTIVATE: u32 = 0x0010;
+    #[link(name = "user32")]
+    extern "system" {
+        fn SetWindowPos(
+            window: isize,
+            insert_after: isize,
+            x: i32,
+            y: i32,
+            width: i32,
+            height: i32,
+            flags: u32,
+        ) -> i32;
+    }
+
+    if let Some(window_id) = window_id {
+        if let Some(window) = app.get_webview_window(window_id) {
+            let Ok(native_handle) = window.hwnd() else {
+                return;
+            };
+            // SAFETY: the HWND belongs to a live Tauri window and SetWindowPos
+            // receives no borrowed pointers. Omitting SWP_ASYNCWINDOWPOS makes
+            // target-then-carrier calls establish a deterministic native order.
+            let succeeded = unsafe {
+                SetWindowPos(
+                    native_handle.0 as isize,
+                    temporary_topmost_insert_after(topmost),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                )
+            };
+            if succeeded == 0 {
+                log::warn!("failed to update temporary topmost state for '{window_id}'");
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
 fn set_temporary_topmost(app: &AppHandle, window_id: Option<&str>, topmost: bool) {
     if let Some(window_id) = window_id {
         if let Some(window) = app.get_webview_window(window_id) {
@@ -1386,6 +1440,7 @@ mod tests {
         commit_pdf_working_copy, cursor_moved_enough, detached_window_position_from_cursor,
         drag_carrier_window, encode_query_component, first_titlebar_candidate_by_z_order,
         point_in_titlebar_zone, read_file_text, save_file_text, should_detach_on_miss,
+        temporary_topmost_insert_after,
     };
 
     #[test]
@@ -1439,6 +1494,12 @@ mod tests {
         );
         assert_eq!(drag_carrier_window("B", None, true), Some("B"));
         assert_eq!(drag_carrier_window("A", None, false), None);
+    }
+
+    #[test]
+    fn temporary_topmost_uses_explicit_win32_insert_after_handles() {
+        assert_eq!(temporary_topmost_insert_after(true), -1);
+        assert_eq!(temporary_topmost_insert_after(false), -2);
     }
 
     #[test]

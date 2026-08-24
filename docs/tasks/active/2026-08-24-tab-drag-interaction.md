@@ -78,6 +78,7 @@
 - [x] 完成自动化回归和文档检查。
 - [x] 把目标窗口上浮命中区从整个窗口收窄到标签页栏并完成回归验证。
 - [x] 按原生 Z 序选择悬停窗口、允许多标签来源重新上浮，并保持拖动物位于目标之上。
+- [x] 用同步 Win32 `SetWindowPos` 替换拖动期间的异步 topmost 状态更新。
 - [ ] 等待用户在真实 Windows 桌面验收交互。
 
 ## Discoveries
@@ -90,18 +91,21 @@
 - 首轮用户验收确认主要交互基本实现，同时指出整窗悬停抬升范围过大；目标行为调整为只在 36 CSS px 标签页栏内触发。
 - 第二轮用户验收复现三个窗口 A/B/C：目标窗口置顶晚于拖动预览或单标签来源，导致目标反向遮住拖动物；多标签来源又被悬停候选硬排除，返回 A 标签页栏时无法重新上浮。
 - Windows 悬停检测改为按原生顶层窗口 Z 序筛选命中标签页栏；单标签拖动排除随鼠标移动的来源以命中下方目标，多标签拖动保留来源以支持返回。目标置顶后重新置顶拖动载体，清理与竞态回滚同时撤销来源、目标和载体状态。
+- 第三轮用户验收确认拖动载体仍会被新上浮目标遮挡。TAO 的 `set_always_on_top(true)` 只在内部标志从 `false` 变为 `true` 时调用 `SetWindowPos`；原生预览创建时已经是 topmost，因此重复调用不会重排 topmost 层，且 TAO 使用 `SWP_ASYNCWINDOWPOS`，来源与目标的实际执行顺序也不可靠。
+- 拖动会话现改为直接同步调用 User32 `SetWindowPos`：目标使用 `HWND_TOPMOST` 后立即对拖动载体再次使用 `HWND_TOPMOST`，撤销时使用 `HWND_NOTOPMOST`；无需新增依赖，并保留代际竞态回滚。
 - Clippy 的 `-D warnings` 暴露 `AppWorkspace::restore` 仅用于测试；生产编译增加了窄范围 `dead_code` 许可，测试用途和行为未改变。
 
 ## Verification
 
 - `pnpm --dir reader test` — `passed`; 11 files、89 tests。
 - `pnpm --dir reader build` — `passed`; TypeScript 与 Vite 生产构建完成，1164 modules transformed。
-- `cargo test --manifest-path reader/src-tauri/Cargo.toml` — `passed`; 38 tests。
+- `cargo test --manifest-path reader/src-tauri/Cargo.toml` — `passed`; 39 tests。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check` — `passed`。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — `passed`。
 - `powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1` — `passed`; 19 Markdown files、1 active task、2 archived tasks、2 decision records。
 - 用户反馈修订后，定向回归 `hover_raise_does_not_use_the_window_content_area`、完整 36 项 Rust 测试、格式检查、Clippy 和文档检查再次通过；前端未改，沿用本任务上一提交已通过的 89 项测试和生产构建证据。
 - 第二轮反馈修订新增原生 Z 序选择、返回来源和拖动载体优先级测试；完整 38 项 Rust 测试、格式检查、Clippy 和文档检查均已通过。
+- 第三轮反馈修订新增同步 Win32 topmost 插入策略测试；完整 39 项 Rust 测试及最终检查结果见本节。
 
 ## User acceptance
 
@@ -126,4 +130,4 @@
 
 ## Outcome
 
-已实现可靠释放合并、跨窗口拖动预览、释放点窗口定位、仅由标签页栏触发且遵循原生 Z 序的窗口临时抬升，以及拖动载体高于目标的层级保证。主修复提交主题为 `fix: repair cross-window tab dragging`，上浮范围修订提交主题为 `fix: limit tab drag window raise to titlebar`，本轮 Z 序修复提交主题为 `fix: preserve tab drag carrier z order`；最终提交哈希以 Git 历史为准。等待用户交互验收。
+已实现可靠释放合并、跨窗口拖动预览、释放点窗口定位、仅由标签页栏触发且遵循原生 Z 序的窗口临时抬升，以及通过同步 Win32 调用保证拖动载体高于目标。主修复提交主题为 `fix: repair cross-window tab dragging`，上浮范围修订提交主题为 `fix: limit tab drag window raise to titlebar`，原生 Z 序选择提交主题为 `fix: preserve tab drag carrier z order`，同步层级修复提交主题为 `fix: enforce native tab drag z order`；最终提交哈希以 Git 历史为准。等待用户交互验收。
