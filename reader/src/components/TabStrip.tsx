@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useWorkspace } from "../workspace/store";
 import type { TabId, WindowTab } from "../workspace/types";
 import { useWindowDragRegion } from "./windowDrag";
 import {
   buildReorderedOrder,
   computeInsertionIndex,
+  dragPreviewPosition,
   isOutsideStripBounds,
   movementExceedsThreshold,
   type TabRect,
@@ -28,6 +30,8 @@ export function TabStrip() {
   const focusTab = useWorkspace((s) => s.focusTab);
   const closeTab = useWorkspace((s) => s.closeTab);
   const reorderTabs = useWorkspace((s) => s.reorderTabs);
+  const beginTabDrag = useWorkspace((s) => s.beginTabDrag);
+  const cancelTabDrag = useWorkspace((s) => s.cancelTabDrag);
   const completeTabDrag = useWorkspace((s) => s.completeTabDrag);
 
   const drag = useWindowDragRegion();
@@ -43,6 +47,16 @@ export function TabStrip() {
     index: number;
     after: boolean;
   } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{
+    title: string;
+    dirty: boolean;
+    width: number;
+    height: number;
+    grabOffsetX: number;
+    grabOffsetY: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
 
   interface DragSession {
     tabId: TabId;
@@ -50,6 +64,13 @@ export function TabStrip() {
     startX: number;
     startY: number;
     started: boolean;
+    ending: boolean;
+    title: string;
+    dirty: boolean;
+    width: number;
+    height: number;
+    grabOffsetX: number;
+    grabOffsetY: number;
     el: HTMLElement;
   }
 
@@ -71,6 +92,7 @@ export function TabStrip() {
     sessionRef.current = null;
     setDraggingId(null);
     setDropIndicator(null);
+    setDragPreview(null);
   }
 
   function onPointerDown(e: React.PointerEvent, tab: WindowTab) {
@@ -83,6 +105,7 @@ export function TabStrip() {
     // A lone tab is part of the native titlebar: its mouse handler below moves
     // the whole window, so it must never enter reorder/detach pointer capture.
     if (tabsRef.current.length === 1) return;
+    const rect = el.getBoundingClientRect();
     try {
       el.setPointerCapture(e.pointerId);
     } catch {
@@ -95,6 +118,13 @@ export function TabStrip() {
       startX: e.clientX,
       startY: e.clientY,
       started: false,
+      ending: false,
+      title: tab.title,
+      dirty: documentsById[tab.document_id]?.dirty ?? false,
+      width: rect.width,
+      height: rect.height,
+      grabOffsetX: e.clientX - rect.left,
+      grabOffsetY: e.clientY - rect.top,
       el,
     };
   }
@@ -110,7 +140,26 @@ export function TabStrip() {
       }
       s.started = true;
       setDraggingId(s.tabId);
+      void beginTabDrag(
+        s.tabId,
+        true,
+        { x: s.grabOffsetX, y: s.grabOffsetY },
+        { title: s.title, dirty: s.dirty, width: s.width, height: s.height },
+        true,
+      ).catch(() => {
+        // Pointerup remains a completion fallback if the native monitor fails.
+      });
     }
+    setDragPreview({
+      title: s.title,
+      dirty: s.dirty,
+      width: s.width,
+      height: s.height,
+      grabOffsetX: s.grabOffsetX,
+      grabOffsetY: s.grabOffsetY,
+      clientX: e.clientX,
+      clientY: e.clientY,
+    });
     const strip = stripRef.current;
     const stripRect = strip?.getBoundingClientRect();
     if (!stripRect) return;
@@ -131,7 +180,9 @@ export function TabStrip() {
     }
     const started = s.started;
     const tabId = s.tabId;
+    const grabOffset = { x: s.grabOffsetX, y: s.grabOffsetY };
     const el = s.el;
+    s.ending = true;
     try {
       el.releasePointerCapture(e.pointerId);
     } catch {
@@ -145,11 +196,12 @@ export function TabStrip() {
     const stripRect = strip?.getBoundingClientRect() ?? null;
     if (!stripRect) {
       clearSession();
+      void cancelTabDrag(tabId).catch(() => {});
       return;
     }
     if (isOutsideStripBounds(e.clientX, e.clientY, stripRect)) {
       clearSession();
-      void completeTabDrag(tabId, true).catch((error: unknown) => {
+      void completeTabDrag(tabId, true, grabOffset).catch((error: unknown) => {
         // Preserve the user-visible move/detach error reporting.
         window.alert(error instanceof Error ? error.message : String(error));
       });
@@ -160,6 +212,7 @@ export function TabStrip() {
     const idx = computeInsertionIndex(rects, e.clientX);
     const next = buildReorderedOrder(ids, tabId, idx);
     clearSession();
+    void cancelTabDrag(tabId).catch(() => {});
     const changed =
       next.length !== ids.length || next.some((id, i) => id !== ids[i]);
     if (changed) {
@@ -177,6 +230,7 @@ export function TabStrip() {
     } catch {
       // ignore
     }
+    void cancelTabDrag(s.tabId).catch(() => {});
     clearSession();
   }
 
@@ -184,7 +238,8 @@ export function TabStrip() {
     // Unexpected capture loss (e.g. the window losing focus mid-drag): clean
     // up without reordering or detaching.
     const s = sessionRef.current;
-    if (s && s.pointerId === e.pointerId) {
+    if (s && s.pointerId === e.pointerId && !s.ending) {
+      void cancelTabDrag(s.tabId).catch(() => {});
       clearSession();
     }
   }
@@ -192,13 +247,18 @@ export function TabStrip() {
   const dropBeforeIndex =
     dropIndicator && !dropIndicator.after ? dropIndicator.index : -1;
   const dropAfterLast = dropIndicator?.after ?? false;
+  const previewPosition = dragPreview
+    ? dragPreviewPosition(
+        dragPreview.clientX,
+        dragPreview.clientY,
+        dragPreview.grabOffsetX,
+        dragPreview.grabOffsetY,
+      )
+    : null;
 
   return (
-    <div
-      className="tabstrip"
-      role="tablist"
-      ref={stripRef}
-    >
+    <>
+      <div className="tabstrip" role="tablist" ref={stripRef}>
       {tabs.map((tab, i) => {
         const dirty = documentsById[tab.document_id]?.dirty ?? false;
         const active = tab.id === activeTabId;
@@ -233,11 +293,16 @@ export function TabStrip() {
                 void drag.toggleMaximize().catch(() => {});
                 return;
               }
-              // Tauri resolves startDragging after the native Windows move
-              // loop ends, so the global cursor is now the user's drop point.
-              void drag
-                .startDragging()
-                .then(() => completeTabDrag(tab.id, false))
+              const rect = e.currentTarget.getBoundingClientRect();
+              const grabOffset = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+              };
+              // startDragging's Promise can resolve before the Windows move
+              // loop ends. Arm the native mouse-release monitor first and let
+              // its event complete docking at the real drop point.
+              void beginTabDrag(tab.id, false, grabOffset, null, false)
+                .then(() => drag.startDragging())
                 .catch(() => {});
             }}
             onAuxClick={(e) => {
@@ -267,6 +332,26 @@ export function TabStrip() {
         );
       })}
       <div className="tabstrip-spacer" onMouseDown={drag.onMouseDown} />
-    </div>
+      </div>
+      {dragPreview
+        ? createPortal(
+            <div
+              className="tab tab-active tab-drag-ghost"
+              aria-hidden="true"
+              style={{
+                left: previewPosition?.left,
+                top: previewPosition?.top,
+                width: dragPreview.width,
+                height: dragPreview.height,
+              }}
+            >
+              <span className="tab-icon">{dragPreview.dirty ? "●" : ""}</span>
+              <span className="tab-title">{dragPreview.title}</span>
+              <span className="tab-close">{dragPreview.dirty ? "●" : "✕"}</span>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }

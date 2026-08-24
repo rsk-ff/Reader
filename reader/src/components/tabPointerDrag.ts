@@ -37,6 +37,19 @@ export interface StripRect {
   bottom: number;
 }
 
+/** Viewport position for the drag preview while preserving its grab point. */
+export function dragPreviewPosition(
+  pointerX: number,
+  pointerY: number,
+  grabOffsetX: number,
+  grabOffsetY: number,
+): { left: number; top: number } {
+  return {
+    left: pointerX - grabOffsetX,
+    top: pointerY - grabOffsetY,
+  };
+}
+
 /**
  * True when pointer travel exceeds the movement threshold that distinguishes a
  * click from a drag. At exactly the threshold it is still a click, so a tiny

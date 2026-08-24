@@ -6,6 +6,25 @@ import { listen } from "@tauri-apps/api/event";
 import type { TabId, WindowId, WorkspaceSnapshot } from "./types";
 import { prepareDocumentForClose } from "./documentLifecycle";
 
+export interface TabDragGrabOffset {
+  x: number;
+  y: number;
+}
+
+export interface TabDragPreview {
+  title: string;
+  dirty: boolean;
+  width: number;
+  height: number;
+}
+
+interface TabDragReleasedPayload {
+  tabId: TabId;
+  detachOnMiss: boolean;
+  grabOffsetX: number;
+  grabOffsetY: number;
+}
+
 interface WorkspaceState extends WorkspaceSnapshot {
   ready: boolean;
   myWindowId: WindowId;
@@ -16,7 +35,19 @@ interface WorkspaceState extends WorkspaceSnapshot {
   closeTab: (id: TabId) => Promise<void>;
   reorderTabs: (tabIds: TabId[]) => Promise<void>;
   detachTab: (id: TabId) => Promise<WindowId>;
-  completeTabDrag: (id: TabId, detachOnMiss: boolean) => Promise<WindowId>;
+  beginTabDrag: (
+    id: TabId,
+    detachOnMiss: boolean,
+    grabOffset: TabDragGrabOffset,
+    preview: TabDragPreview | null,
+    alreadyStarted: boolean,
+  ) => Promise<void>;
+  cancelTabDrag: (id: TabId) => Promise<void>;
+  completeTabDrag: (
+    id: TabId,
+    detachOnMiss: boolean,
+    grabOffset?: TabDragGrabOffset,
+  ) => Promise<WindowId>;
   setDocumentDirtyLocal: (documentId: string, dirty: boolean) => void;
   refresh: () => Promise<void>;
 }
@@ -65,6 +96,17 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     // Wake-up signal from Rust — re-fetch our own snapshot.
     await listen("workspace://changed", () => {
       void get().refresh();
+    });
+    await listen<TabDragReleasedPayload>("tab-drag://released", (event) => {
+      const payload = event.payload;
+      void get()
+        .completeTabDrag(payload.tabId, payload.detachOnMiss, {
+          x: payload.grabOffsetX,
+          y: payload.grabOffsetY,
+        })
+        .catch((error: unknown) => {
+          window.alert(error instanceof Error ? error.message : String(error));
+        });
     });
     await get().refresh();
   },
@@ -115,7 +157,31 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     return await invoke<WindowId>("detach_tab", { tabId: id });
   },
 
-  completeTabDrag: async (id, detachOnMiss) => {
+  beginTabDrag: async (id, detachOnMiss, grabOffset, preview, alreadyStarted) => {
+    const state = get();
+    await invoke("begin_tab_drag", {
+      tabId: id,
+      sourceWindow: state.myWindowId,
+      detachOnMiss,
+      grabOffsetX: grabOffset.x,
+      grabOffsetY: grabOffset.y,
+      previewTitle: preview?.title ?? null,
+      previewDirty: preview?.dirty ?? false,
+      previewWidth: preview?.width ?? 0,
+      previewHeight: preview?.height ?? 0,
+      alreadyStarted,
+    });
+  },
+
+  cancelTabDrag: async (id) => {
+    const state = get();
+    await invoke("cancel_tab_drag", {
+      tabId: id,
+      sourceWindow: state.myWindowId,
+    });
+  },
+
+  completeTabDrag: async (id, detachOnMiss, grabOffset = { x: 0, y: 0 }) => {
     const state = get();
     const tab = state.tabs.find((candidate) => candidate.id === id);
     const document = tab ? state.documentsById[tab.document_id] : undefined;
@@ -131,6 +197,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       tabId: id,
       sourceWindow: state.myWindowId,
       detachOnMiss,
+      grabOffsetX: grabOffset.x,
+      grabOffsetY: grabOffset.y,
     });
   },
 }));

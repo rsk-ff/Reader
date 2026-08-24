@@ -474,6 +474,7 @@ impl AppWorkspace {
         .unwrap_or_default()
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn restore(serialized: &str) -> Option<AppWorkspace> {
         let s: PersistedSession = serde_json::from_str(serialized).ok()?;
         let mut ws = AppWorkspace::default();

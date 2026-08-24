@@ -3,9 +3,19 @@ import { describe, expect, it } from "vitest";
 import {
   buildReorderedOrder,
   computeInsertionIndex,
+  dragPreviewPosition,
   isOutsideStripBounds,
   movementExceedsThreshold,
 } from "./tabPointerDrag";
+
+describe("dragPreviewPosition", () => {
+  it("keeps the original grab point under the pointer", () => {
+    expect(dragPreviewPosition(480, 220, 72, 18)).toEqual({
+      left: 408,
+      top: 202,
+    });
+  });
+});
 
 function rect(id: string, left: number, width = 100): { id: string; left: number; right: number } {
   return { id, left, right: left + width };

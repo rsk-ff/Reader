@@ -48,7 +48,10 @@ Windows / Tauri
 - Rust 全局工作区拥有 `DocumentSession`、`WindowTab` 和每个窗口的标签顺序。
 - 打开的规范化路径会去重；前端 Zustand store 是 Rust 工作区的镜像。
 - 同一窗口内切换标签时组件保持挂载，从而保留阅读器和编辑器状态。
-- 标签可排序、拖出为原生窗口，并依据原生窗口位置跨窗口停靠。
+- 标签使用 Pointer Events 在同一窗口内排序；拖动时先由 React 显示标签预览，离开来源标题栏后改用忽略鼠标事件的短生命周期原生预览窗口，使反馈能跨出 webview 边界。
+- Rust 拖动监测器在 Windows 上读取真实左键状态；单标签原生窗口移动在鼠标释放时完成停靠检测，不依赖 `startDragging()` Promise 的完成时序。
+- 拖动经过其他可见 Reader 窗口时，监测器按原生窗口几何临时置顶目标；离开、取消、超时或完成后撤销。命中目标标题栏则移动标签，否则多标签来源按释放点创建新窗口。
+- 拖动预览窗口不拥有工作区标签，不参与会话持久化和窗口销毁广播。
 - 未保存 Markdown 的编辑状态无法在 webview 间安全迁移，因此相关移动被阻止。
 - 会话元数据保存在应用数据目录，并在启动时恢复。
 
@@ -56,7 +59,9 @@ Windows / Tauri
 
 - [`reader/src/workspace/`](../reader/src/workspace/)
 - [`reader/src/components/TabStrip.tsx`](../reader/src/components/TabStrip.tsx)
+- [`reader/src/components/tabPointerDrag.ts`](../reader/src/components/tabPointerDrag.ts)
 - [`reader/src/components/WindowTitleBar.tsx`](../reader/src/components/WindowTitleBar.tsx)
+- [`reader/src-tauri/src/commands.rs`](../reader/src-tauri/src/commands.rs)
 - [`reader/src-tauri/src/workspace.rs`](../reader/src-tauri/src/workspace.rs)
 - [`reader/src-tauri/src/lib.rs`](../reader/src-tauri/src/lib.rs)
 

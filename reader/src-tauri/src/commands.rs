@@ -4,6 +4,12 @@
 //! from OS double-click (single-instance plugin / opened-files event), CLI
 //! args at first launch, drag-in, or a frontend File→Open action.
 
+use std::{
+    sync::Mutex,
+    thread,
+    time::{Duration, Instant},
+};
+
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::workspace::{
@@ -11,6 +17,42 @@ use crate::workspace::{
 };
 
 const CUSTOM_TITLEBAR_HEIGHT_CSS: f64 = 36.0;
+const TAB_DRAG_POLL_INTERVAL: Duration = Duration::from_millis(16);
+const TAB_DRAG_TIMEOUT: Duration = Duration::from_secs(300);
+const TAB_DRAG_MOVEMENT_THRESHOLD: f64 = 4.0;
+const TAB_DRAG_RELEASED_EVENT: &str = "tab-drag://released";
+
+struct ActiveTabDrag {
+    tab_id: TabId,
+    source_window: WindowId,
+    detach_on_miss: bool,
+    grab_offset_x: f64,
+    grab_offset_y: f64,
+    hover_target: Option<WindowId>,
+    preview_window: Option<WindowId>,
+}
+
+#[derive(Default)]
+struct TabDragMonitor {
+    generation: u64,
+    active: Option<ActiveTabDrag>,
+}
+
+#[derive(Default)]
+pub(crate) struct TabDragMonitorState(Mutex<TabDragMonitor>);
+
+pub(crate) fn new_tab_drag_monitor() -> TabDragMonitorState {
+    TabDragMonitorState::default()
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TabDragReleasedPayload {
+    tab_id: TabId,
+    detach_on_miss: bool,
+    grab_offset_x: f64,
+    grab_offset_y: f64,
+}
 
 fn point_in_titlebar_zone(
     cursor_x: f64,
@@ -25,6 +67,17 @@ fn point_in_titlebar_zone(
         && cursor_x < left + width
         && cursor_y >= top
         && cursor_y < top + titlebar_height
+}
+
+fn point_in_window_bounds(
+    cursor_x: f64,
+    cursor_y: f64,
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+) -> bool {
+    cursor_x >= left && cursor_x < left + width && cursor_y >= top && cursor_y < top + height
 }
 
 fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
@@ -51,6 +104,456 @@ fn find_dock_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
             )
             .then_some(label)
         })
+}
+
+fn find_hover_target(app: &AppHandle, source_window: &str) -> Option<WindowId> {
+    // Prefer a titlebar hit when overlapping Reader windows both contain the
+    // cursor. It is the only zone that can complete a dock.
+    if let Some(target) = find_dock_target(app, source_window) {
+        return Some(target);
+    }
+
+    let cursor = app.cursor_position().ok()?;
+    app.webview_windows()
+        .into_iter()
+        .find_map(|(label, window)| {
+            if label == source_window
+                || (label != MAIN_WINDOW && !label.starts_with("win-"))
+                || !window.is_visible().unwrap_or(false)
+            {
+                return None;
+            }
+            let position = window.outer_position().ok()?;
+            let size = window.outer_size().ok()?;
+            point_in_window_bounds(
+                cursor.x,
+                cursor.y,
+                f64::from(position.x),
+                f64::from(position.y),
+                f64::from(size.width),
+                f64::from(size.height),
+            )
+            .then_some(label)
+        })
+}
+
+fn cursor_in_window_titlebar(app: &AppHandle, window_id: &str) -> bool {
+    let Ok(cursor) = app.cursor_position() else {
+        return false;
+    };
+    let Some(window) = app.get_webview_window(window_id) else {
+        return false;
+    };
+    let (Ok(position), Ok(size), Ok(scale_factor)) = (
+        window.outer_position(),
+        window.outer_size(),
+        window.scale_factor(),
+    ) else {
+        return false;
+    };
+    point_in_titlebar_zone(
+        cursor.x,
+        cursor.y,
+        f64::from(position.x),
+        f64::from(position.y),
+        f64::from(size.width),
+        scale_factor,
+    )
+}
+
+fn cursor_moved_enough(start_x: f64, start_y: f64, current_x: f64, current_y: f64) -> bool {
+    (current_x - start_x).hypot(current_y - start_y) > TAB_DRAG_MOVEMENT_THRESHOLD
+}
+
+#[cfg(target_os = "windows")]
+fn primary_mouse_button_down() -> bool {
+    const VK_LBUTTON: i32 = 0x01;
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetAsyncKeyState(virtual_key: i32) -> i16;
+    }
+
+    // SAFETY: GetAsyncKeyState has no pointer arguments and is safe to call
+    // from the polling thread. The high bit is set while the key is down.
+    unsafe { (GetAsyncKeyState(VK_LBUTTON) as u16 & 0x8000) != 0 }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn primary_mouse_button_down() -> bool {
+    false
+}
+
+fn set_temporary_topmost(app: &AppHandle, window_id: Option<&str>, topmost: bool) {
+    if let Some(window_id) = window_id {
+        if let Some(window) = app.get_webview_window(window_id) {
+            let _ = window.set_always_on_top(topmost);
+        }
+    }
+}
+
+fn encode_query_component(value: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('%');
+            encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+            encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+        }
+    }
+    encoded
+}
+
+fn create_tab_drag_preview(
+    app: &AppHandle,
+    generation: u64,
+    title: &str,
+    dirty: bool,
+    width: f64,
+    height: f64,
+) -> Option<WindowId> {
+    let label = format!("tab-drag-preview-{generation}");
+    let path = format!(
+        "index.html?tab-drag-preview=1&title={}&dirty={}",
+        encode_query_component(title),
+        if dirty { "1" } else { "0" }
+    );
+    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(path.into()))
+        .title("Reader tab drag preview")
+        .inner_size(width.clamp(120.0, 320.0), height.clamp(28.0, 44.0))
+        .decorations(false)
+        .resizable(false)
+        .focused(false)
+        .visible(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .shadow(false)
+        .transparent(true)
+        .build()
+        .ok()?;
+    let _ = window.set_ignore_cursor_events(true);
+    Some(label)
+}
+
+fn destroy_tab_drag_preview(app: &AppHandle, window_id: Option<&str>) {
+    if let Some(window_id) = window_id {
+        if let Some(window) = app.get_webview_window(window_id) {
+            let _ = window.destroy();
+        }
+    }
+}
+
+fn update_tab_drag_preview(
+    app: &AppHandle,
+    window_id: &str,
+    grab_offset_x: f64,
+    grab_offset_y: f64,
+    visible: bool,
+) {
+    let Some(window) = app.get_webview_window(window_id) else {
+        return;
+    };
+    if !visible {
+        let _ = window.hide();
+        return;
+    }
+    let Ok(cursor) = app.cursor_position() else {
+        return;
+    };
+    let scale_factor = app
+        .monitor_from_point(cursor.x, cursor.y)
+        .ok()
+        .flatten()
+        .map(|monitor| monitor.scale_factor())
+        .unwrap_or(1.0)
+        .max(0.1);
+    let x = (cursor.x - grab_offset_x.clamp(0.0, 320.0) * scale_factor).round() as i32;
+    let y = (cursor.y - grab_offset_y.clamp(0.0, CUSTOM_TITLEBAR_HEIGHT_CSS) * scale_factor).round()
+        as i32;
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+    let _ = window.show();
+}
+
+fn update_drag_hover(
+    app: &AppHandle,
+    monitor: &TabDragMonitorState,
+    generation: u64,
+    hover_target: Option<WindowId>,
+) -> bool {
+    let (old_target, new_target) = {
+        let mut guard = match monitor.0.lock() {
+            Ok(guard) => guard,
+            Err(error) => {
+                log::error!("tab drag monitor lock poisoned: {error}");
+                return false;
+            }
+        };
+        if guard.generation != generation {
+            return false;
+        }
+        let Some(active) = guard.active.as_mut() else {
+            return false;
+        };
+        if active.hover_target == hover_target {
+            return true;
+        }
+        let old_target = active.hover_target.take();
+        active.hover_target = hover_target.clone();
+        (old_target, hover_target)
+    };
+
+    set_temporary_topmost(app, old_target.as_deref(), false);
+    set_temporary_topmost(app, new_target.as_deref(), true);
+
+    // A completion/cancellation can race the native topmost call. Re-check and
+    // immediately undo the new target if this drag is no longer active.
+    let still_current = monitor
+        .0
+        .lock()
+        .map(|guard| {
+            guard.generation == generation
+                && guard
+                    .active
+                    .as_ref()
+                    .is_some_and(|active| active.hover_target == new_target)
+        })
+        .unwrap_or(false);
+    if !still_current {
+        set_temporary_topmost(app, new_target.as_deref(), false);
+    }
+    still_current
+}
+
+fn stop_tab_drag_monitor(
+    app: &AppHandle,
+    monitor: &TabDragMonitorState,
+    tab_id: &str,
+    source_window: &str,
+) {
+    let (hover_target, preview_window) = {
+        let mut guard = match monitor.0.lock() {
+            Ok(guard) => guard,
+            Err(error) => {
+                log::error!("tab drag monitor lock poisoned: {error}");
+                return;
+            }
+        };
+        let matches = guard
+            .active
+            .as_ref()
+            .is_some_and(|active| active.tab_id == tab_id && active.source_window == source_window);
+        if !matches {
+            return;
+        }
+        guard.generation = guard.generation.wrapping_add(1);
+        guard
+            .active
+            .take()
+            .map(|active| (active.hover_target, active.preview_window))
+            .unwrap_or((None, None))
+    };
+    set_temporary_topmost(app, hover_target.as_deref(), false);
+    destroy_tab_drag_preview(app, preview_window.as_deref());
+}
+
+fn finish_monitored_tab_drag(
+    app: &AppHandle,
+    monitor: &TabDragMonitorState,
+    generation: u64,
+    should_emit: bool,
+) {
+    let active = {
+        let mut guard = match monitor.0.lock() {
+            Ok(guard) => guard,
+            Err(error) => {
+                log::error!("tab drag monitor lock poisoned: {error}");
+                return;
+            }
+        };
+        if guard.generation != generation {
+            return;
+        }
+        guard.generation = guard.generation.wrapping_add(1);
+        guard.active.take()
+    };
+    let Some(active) = active else {
+        return;
+    };
+
+    if should_emit {
+        let payload = TabDragReleasedPayload {
+            tab_id: active.tab_id.clone(),
+            detach_on_miss: active.detach_on_miss,
+            grab_offset_x: active.grab_offset_x,
+            grab_offset_y: active.grab_offset_y,
+        };
+        let _ = app.emit_to(&active.source_window, TAB_DRAG_RELEASED_EVENT, payload);
+    }
+    set_temporary_topmost(app, active.hover_target.as_deref(), false);
+    destroy_tab_drag_preview(app, active.preview_window.as_deref());
+}
+
+#[tauri::command]
+// Tauri exposes command parameters as named IPC fields; keeping them flat
+// preserves the generated frontend call contract.
+#[allow(clippy::too_many_arguments)]
+pub fn begin_tab_drag(
+    tab_id: TabId,
+    source_window: WindowId,
+    detach_on_miss: bool,
+    grab_offset_x: f64,
+    grab_offset_y: f64,
+    preview_title: Option<String>,
+    preview_dirty: bool,
+    preview_width: f64,
+    preview_height: f64,
+    already_started: bool,
+    app: AppHandle,
+    monitor: State<'_, TabDragMonitorState>,
+) -> Result<(), String> {
+    let initially_down = primary_mouse_button_down();
+    let start_cursor = app.cursor_position().ok();
+    let (generation, previous_hover, previous_preview) = {
+        let mut guard = monitor
+            .0
+            .lock()
+            .map_err(|error| format!("tab drag monitor lock poisoned: {error}"))?;
+        guard.generation = guard.generation.wrapping_add(1);
+        let generation = guard.generation;
+        let (previous_hover, previous_preview) = guard
+            .active
+            .take()
+            .map(|active| (active.hover_target, active.preview_window))
+            .unwrap_or((None, None));
+        guard.active = Some(ActiveTabDrag {
+            tab_id,
+            source_window: source_window.clone(),
+            detach_on_miss,
+            grab_offset_x,
+            grab_offset_y,
+            hover_target: None,
+            preview_window: None,
+        });
+        (generation, previous_hover, previous_preview)
+    };
+    set_temporary_topmost(&app, previous_hover.as_deref(), false);
+    destroy_tab_drag_preview(&app, previous_preview.as_deref());
+
+    thread::spawn(move || {
+        let started_at = Instant::now();
+        let mut saw_button_down = initially_down;
+        let mut moved = already_started;
+        let preview_window = if already_started {
+            preview_title.as_deref().and_then(|title| {
+                create_tab_drag_preview(
+                    &app,
+                    generation,
+                    title,
+                    preview_dirty,
+                    preview_width,
+                    preview_height,
+                )
+            })
+        } else {
+            None
+        };
+        if let Some(preview_window) = preview_window.as_ref() {
+            let monitor = app.state::<TabDragMonitorState>();
+            let keep_preview = monitor
+                .0
+                .lock()
+                .map(|mut guard| {
+                    if guard.generation != generation {
+                        return false;
+                    }
+                    let Some(active) = guard.active.as_mut() else {
+                        return false;
+                    };
+                    active.preview_window = Some(preview_window.clone());
+                    true
+                })
+                .unwrap_or(false);
+            if !keep_preview {
+                destroy_tab_drag_preview(&app, Some(preview_window));
+                return;
+            }
+        }
+        loop {
+            let monitor = app.state::<TabDragMonitorState>();
+            let current = monitor
+                .0
+                .lock()
+                .map(|guard| guard.generation == generation && guard.active.is_some())
+                .unwrap_or(false);
+            if !current {
+                return;
+            }
+
+            let button_down = primary_mouse_button_down();
+            saw_button_down |= button_down;
+            if button_down {
+                if let (Some(start), Ok(cursor)) = (start_cursor, app.cursor_position()) {
+                    moved |= cursor_moved_enough(start.x, start.y, cursor.x, cursor.y);
+                }
+                if moved {
+                    // While reordering in the source titlebar, do not raise an
+                    // overlapped Reader window merely because its rectangle is
+                    // geometrically behind the active strip. A single-tab
+                    // native move is different: the source window travels with
+                    // the cursor, so underlying Reader windows must be eligible.
+                    let in_source_titlebar = cursor_in_window_titlebar(&app, &source_window);
+                    let allow_hover = !already_started || !in_source_titlebar;
+                    let hover_target = allow_hover
+                        .then(|| find_hover_target(&app, &source_window))
+                        .flatten();
+                    if !update_drag_hover(&app, &monitor, generation, hover_target.clone()) {
+                        return;
+                    }
+                    if let Some(preview_window) = preview_window.as_deref() {
+                        update_tab_drag_preview(
+                            &app,
+                            preview_window,
+                            grab_offset_x,
+                            grab_offset_y,
+                            !in_source_titlebar || hover_target.is_some(),
+                        );
+                    }
+                }
+            } else {
+                // Pointer Events reliably finish a multi-tab drag in the
+                // source webview. Only the single-tab native window move needs
+                // this OS-level release event; emitting for both paths could
+                // race an in-strip reorder against a geometrically overlapped
+                // window behind the source.
+                finish_monitored_tab_drag(
+                    &app,
+                    &monitor,
+                    generation,
+                    saw_button_down && moved && !already_started,
+                );
+                return;
+            }
+
+            if started_at.elapsed() >= TAB_DRAG_TIMEOUT {
+                finish_monitored_tab_drag(&app, &monitor, generation, false);
+                return;
+            }
+            thread::sleep(TAB_DRAG_POLL_INTERVAL);
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_tab_drag(
+    tab_id: TabId,
+    source_window: WindowId,
+    app: AppHandle,
+    monitor: State<'_, TabDragMonitorState>,
+) {
+    stop_tab_drag_monitor(&app, &monitor, &tab_id, &source_window);
 }
 
 fn should_detach_on_miss(detach_on_miss: bool, source_tab_count: usize) -> bool {
@@ -238,15 +741,51 @@ pub fn reorder_tabs(
     Ok(())
 }
 
-/// Detach a tab into a brand-new native window. The DocumentSession is not
-/// recreated — only the tab's window_id changes (§18, Test 10).
-#[tauri::command]
-// WebviewWindowBuilder::build deadlocks on Windows from a synchronous command;
-// keep this async so Tauri executes the window creation off the IPC main thread.
-pub async fn detach_tab(
+fn detached_window_position_from_cursor(
+    cursor_x: f64,
+    cursor_y: f64,
+    scale_factor: f64,
+    grab_offset_x: f64,
+    grab_offset_y: f64,
+) -> (f64, f64) {
+    let scale_factor = scale_factor.max(0.1);
+    (
+        cursor_x / scale_factor - grab_offset_x.clamp(0.0, 320.0),
+        cursor_y / scale_factor - grab_offset_y.clamp(0.0, CUSTOM_TITLEBAR_HEIGHT_CSS),
+    )
+}
+
+fn detached_window_drop_position(
+    app: &AppHandle,
+    source_window: &str,
+    grab_offset_x: f64,
+    grab_offset_y: f64,
+) -> Option<(f64, f64)> {
+    let cursor = app.cursor_position().ok()?;
+    let scale_factor = app
+        .monitor_from_point(cursor.x, cursor.y)
+        .ok()
+        .flatten()
+        .map(|monitor| monitor.scale_factor())
+        .or_else(|| {
+            app.get_webview_window(source_window)
+                .and_then(|window| window.scale_factor().ok())
+        })
+        .unwrap_or(1.0);
+    Some(detached_window_position_from_cursor(
+        cursor.x,
+        cursor.y,
+        scale_factor,
+        grab_offset_x,
+        grab_offset_y,
+    ))
+}
+
+fn detach_tab_at(
     tab_id: TabId,
-    app: AppHandle,
-    ws: State<'_, SharedWorkspace>,
+    app: &AppHandle,
+    ws: &SharedWorkspace,
+    position: Option<(f64, f64)>,
 ) -> Result<WindowId, String> {
     let new_window = {
         let mut guard = ws
@@ -257,17 +796,31 @@ pub async fn detach_tab(
 
     // Create the native window with the same label the workspace just minted.
     let mut builder =
-        WebviewWindowBuilder::new(&app, &new_window, WebviewUrl::App("index.html".into()))
+        WebviewWindowBuilder::new(app, &new_window, WebviewUrl::App("index.html".into()))
             .title("Reader")
             .inner_size(900.0, 700.0)
             .min_inner_size(330.0, 480.0)
             .decorations(false);
-    builder = builder.position(120.0, 120.0);
+    let (x, y) = position.unwrap_or((120.0, 120.0));
+    builder = builder.position(x, y);
     builder
         .build()
         .map_err(|e| format!("create window '{new_window}': {e}"))?;
-    broadcast(&app, &ws);
+    broadcast(app, ws);
     Ok(new_window)
+}
+
+/// Detach a tab into a brand-new native window. The DocumentSession is not
+/// recreated — only the tab's window_id changes (§18, Test 10).
+#[tauri::command]
+// WebviewWindowBuilder::build deadlocks on Windows from a synchronous command;
+// keep this async so Tauri executes the window creation off the IPC main thread.
+pub async fn detach_tab(
+    tab_id: TabId,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<WindowId, String> {
+    detach_tab_at(tab_id, &app, &ws, None)
 }
 
 /// Move a tab from any window to `target_window` at `position` (drag into
@@ -293,13 +846,20 @@ pub fn move_tab(
 /// another Reader window joins that window; otherwise a multi-tab source may
 /// detach while a one-tab source always remains its native window.
 #[tauri::command]
+// Tauri exposes command parameters as named IPC fields; keeping them flat
+// preserves the generated frontend call contract.
+#[allow(clippy::too_many_arguments)]
 pub async fn complete_tab_drag(
     tab_id: TabId,
     source_window: WindowId,
     detach_on_miss: bool,
+    grab_offset_x: f64,
+    grab_offset_y: f64,
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
+    monitor: State<'_, TabDragMonitorState>,
 ) -> Result<WindowId, String> {
+    stop_tab_drag_monitor(&app, &monitor, &tab_id, &source_window);
     let (current_window, source_tab_count, dirty_markdown) = {
         let guard = ws
             .lock()
@@ -375,7 +935,9 @@ pub async fn complete_tab_drag(
     }
 
     if should_detach_on_miss(detach_on_miss, source_tab_count) {
-        return detach_tab(tab_id, app, ws).await;
+        let position =
+            detached_window_drop_position(&app, &source_window, grab_offset_x, grab_offset_y);
+        return detach_tab_at(tab_id, &app, &ws, position);
     }
     Ok(source_window)
 }
@@ -746,8 +1308,9 @@ fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &s
 #[cfg(test)]
 mod tests {
     use super::{
-        commit_pdf_working_copy, point_in_titlebar_zone, read_file_text, save_file_text,
-        should_detach_on_miss,
+        commit_pdf_working_copy, cursor_moved_enough, detached_window_position_from_cursor,
+        encode_query_component, point_in_titlebar_zone, point_in_window_bounds, read_file_text,
+        save_file_text, should_detach_on_miss,
     };
 
     #[test]
@@ -764,6 +1327,43 @@ mod tests {
         assert!(!point_in_titlebar_zone(
             600.0, 120.0, 100.0, 100.0, 500.0, 1.25
         ));
+    }
+
+    #[test]
+    fn hover_hit_test_uses_the_complete_window_bounds() {
+        assert!(point_in_window_bounds(
+            450.0, 500.0, 100.0, 100.0, 500.0, 600.0
+        ));
+        assert!(!point_in_window_bounds(
+            600.0, 500.0, 100.0, 100.0, 500.0, 600.0
+        ));
+        assert!(!point_in_window_bounds(
+            450.0, 700.0, 100.0, 100.0, 500.0, 600.0
+        ));
+    }
+
+    #[test]
+    fn native_drag_requires_real_pointer_travel() {
+        assert!(!cursor_moved_enough(100.0, 100.0, 104.0, 100.0));
+        assert!(cursor_moved_enough(100.0, 100.0, 104.1, 100.0));
+    }
+
+    #[test]
+    fn detached_window_keeps_the_grab_point_under_the_cursor() {
+        assert_eq!(
+            detached_window_position_from_cursor(750.0, 450.0, 1.5, 120.0, 18.0),
+            (380.0, 282.0)
+        );
+        // Hostile offsets are clamped to the tab/titlebar geometry.
+        assert_eq!(
+            detached_window_position_from_cursor(500.0, 400.0, 1.0, 999.0, 999.0),
+            (180.0, 364.0)
+        );
+    }
+
+    #[test]
+    fn drag_preview_title_is_encoded_as_a_query_component() {
+        assert_eq!(encode_query_component("A b/文"), "A%20b%2F%E6%96%87");
     }
 
     #[test]

@@ -7,13 +7,35 @@ import { useFileDrop } from "./workspace/useFileDrop";
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./styles.css";
 
-function Root() {
+const launchParams = new URLSearchParams(window.location.search);
+const isTabDragPreview = launchParams.get("tab-drag-preview") === "1";
+if (isTabDragPreview) {
+  document.documentElement.classList.add("tab-drag-preview-document");
+}
+
+function ReaderRoot() {
   useFileDrop();
   return (
     <React.StrictMode>
       <App />
     </React.StrictMode>
   );
+}
+
+function TabDragPreviewRoot() {
+  const title = launchParams.get("title") || "Reader tab";
+  const dirty = launchParams.get("dirty") === "1";
+  return (
+    <div className="native-tab-drag-preview" aria-hidden="true">
+      <span className="tab-icon">{dirty ? "●" : ""}</span>
+      <span className="tab-title">{title}</span>
+      <span className="tab-close">{dirty ? "●" : "✕"}</span>
+    </div>
+  );
+}
+
+function Root() {
+  return isTabDragPreview ? <TabDragPreviewRoot /> : <ReaderRoot />;
 }
 
 // Forward webview runtime errors to the Rust host so they surface in the dev

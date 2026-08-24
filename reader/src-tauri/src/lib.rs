@@ -52,6 +52,7 @@ pub fn run() {
 
     builder
         .manage(new_shared())
+        .manage(commands::new_tab_drag_monitor())
         .on_window_event(|window, event| {
             // When a window is closed by the user, drop its tab slots from the
             // workspace (so the model stays consistent) and persist the session
@@ -60,6 +61,12 @@ pub fn run() {
             if let WindowEvent::Destroyed = event {
                 let app = window.app_handle();
                 let label = window.label().to_string();
+                // The short-lived tab-drag preview is a native helper window,
+                // not a workspace owner. Its destruction must not broadcast a
+                // false workspace change or rewrite the saved session.
+                if label != workspace::MAIN_WINDOW && !label.starts_with("win-") {
+                    return;
+                }
                 let ws = app.state::<workspace::SharedWorkspace>().inner();
                 // remove_window is a no-op for main.
                 if let Ok(mut guard) = ws.lock() {
@@ -77,6 +84,8 @@ pub fn run() {
             commands::reorder_tabs,
             commands::detach_tab,
             commands::move_tab,
+            commands::begin_tab_drag,
+            commands::cancel_tab_drag,
             commands::complete_tab_drag,
             commands::remove_window,
             commands::save_session,
