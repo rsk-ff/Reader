@@ -28,9 +28,9 @@ Windows / Tauri
 
 主要代码：
 
-- `reader/src/documents/pdf/`
-- `reader/src-tauri/src/pdf/`
-- `reader/src-tauri/src/commands.rs`
+- [`reader/src/documents/pdf/`](../reader/src/documents/pdf/)
+- [`reader/src-tauri/src/pdf/`](../reader/src-tauri/src/pdf/)
+- [`reader/src-tauri/src/commands.rs`](../reader/src-tauri/src/commands.rs)
 
 ## Markdown path
 
@@ -41,7 +41,7 @@ Windows / Tauri
 
 主要代码：
 
-- `reader/src/documents/markdown/`
+- [`reader/src/documents/markdown/`](../reader/src/documents/markdown/)
 
 ## Workspace, tabs and windows
 
@@ -54,11 +54,11 @@ Windows / Tauri
 
 主要代码：
 
-- `reader/src/workspace/`
-- `reader/src/components/TabStrip.tsx`
-- `reader/src/components/WindowTitleBar.tsx`
-- `reader/src-tauri/src/workspace.rs`
-- `reader/src-tauri/src/lib.rs`
+- [`reader/src/workspace/`](../reader/src/workspace/)
+- [`reader/src/components/TabStrip.tsx`](../reader/src/components/TabStrip.tsx)
+- [`reader/src/components/WindowTitleBar.tsx`](../reader/src/components/WindowTitleBar.tsx)
+- [`reader/src-tauri/src/workspace.rs`](../reader/src-tauri/src/workspace.rs)
+- [`reader/src-tauri/src/lib.rs`](../reader/src-tauri/src/lib.rs)
 
 ## Security boundary
 
@@ -69,4 +69,4 @@ Windows / Tauri
 
 ## Decision records
 
-架构选择的长期理由记录在 [`decisions/`](decisions/)。原始设想保存在 [`archive/`](archive/)，但不作为当前实现依据。
+架构选择的长期理由记录在 [`decisions/`](decisions/)；PDF 双引擎边界见 [`0001-document-engine-split.md`](decisions/0001-document-engine-split.md)。原始设想保存在 [`archive/`](archive/)，但不作为当前实现依据。

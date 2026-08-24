@@ -1,6 +1,6 @@
 # 轻量 PDF / Markdown 桌面阅读器技术方案
 
-> 历史资料：这是项目开始时的技术方案，不保证与当前实现完全一致。当前产品、架构、开发方式和状态分别以 `docs/PRODUCT.md`、`docs/ARCHITECTURE.md`、`docs/DEVELOPMENT.md` 和 `docs/STATUS.md` 为准。
+> 历史资料：这是项目开始时的技术方案，不保证与当前实现完全一致。当前事实分别以 [`PRODUCT.md`](../PRODUCT.md)、[`ARCHITECTURE.md`](../ARCHITECTURE.md)、[`DEVELOPMENT.md`](../DEVELOPMENT.md) 和 [`STATUS.md`](../STATUS.md) 为准。
 
 ## 1. 产品定位
 

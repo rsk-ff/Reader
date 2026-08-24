@@ -13,33 +13,39 @@
 按以下优先级判断项目事实：
 
 1. 当前代码、Git 历史和实际测试结果。
-2. `docs/STATUS.md` 与 `docs/tasks/active/` 中的当前任务文件。
+2. `docs/tasks/active/` 中与当前目标匹配的任务文件，以及 `docs/STATUS.md` 中的项目全局状态。
 3. `docs/decisions/` 中已接受的长期决策。
 4. `docs/PRODUCT.md`、`docs/ARCHITECTURE.md` 和 `docs/DEVELOPMENT.md`。
 5. `docs/archive/` 仅是历史资料，不代表当前实现。
 
 文档中的“已完成”不能替代代码检查和测试证明。发现文档与代码冲突时，以代码和可复现结果为准，并在本次任务中修正文档。
 
-## Start of every development task
+## Start of every engineering task
+
+新会话和续接会话都按以下固定顺序恢复上下文，不依赖旧聊天记录：
 
 1. 检查 `git status`、当前分支、最近提交和相关代码，保护用户已有改动。
-2. 阅读 `README.md`、`docs/PRODUCT.md`、`docs/STATUS.md`，以及与任务直接相关的架构、决策和开发文档。
-3. 检查 `docs/tasks/active/`：同一目标继续更新原任务文件；新目标按 `docs/tasks/TEMPLATE.md` 自动创建任务文件。
-4. 只有预计跨多个回合、需要 Pi、涉及重要设计或等待用户验收的任务才必须建立任务文件；可在单回合完成的小修、只读诊断和机械操作不制造文档负担。
-5. 不得要求用户为了启动或继续任务而手工准备这些材料。
+2. 阅读根 `README.md` 和 `docs/STATUS.md`，确认项目入口、应用基线、活动任务和待验收项。
+3. 检查 `docs/tasks/active/`：若存在与用户当前目标匹配的任务，先读该文件及其 `Related context`；不得把无关活动任务自动并入当前范围。
+4. 按任务类型读取唯一主题文档：产品范围或用户行为读 `docs/PRODUCT.md`；模块边界或数据流读 `docs/ARCHITECTURE.md`；环境、验证、启动或发布读 `docs/DEVELOPMENT.md`；调用 Pi 读 `docs/PI_WORKFLOW.md`；长期设计原因读相关 `docs/decisions/` 记录。
+5. `docs/archive/` 和 `docs/tasks/archive/` 默认不读；只有当前文档明确引用或需要追溯历史原因时才读取。
+6. 同一目标继续更新原任务文件；新目标按 `docs/tasks/README.md` 判断是否需要从 `docs/tasks/TEMPLATE.md` 自动创建任务文件。
+
+只有预计跨多个回合、需要 Pi、涉及重要设计或等待用户验收的任务才必须建立任务文件；可在单回合完成的小修、只读诊断和机械操作不制造文档负担。不得要求用户为了启动或继续任务而手工准备材料。
 
 ## Session boundaries and handoff
 
 - 一个会话只服务一个连贯结果。同一缺陷的复现、修复和复验留在同一会话；独立功能、独立缺陷、发布和流程治理使用不同会话。
 - 当前目标完成后，Codex 在最终汇报中明确说明：本任务已结束，下一个独立需求应新建会话。
-- 需要跨会话继续时，Codex 必须先更新活动任务文件，使新会话只依靠仓库和该文件即可继续；不得依赖旧聊天记录。
-- 新会话自动通过 `AGENTS.md`、`docs/STATUS.md`、活动任务文件、Git 状态和相关代码恢复上下文。
-- 长任务的活动文件必须记录目标、当前行为、进度、关键决定、验证、风险和下一步；格式遵循 `docs/tasks/README.md`。
+- 需要跨会话继续时，Codex 必须先更新活动任务文件，使新会话只依靠仓库、任务文件列出的上下文和代码即可继续；不得依赖旧聊天记录。
+- 长任务的活动文件必须记录目标、相关文档、当前行为、进度、关键决定、验证、风险和唯一下一步；格式遵循 `docs/tasks/README.md`。
 
 ## Documentation maintenance
 
 Codex 在开发过程中负责持续更新下列文档：
 
+- 文档入口、文档集合或代码位置变化：更新根 `README.md`。
+- 代理职责、读取顺序、会话边界或维护规则变化：更新 `AGENTS.md`；Pi 的实现细则同步更新 `docs/PI_WORKFLOW.md` 和 `docs/PI_EXECUTOR_PROTOCOL.md`。
 - 产品范围或用户可见行为变化：更新 `docs/PRODUCT.md`。
 - 模块边界、数据流或关键技术结构变化：更新 `docs/ARCHITECTURE.md`。
 - 环境、命令、构建、测试或发布方式变化：更新 `docs/DEVELOPMENT.md`。
@@ -72,7 +78,7 @@ Codex 在开发过程中负责持续更新下列文档：
 
 - 软件视觉与交互检查由用户执行。Codex 完成自动化验证后启动可检查版本，并给出只针对本次改动的简短检查清单。
 - 除非用户明确要求，Codex 不自行截图或使用桌面自动化进行视觉验收。
-- 用户反馈由 Codex转化为可复现条件和验收标准，并更新同一活动任务文件。
+- 用户反馈由 Codex 转化为可复现条件和验收标准，并更新同一活动任务文件。
 - 用户反馈前不得声称视觉或交互已通过；关闭按钮等会结束进程的项目放在检查清单末尾。
 
 ## Safety boundaries

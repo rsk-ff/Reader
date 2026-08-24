@@ -4,7 +4,9 @@
 
 Reader 为 Windows 用户提供一个启动快、界面轻量、同时处理 PDF 与 Markdown 的本地桌面工具。文档内容保留在本机；应用优先复用成熟文档引擎，不重新实现 PDF 排版或 Markdown 语法系统。
 
-## Supported user workflows
+本文件定义当前产品应支持的用户可见行为，不证明某项实现已经通过测试或用户验收；实际完成度以 [`STATUS.md`](STATUS.md) 为准。
+
+## Current product contract
 
 ### PDF
 
@@ -31,9 +33,9 @@ Reader 为 Windows 用户提供一个启动快、界面轻量、同时处理 PDF
 
 ## Product principles
 
+- 本地优先：阅读、编辑和文档写入不依赖在线账户或云服务。
 - 数据完整性优先于便利性：存在未保存 Markdown 时，不执行可能丢失编辑内容的跨窗口移动。
-- 当前代码和可复现行为优先于最初技术方案。
-- 视觉和交互由用户在真实 Windows 桌面环境中验收。
+- 轻量优先：复用成熟文档引擎，避免维护重复的排版和渲染栈。
 - 优先解决阻断阅读、编辑、保存和窗口操作的问题，再扩充次要功能。
 
 ## Current non-goals
@@ -42,5 +44,3 @@ Reader 为 Windows 用户提供一个启动快、界面轻量、同时处理 PDF
 - 用自研引擎替代 PDF.js、PDFium 或 Milkdown。
 - 为未保存 Markdown 提供崩溃恢复或跨 webview 状态迁移。
 - 在当前阶段承诺 Windows 之外的平台发布。
-
-实际完成度和限制见 [`STATUS.md`](STATUS.md)。

@@ -2,20 +2,23 @@
 
 Reader 是一个面向 Windows 的轻量 PDF 阅读与批注、Markdown 阅读与编辑桌面应用，基于 Tauri 2、Rust、React 和 TypeScript。
 
-当前应用版本为 `0.1.0`。项目当前能力、待验收事项和已知限制以 [`docs/STATUS.md`](docs/STATUS.md) 为准。
+项目当前版本、能力、待验收事项和已知限制以 [`docs/STATUS.md`](docs/STATUS.md) 为准。
 
 ## 项目文档
 
-- [`docs/PRODUCT.md`](docs/PRODUCT.md)：产品目标、范围和用户可见行为。
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：当前技术结构和数据流。
-- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)：开发、测试、启动和打包命令。
-- [`docs/STATUS.md`](docs/STATUS.md)：当前版本、验证状态、已知限制和活动任务。
-- [`docs/decisions/`](docs/decisions/)：需要长期保留理由的设计决定。
-- [`docs/tasks/`](docs/tasks/)：多回合开发任务的进度和跨会话交接。
-- [`CHANGELOG.md`](CHANGELOG.md)：用户可见变更和发布记录。
-- [`docs/archive/initial-technical-plan.zh-CN.md`](docs/archive/initial-technical-plan.zh-CN.md)：最初技术方案，仅供历史追溯。
+| 入口 | 唯一职责 |
+| --- | --- |
+| [`AGENTS.md`](AGENTS.md) | 代理职责、固定读取顺序、文档维护和交付规则。 |
+| [`docs/STATUS.md`](docs/STATUS.md) | 当前版本、实现与验证基线、待验收项、已知限制和活动任务索引。 |
+| [`docs/PRODUCT.md`](docs/PRODUCT.md) | 当前产品目标、范围和用户可见行为契约。 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 当前技术结构、模块边界和数据流。 |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 环境、开发、测试、文档检查、启动和发布命令。 |
+| [`docs/decisions/`](docs/decisions/) | 长期设计决定、当前状态及其理由。 |
+| [`docs/tasks/`](docs/tasks/) | 多回合任务的事实、进度、验证和跨会话交接。 |
+| [`docs/PI_WORKFLOW.md`](docs/PI_WORKFLOW.md) | Codex 委派 Pi 实现时的调用、停止、返工和验收细则。 |
+| [`CHANGELOG.md`](CHANGELOG.md) | 用户可见功能、修复和正式发布记录。 |
 
-代理协作、文档维护和会话切换规则见 [`AGENTS.md`](AGENTS.md)。用户不需要编辑这些文件；Codex 在处理开发任务时负责维护。
+新会话按 [`AGENTS.md`](AGENTS.md) 的固定顺序读取当前状态和匹配的活动任务。历史任务与[最初技术方案](docs/archive/initial-technical-plan.zh-CN.md)不作为默认上下文。用户不需要编辑任何项目文档。
 
 ## 代码位置
 

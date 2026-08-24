@@ -24,4 +24,4 @@
 ## Evidence
 
 - 本项目在 2026-08-21 至 2026-08-23 的长会话中连续处理多个独立目标，并经历自动上下文压缩。
-- 当前治理规则见 `AGENTS.md` 和 `docs/tasks/README.md`。
+- 当前治理规则见 [`AGENTS.md`](../../AGENTS.md) 和 [`docs/tasks/README.md`](../tasks/README.md)。

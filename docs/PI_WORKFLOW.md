@@ -36,7 +36,7 @@ Codex 直接完成：
 - 验收标准和准确的验证命令。
 - 输出格式：只报告修改文件、关键实现、测试结果、剩余问题；不粘贴完整 diff 或构建日志。
 
-任务书应引用活动任务文件，避免复制全部项目背景。
+活动任务文件已经包含上述字段时，直接把它作为 Pi 任务书；不要再复制一份会独立过期的任务说明。执行约束使用仓库内的 [`PI_EXECUTOR_PROTOCOL.md`](PI_EXECUTOR_PROTOCOL.md)。
 
 ## Invocation
 
@@ -49,6 +49,8 @@ paratera/GLM-5.2:high
 推荐调用：
 
 ```powershell
+$piTask = "docs/tasks/active/<task-file>.md"
+
 pi.cmd `
   --model "paratera/GLM-5.2:high" `
   --session-id "<repo>-<task-id>" `
@@ -56,14 +58,15 @@ pi.cmd `
   --print `
   --mode json `
   --exclude-tools ask_question `
-  --append-system-prompt "<executor-protocol-file>" `
-  "@<task-brief-file>"
+  --tools read,grep,find,ls,bash,edit,write `
+  --append-system-prompt "docs/PI_EXECUTOR_PROTOCOL.md" `
+  "@$piTask"
 ```
 
 - 会话 ID 必须唯一且稳定；有具体补丁的返工才续用同一 ID。
 - 当前 `paratera` 配置为 `supportsDeveloperRole=false`。执行协议通过 system prompt，任务通过 user prompt；不得在未验证兼容性时改为 `true`。
 - 只向 Pi 开放任务所需的最小工具，通常不超过 `read,grep,find,ls,bash,edit,write`。
-- 完整 JSON 输出保存到本地日志，只向 Codex 上下文提取最终摘要、错误和必要证据。
+- 完整 JSON 输出保存在本地临时日志，不提交仓库；只向 Codex 上下文提取最终摘要、错误和必要证据。
 
 ## Stop and retry rules
 

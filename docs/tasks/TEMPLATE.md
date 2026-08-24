@@ -3,12 +3,19 @@
 - Status: `in_progress`
 - Owner: Codex
 - Created: `<YYYY-MM-DD>`
+- Last updated: `<YYYY-MM-DD>`
 - Base branch: `<branch>`
 - Base commit: `<hash>`
+- Implementation: `<Codex/Pi/not started>`
+- Pi session ID: `<not used/session-id>`
 
 ## Goal
 
 说明用户完成后可以做什么，以及为什么需要这项变化。
+
+## Related context
+
+- 列出新会话继续本任务必须读取的产品、架构、开发、决策文档和主要代码入口；不要列无关资料或依赖旧聊天。
 
 ## Current behavior
 
@@ -62,4 +69,4 @@
 
 ## Outcome
 
-完成时填写实际结果、最终提交和未解决项；随后移动到 `archive/`。
+完成或取消时填写实际结果、最终提交（如有）和未解决项；随后移动到 `archive/`。归档文件与最终提交同批时记录提交主题，提交哈希以 Git 历史为准，避免文档自引用哈希。

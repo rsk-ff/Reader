@@ -14,3 +14,7 @@
 - [`0002-repository-owned-project-memory.md`](0002-repository-owned-project-memory.md) — 项目与任务上下文由仓库文档承载。
 
 新决定使用四位编号，并至少包含 Context、Decision、Consequences 和 Evidence。
+
+- Evidence 应链接当前代码、测试或相关项目文档，不能只引用聊天记录。
+- 已接受决定发生实质变化时新增记录，并在新旧记录中标明 `Supersedes` / `Superseded by`；不要静默重写历史理由。
+- 本索引必须列出所有 `Accepted`、`Proposed` 和 `Superseded` 记录。

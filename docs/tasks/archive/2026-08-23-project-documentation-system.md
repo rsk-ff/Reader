@@ -3,12 +3,21 @@
 - Status: `done`
 - Owner: Codex
 - Created: `2026-08-23`
+- Last updated: `2026-08-23`
 - Base branch: `master`
 - Base commit: `1f5bb93`
+- Implementation: `Codex`
+- Pi session ID: `not used`
 
 ## Goal
 
 让用户只负责提出需求、验收结果和切换会话。Codex 与执行代理通过仓库内的标准文档组织项目，使任意新会话都能自行恢复必要上下文，不要求用户编写或维护项目文件。
+
+## Related context
+
+- [`../../../AGENTS.md`](../../../AGENTS.md)
+- [`../../../README.md`](../../../README.md)
+- [`../../decisions/0002-repository-owned-project-memory.md`](../../decisions/0002-repository-owned-project-memory.md)
 
 ## Current behavior
 
@@ -82,4 +91,4 @@
 
 ## Outcome
 
-建立了仓库级文档入口、产品定义、架构、开发与发布指南、当前状态、Pi 执行协议、长期决策记录和自包含任务生命周期。用户无需维护这些文件；Codex 在今后的开发任务中自动更新。最终提交是包含本归档文件的文档提交。
+建立了仓库级文档入口、产品定义、架构、开发与发布指南、当前状态、Pi 工作流、长期决策记录和自包含任务生命周期。用户无需维护这些文件；Codex 在今后的开发任务中自动更新。最终提交：`f9351e2 docs: establish project memory and task handoff`。

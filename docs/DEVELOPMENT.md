@@ -38,9 +38,15 @@ cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-fea
 
 只改文档时不重复运行应用测试；需要检查 Markdown 链接、Git diff 和工作树状态。
 
+文档结构与内部链接检查：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
+```
+
 ## Visual acceptance
 
-Codex 完成自动化验证后启动当前可执行版本，并给用户一份与本次改动直接相关的简短清单。用户在真实 Windows 桌面上检查视觉和交互，反馈由 Codex 写入活动任务文件。关闭应用的检查项放在最后。
+视觉与交互必须在真实 Windows 桌面环境中验收；职责、启动方式和反馈记录遵循 [`AGENTS.md`](../AGENTS.md#user-visual-acceptance)，检查项保存在对应活动任务文件中。
 
 ## Release build
 
@@ -57,7 +63,7 @@ reader/src-tauri/target/release/bundle/nsis/Reader_<version>_x64-setup.exe
 reader/src-tauri/target/release/bundle/msi/Reader_<version>_x64_en-US.msi
 ```
 
-发布前至少记录：源提交、版本、构建退出码、安装包大小、SHA-256、签名状态，以及安装/升级/卸载是否实际验证。当前 `0.1.0` 安装包未签名。
+发布前至少记录：源提交、版本、构建退出码、安装包大小、SHA-256、签名状态，以及安装/升级/卸载是否实际验证。证据写入对应发布任务，仍影响当前使用的限制同步到 `docs/STATUS.md`。
 
 ## Repository layout
 
@@ -66,12 +72,15 @@ Reader/
 ├── AGENTS.md
 ├── README.md
 ├── CHANGELOG.md
+├── scripts/
+│   └── check-docs.ps1
 ├── docs/
 │   ├── PRODUCT.md
 │   ├── ARCHITECTURE.md
 │   ├── DEVELOPMENT.md
 │   ├── STATUS.md
 │   ├── PI_WORKFLOW.md
+│   ├── PI_EXECUTOR_PROTOCOL.md
 │   ├── decisions/
 │   ├── tasks/
 │   └── archive/
