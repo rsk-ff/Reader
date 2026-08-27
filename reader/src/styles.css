@@ -199,8 +199,9 @@ html.tab-drag-preview-document #root {
   height: 28px;
   align-self: center;
   flex: 1 1 220px;
-  min-width: 64px;
+  min-width: 28px;
   max-width: 220px;
+  container: tab / inline-size;
   padding: 0 8px 0 10px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -227,6 +228,25 @@ html.tab-drag-preview-document #root {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* At the narrow end of the responsive range, keep the close action visible
+   instead of letting the icon and title push it out of the tab. */
+@container tab (max-width: 56px) {
+  .tab {
+    justify-content: center;
+    gap: 0;
+    padding: 0 4px;
+  }
+
+  .tab-icon,
+  .tab-title {
+    display: none;
+  }
+
+  .tab-close {
+    flex: 0 0 16px;
+  }
 }
 
 .tab-icon {
