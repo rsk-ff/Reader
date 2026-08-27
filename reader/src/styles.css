@@ -198,7 +198,8 @@ html.tab-drag-preview-document #root {
   gap: 6px;
   height: 28px;
   align-self: center;
-  max-width: 220px;
+  flex: 1 1 0;
+  min-width: 120px;
   padding: 0 8px 0 10px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -222,6 +223,8 @@ html.tab-drag-preview-document #root {
 }
 
 .tab-title {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -250,7 +253,7 @@ html.tab-drag-preview-document #root {
 }
 
 .tabstrip-spacer {
-  flex: 1 1 auto;
+  flex: 0 0 0;
   min-width: 0;
   cursor: default;
 }
