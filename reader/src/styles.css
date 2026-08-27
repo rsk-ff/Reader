@@ -198,8 +198,9 @@ html.tab-drag-preview-document #root {
   gap: 6px;
   height: 28px;
   align-self: center;
-  flex: 1 1 0;
-  min-width: 120px;
+  flex: 1 1 220px;
+  min-width: 64px;
+  max-width: 220px;
   padding: 0 8px 0 10px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -208,7 +209,6 @@ html.tab-drag-preview-document #root {
   cursor: default;
   font: inherit;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .tab:hover {
@@ -253,7 +253,7 @@ html.tab-drag-preview-document #root {
 }
 
 .tabstrip-spacer {
-  flex: 0 0 0;
+  flex: 1 1 auto;
   min-width: 0;
   cursor: default;
 }
