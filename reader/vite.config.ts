@@ -11,11 +11,31 @@ export default defineConfig(async () => ({
     react(),
     viteStaticCopy({
       targets: [
-        { src: "node_modules/pdfjs-dist/cmaps/*", dest: "pdfjs/cmaps" },
-        { src: "node_modules/pdfjs-dist/iccs/*", dest: "pdfjs/iccs" },
-        { src: "node_modules/pdfjs-dist/standard_fonts/*", dest: "pdfjs/standard_fonts" },
-        { src: "node_modules/pdfjs-dist/wasm/*", dest: "pdfjs/wasm" },
-        { src: "node_modules/pdfjs-dist/web/images/*", dest: "pdfjs/images" },
+        {
+          src: "node_modules/pdfjs-dist/cmaps/*",
+          dest: "pdfjs/cmaps",
+          rename: { stripBase: true },
+        },
+        {
+          src: "node_modules/pdfjs-dist/iccs/*",
+          dest: "pdfjs/iccs",
+          rename: { stripBase: true },
+        },
+        {
+          src: "node_modules/pdfjs-dist/standard_fonts/*",
+          dest: "pdfjs/standard_fonts",
+          rename: { stripBase: true },
+        },
+        {
+          src: "node_modules/pdfjs-dist/wasm/*",
+          dest: "pdfjs/wasm",
+          rename: { stripBase: true },
+        },
+        {
+          src: "node_modules/pdfjs-dist/web/images/*",
+          dest: "pdfjs/images",
+          rename: { stripBase: true },
+        },
       ],
     }),
   ],

@@ -6,11 +6,12 @@
 
 ## Active task
 
-- None.
+- [`docs/tasks/active/2026-08-27-pdf-cjk-rendering.md`](tasks/active/2026-08-27-pdf-cjk-rendering.md)：``waiting_user_acceptance``，等待用户验收未嵌入 Adobe CJK 字体 PDF 的真实 Reader 渲染。
 
 ## Implemented at the application baseline
 
 - PDF 阅读、搜索、目录、缩略图、打印、批注和页面增删。
+- PDF.js 构建资源按运行时请求路径平铺复制，未嵌入 Adobe CJK 字体的 PDF 可正常加载 CMap 并显示文字。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
 - Markdown 所见即所得/源码模式、显式保存、等宽代码字体、列表对齐和左侧目录。
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
@@ -29,6 +30,13 @@
 - `cargo clippy --all-targets --all-features -- -D warnings`: passed。
 - Tauri release build: not rerun at this source baseline；最近一次通过记录和安装包仍来自 `1f5bb93`。
 
+2026-08-27 针对用户提供的未嵌入 CJK 字体 PDF 记录：
+
+- `pnpm --dir reader test`：11 个测试文件、89 个测试通过。
+- `pnpm --dir reader build`：通过。
+- 构建产物中的 PDF.js CMap、标准字体、WASM 和图片资源均位于运行时请求的平铺目录。
+- Chromium 本地渲染同一 PDF：文字项可提取且中文标题、表格文字和照片可见；无警告或错误。
+
 ## Previous release artifacts
 
 以下本地文件由应用代码基线 `1f5bb93` 生成，不纳入 Git，也不包含本次标签拖动修复；发布前必须基于当前源码重新构建并替换本节证据。
@@ -41,6 +49,7 @@
 ## Waiting for user acceptance
 
 - Markdown 左侧目录、代码字体和列表对齐的最终视觉效果。
+- 未嵌入 Adobe CJK 字体 PDF 修复在真实 Reader 桌面版本中的最终视觉效果。
 - `0.1.0` 安装包的实际安装、升级和卸载流程。
 
 这些项目没有用户验收前，不得标记为完全通过。
