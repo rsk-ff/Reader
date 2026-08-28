@@ -1,0 +1,23 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="ReaderPdfFileAssociationIcon" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Reader.pdf\DefaultIcon">
+          <RegistryValue Type="string" Value="[INSTALLDIR]file-pdf.ico" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="ReaderMarkdownFileAssociationIcon" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Reader.md\DefaultIcon">
+          <RegistryValue Type="string" Value="[INSTALLDIR]file-markdown.ico" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="ReaderMarkdownLongFileAssociationIcon" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Reader.markdown\DefaultIcon">
+          <RegistryValue Type="string" Value="[INSTALLDIR]file-markdown.ico" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

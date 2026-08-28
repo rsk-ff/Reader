@@ -2,11 +2,11 @@
 
 - Last updated: 2026-08-27
 - Application version: `0.1.0`
-- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification`
+- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification; file-association icon fix built and waiting for acceptance`
 
 ## Active task
 
-- None.
+- Status: `in_progress` — [`2026-08-27-file-association-icons-and-tab-alignment.md`](tasks/active/2026-08-27-file-association-icons-and-tab-alignment.md)
 
 ## Implemented at the application baseline
 
@@ -18,6 +18,7 @@
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
 - Windows 自定义标题栏、原生窗口按钮和 Snap Layout。
 - 文件关联、拖放打开、单实例文件转发和上次会话恢复。
+- Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
 
@@ -38,18 +39,30 @@
 - Chromium 本地渲染同一 PDF：文字项可提取且中文标题、表格文字和照片可见；无警告或错误。
 - 用户于 2026-08-27 完成真实 Reader 桌面版本验收并确认无问题。
 
-## Previous release artifacts
+2026-08-27 针对标签对齐和 Windows 文件关联图标记录：
 
-以下本地文件由应用代码基线 `1f5bb93` 生成，不纳入 Git，也不包含本次标签拖动修复；发布前必须基于当前源码重新构建并替换本节证据。
+- `pnpm --dir reader test`：11 个测试文件、89 个测试通过。
+- `pnpm --dir reader build`：通过。
+- `cargo test --manifest-path reader/src-tauri/Cargo.toml`：39 个测试通过。
+- `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check`：通过。
+- `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`：通过。
+- `pnpm --dir reader tauri build --bundles msi`：通过；WiX 反编译确认三个关联 ProgId 的 `DefaultIcon` 分别指向 PDF 或 Markdown ICO。
+- `pnpm --dir reader tauri build --bundles nsis`：通过；生成的 NSIS 脚本包含两个 ICO 资源、安装/卸载 hook 和资源清理。
+- `reader/src-tauri/icons/file-pdf.ico` 与 `file-markdown.ico` 均包含 16、32、48、256 四个图像帧。
+
+## Latest local release artifacts
+
+以下本地文件由本次源码变更生成，不纳入 Git；安装、升级、卸载和资源管理器图标的真实桌面验收仍待用户完成。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
-| NSIS | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,895,941 | `5F1C74BA16AABACA97DB049CE4D86E2BEF2F194E74F77E423892559748B5857B` | `NotSigned` |
-| MSI | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,807,680 | `D5C7273EBD93B5C4C87C14BCE58ED19BF7F7312763C12E0232578E48142B323F` | `NotSigned` |
+| NSIS | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,903,224 | `1B0626B71E98D7D769EC3C7E16D41D1FA0C2ECD15E16046CF1895F55F2953C28` | `NotSigned` |
+| MSI | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,819,968 | `0C57E0863FEC6E0087E60359DB186DE22FCFE7105D893CE15D35C65A66FA3440` | `NotSigned` |
 
 ## Waiting for user acceptance
 
 - Markdown 左侧目录、代码字体和列表对齐的最终视觉效果。
+- 标签文件名左对齐，以及资源管理器中 PDF 与 MD/Markdown 专用图标的最终视觉效果。
 - `0.1.0` 安装包的实际安装、升级和卸载流程。
 
 这些项目没有用户验收前，不得标记为完全通过。

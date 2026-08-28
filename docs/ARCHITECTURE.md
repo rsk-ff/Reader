@@ -66,6 +66,20 @@ Windows / Tauri
 - [`reader/src-tauri/src/workspace.rs`](../reader/src-tauri/src/workspace.rs)
 - [`reader/src-tauri/src/lib.rs`](../reader/src-tauri/src/lib.rs)
 
+## Windows file associations and bundle
+
+- `reader/src-tauri/tauri.conf.json` 声明 `.pdf`、`.md` 和 `.markdown` 的打开关联；通用关联定义继续由 Tauri 生成。
+- `bundle.resources` 将 `file-pdf.ico` 与 `file-markdown.ico` 放入安装目录，使注册表中的 `DefaultIcon` 在安装后保持有效。
+- NSIS 通过 [`installer-hooks.nsh`](../reader/src-tauri/windows/installer-hooks.nsh) 在 Tauri 关联创建后覆写 `PDF Document` 和 `Markdown Document` 的 `DefaultIcon`，卸载后通知 Windows 刷新关联。
+- WiX 通过 [`file-association-icons.wxs`](../reader/src-tauri/windows/file-association-icons.wxs) 为 `Reader.pdf`、`Reader.md` 和 `Reader.markdown` 添加注册表组件；组件随 MSI 卸载而移除。
+
+主要代码和资源：
+
+- [`reader/src-tauri/tauri.conf.json`](../reader/src-tauri/tauri.conf.json)
+- [`reader/src-tauri/windows/`](../reader/src-tauri/windows/)
+- [`reader/src-tauri/icons/file-pdf.ico`](../reader/src-tauri/icons/file-pdf.ico)
+- [`reader/src-tauri/icons/file-markdown.ico`](../reader/src-tauri/icons/file-markdown.ico)
+
 ## Security boundary
 
 - 生产 webview 使用 Content Security Policy。

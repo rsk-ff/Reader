@@ -50,6 +50,12 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Release build
 
+专用文件类型图标已经作为生成资源提交；只有修改图标生成器后才需要重新生成：
+
+```powershell
+pnpm --dir reader generate:file-icons
+```
+
 生成全部 Windows bundle：
 
 ```powershell
@@ -63,7 +69,7 @@ reader/src-tauri/target/release/bundle/nsis/Reader_<version>_x64-setup.exe
 reader/src-tauri/target/release/bundle/msi/Reader_<version>_x64_en-US.msi
 ```
 
-发布前至少记录：源提交、版本、构建退出码、安装包大小、SHA-256、签名状态，以及安装/升级/卸载是否实际验证。证据写入对应发布任务，仍影响当前使用的限制同步到 `docs/STATUS.md`。
+发布前至少记录：源提交、版本、构建退出码、安装包大小、SHA-256、签名状态，以及安装/升级/卸载是否实际验证。Windows 文件关联图标还应检查生成的 NSIS `installer.nsi` 和 WiX `main.wxs` 是否分别包含图标资源与 `DefaultIcon` 注册表项。证据写入对应发布任务，仍影响当前使用的限制同步到 `docs/STATUS.md`。
 
 ## Repository layout
 
@@ -87,5 +93,7 @@ Reader/
 └── reader/
     ├── src/                    React/TypeScript frontend
     ├── src-tauri/              Rust/Tauri backend and bundle config
+    │   ├── icons/              Application and file association icons
+    │   └── windows/            NSIS hooks and WiX fragments
     └── tests/fixtures/         PDF and Markdown test files
 ```

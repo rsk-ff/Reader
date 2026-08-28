@@ -228,6 +228,7 @@ html.tab-drag-preview-document #root {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
+  text-align: left;
 }
 
 .tab-icon {
