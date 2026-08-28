@@ -290,7 +290,7 @@ html.tab-drag-preview-document #root {
 @container tab (max-width: 64px) {
   .tab {
     gap: 0;
-    padding: 0 4px;
+    padding: 0 5px;
     overflow: hidden;
   }
 
@@ -300,7 +300,9 @@ html.tab-drag-preview-document #root {
 
   .tab-active .tab-close {
     position: absolute;
-    right: 4px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
     z-index: 2;
     background: var(--bg-active);
   }
