@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`docs/tasks/active/2026-08-27-pdf-cjk-rendering.md`](tasks/active/2026-08-27-pdf-cjk-rendering.md)：``waiting_user_acceptance``，等待用户验收未嵌入 Adobe CJK 字体 PDF 的真实 Reader 渲染。
+- None.
 
 ## Implemented at the application baseline
 
@@ -36,6 +36,7 @@
 - `pnpm --dir reader build`：通过。
 - 构建产物中的 PDF.js CMap、标准字体、WASM 和图片资源均位于运行时请求的平铺目录。
 - Chromium 本地渲染同一 PDF：文字项可提取且中文标题、表格文字和照片可见；无警告或错误。
+- 用户于 2026-08-27 完成真实 Reader 桌面版本验收并确认无问题。
 
 ## Previous release artifacts
 
@@ -49,7 +50,6 @@
 ## Waiting for user acceptance
 
 - Markdown 左侧目录、代码字体和列表对齐的最终视觉效果。
-- 未嵌入 Adobe CJK 字体 PDF 修复在真实 Reader 桌面版本中的最终视觉效果。
 - `0.1.0` 安装包的实际安装、升级和卸载流程。
 
 这些项目没有用户验收前，不得标记为完全通过。

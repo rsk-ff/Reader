@@ -1,6 +1,6 @@
 # 修复未嵌入中文字体 PDF 在 Reader 中只显示表格线
 
-- Status: `waiting_user_acceptance`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-08-27`
 - Last updated: `2026-08-27`
@@ -56,7 +56,7 @@ Reader 打开该 PDF 时，两页的中文、数字、表格线和照片都可�
 - [x] `pnpm --dir reader test` 和 `pnpm --dir reader build` 通过。
 - [x] 构建产物的 PDF.js 资源位于运行时请求的平铺目录，错误嵌套路径不存在。
 - [x] 状态、变更记录和活动任务记录已更新，临时测试文件已清理。
-- [ ] 用户在真实 Reader 桌面版本中完成两页视觉/交互验收。
+- [x] 用户在真实 Reader 桌面版本中完成两页视觉/交互验收。
 
 ## Progress
 
@@ -67,7 +67,7 @@ Reader 打开该 PDF 时，两页的中文、数字、表格线和照片都可�
 - [x] 重新构建并确认资源位于 `dist/pdfjs/<目录>/` 一级路径。
 - [x] 运行前端测试。
 - [x] 用 Chromium 本地测试页加载同一 PDF，确认文字项可提取且文字画面可见。
-- [ ] 用户验收已启动的 Reader 开发版本。
+- [x] 用户验收已启动的 Reader 开发版本。
 
 ## Discoveries
 
@@ -82,10 +82,11 @@ Reader 打开该 PDF 时，两页的中文、数字、表格线和照片都可�
 - 构建产物抽查 — passed；`cmaps/Adobe-GB1-UCS2.bcmap`、`cmaps/UniGB-UCS2-H.bcmap`、`standard_fonts/LiberationSans-Regular.ttf`、`wasm/openjpeg.wasm` 存在，错误嵌套路径不存在。
 - Chromium 本地渲染 — passed；`textItems=110`，第一页中文标题、表格文字和照片可见，无警告或错误。
 - Tauri release build — not run；本次先完成开发版本验收。
+- 用户真实 Reader 桌面验收 — passed（2026-08-27）；用户确认两页内容显示正常。
 
 ## User acceptance
 
-`waiting`。请在已启动的 Reader 开发版本中检查：第一页标题和各单元格文字、证件照、第一页下半部学习/工作经历；第二页奖励/惩处、本人承诺、用人单位意见和审核部门意见；并滚动到第二页、使用搜索框搜索一个可见词。关闭按钮放在检查清单最后。
+`accepted`（2026-08-27）：用户完成真实 Reader 桌面版本验收并确认没有问题。
 
 ## Risks and remaining work
 
@@ -94,8 +95,8 @@ Reader 打开该 PDF 时，两页的中文、数字、表格线和照片都可�
 
 ## Next action
 
-用户完成已启动 Reader 中该 PDF 的两页视觉/交互验收；若仍有缺失，反馈具体页码和视图状态。
+无。本任务完成；下一个独立需求应新建会话。
 
 ## Outcome
 
-实现和自动化验证已完成，当前等待用户视觉/交互验收；验收完成后再归档本任务并更新最终状态。
+已修复 PDF.js 资源路径错误，自动化验证和真实 Reader 桌面验收均通过；原始 PDF 未修改。本任务已完成并可归档。
