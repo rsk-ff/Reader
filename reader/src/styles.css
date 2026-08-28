@@ -300,9 +300,7 @@ html.tab-drag-preview-document #root {
 
   .tab-active .tab-close {
     position: absolute;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
+    right: 5px;
     z-index: 2;
     background: var(--bg-active);
   }
