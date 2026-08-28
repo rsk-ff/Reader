@@ -2,7 +2,7 @@
 
 - Last updated: 2026-08-27
 - Application version: `0.1.0`
-- Current application source baseline: `pending local tab-width boundary verification`
+- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification`
 
 ## Active task
 
