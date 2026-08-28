@@ -71,7 +71,9 @@
         "fragmentPaths": ["windows/file-association-icons.wxs"],
         "componentRefs": [
           "ReaderPdfFileAssociationIcon",
+          "ReaderPdfLegacyFileAssociationIcon",
           "ReaderMarkdownFileAssociationIcon",
+          "ReaderMarkdownLegacyFileAssociationIcon",
           "ReaderMarkdownLongFileAssociationIcon"
         ]
       }

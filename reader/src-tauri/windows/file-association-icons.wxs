@@ -7,8 +7,20 @@
         </RegistryKey>
       </Component>
 
+      <Component Id="ReaderPdfLegacyFileAssociationIcon" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\Classes\PDF Document\DefaultIcon">
+          <RegistryValue Type="string" Value="[INSTALLDIR]file-pdf.ico" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+
       <Component Id="ReaderMarkdownFileAssociationIcon" Guid="*">
         <RegistryKey Root="HKCU" Key="Software\Classes\Reader.md\DefaultIcon">
+          <RegistryValue Type="string" Value="[INSTALLDIR]file-markdown.ico" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="ReaderMarkdownLegacyFileAssociationIcon" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Markdown Document\DefaultIcon">
           <RegistryValue Type="string" Value="[INSTALLDIR]file-markdown.ico" KeyPath="yes" />
         </RegistryKey>
       </Component>

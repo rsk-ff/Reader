@@ -2,7 +2,7 @@
 
 - Last updated: 2026-08-27
 - Application version: `0.1.0`
-- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification; file-association icon fix built and waiting for acceptance`
+- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification; cross-installer file-association icon fix built and waiting for acceptance`
 
 ## Active task
 
@@ -18,7 +18,7 @@
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
 - Windows 自定义标题栏、原生窗口按钮和 Snap Layout。
 - 文件关联、拖放打开、单实例文件转发和上次会话恢复。
-- Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 注册相应的 `DefaultIcon`。
+- Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
 
@@ -46,7 +46,7 @@
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml`：39 个测试通过。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check`：通过。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`：通过。
-- `pnpm --dir reader tauri build --bundles msi`：通过；WiX 反编译确认三个关联 ProgId 的 `DefaultIcon` 分别指向 PDF 或 Markdown ICO。
+- `pnpm --dir reader tauri build --bundles msi`：通过；WiX 反编译确认五个关联类的 `DefaultIcon` 分别指向 PDF 或 Markdown ICO。
 - `pnpm --dir reader tauri build --bundles nsis`：通过；生成的 NSIS 脚本包含两个 ICO 资源、安装/卸载 hook 和资源清理。
 - `reader/src-tauri/icons/file-pdf.ico` 与 `file-markdown.ico` 均包含 16、32、48、256 四个图像帧。
 
@@ -56,8 +56,8 @@
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
-| NSIS | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,903,224 | `1B0626B71E98D7D769EC3C7E16D41D1FA0C2ECD15E16046CF1895F55F2953C28` | `NotSigned` |
-| MSI | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,819,968 | `0C57E0863FEC6E0087E60359DB186DE22FCFE7105D893CE15D35C65A66FA3440` | `NotSigned` |
+| NSIS | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,899,628 | `4561FBAF911094F8B9C2FC754D23EC8EBD0DF95B732732B84C215CE4BB0FB10B` | `NotSigned` |
+| MSI | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,815,872 | `2E8EA7C3A66EBADA7DA089D910F02F91E427211DA9D863707925312389D766AD` | `NotSigned` |
 
 ## Waiting for user acceptance
 

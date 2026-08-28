@@ -25,14 +25,14 @@
 ## Current behavior
 
 - `.tab-title` 继承标签按钮的居中文本对齐，文件名在其可用区域内居中。
-- Tauri `bundle.fileAssociations` 只注册 PDF/Markdown 关联，NSIS 生成的 `DefaultIcon` 指向 `reader.exe,0`；WiX 生成的 ProgId 也没有类型专用图标。
+- Tauri `bundle.fileAssociations` 只注册 PDF/Markdown 关联，NSIS 生成的 `DefaultIcon` 指向 `reader.exe,0`；WiX 生成的 ProgId 也没有类型专用图标。交叉检查当前机器发现 MSI 与 NSIS 旧安装并存，实际生效的 `PDF Document` 类仍指向 `reader.exe,0`，而 `Reader.pdf` 已有专用图标路径。
 - 仓库已有的 release bundle 来自旧源码基线，不能作为本次修改的交付物。
 
 ## Expected behavior
 
 - 标签文件名从文件类型图标右侧开始左对齐，保持现有截断、关闭按钮和窄标签行为。
 - 安装后的 `.pdf` 使用 PDF 专用图标，`.md` 与 `.markdown` 使用 Markdown 专用图标；安装和卸载都刷新/清理关联图标注册表项。
-- NSIS 与 MSI bundle 都包含所需图标资源，并可由安装器注册关联图标。
+- NSIS 与 MSI bundle 都包含所需图标资源，并可为各自生成的以及另一安装器可能遗留的关联类注册图标。
 
 ## Scope
 
@@ -75,6 +75,8 @@
 - 当前源码基线为 `0b47412`，工作树初始干净。
 - 生成的 NSIS 使用 `APP_ASSOCIATE`，其宏本身支持图标参数；通过 `NSIS_HOOK_POSTINSTALL` 覆写 `PDF Document` 与 `Markdown Document` 的 `DefaultIcon` 即可复用现有关联流程。
 - 生成的 WiX 使用 `Reader.pdf`、`Reader.md` 和 `Reader.markdown` ProgId；fragment 可通过独立组件写入对应 `DefaultIcon` 注册表项。
+- NSIS 与 MSI 可以交叉升级；因此两类安装器都必须覆盖 `PDF Document`/`Markdown Document` 与 `Reader.*` 两套关联类，避免旧安装留下的当前生效 ProgID 继续使用应用主图标。
+- 当前机器的 `.pdf`/`.md` 默认类分别仍是 `PDF Document`/`Markdown Document`，其旧 `DefaultIcon` 为已安装的 `reader.exe,0`；已安装 `file-pdf.ico` 与 `file-markdown.ico` 文件本身有效，但已安装主程序哈希不是本轮构建产物。
 - 当前产品与状态文档已记录标签内类型图标，但未记录 Windows 资源管理器中的专用文件关联图标。
 
 ## Verification
@@ -84,8 +86,10 @@
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml` — passed；39 个测试通过。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check` — passed。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — passed。
-- `pnpm --dir reader tauri build --bundles msi` — passed；WiX 反编译确认三个 `DefaultIcon` 注册表值。
+- `pnpm --dir reader tauri build --bundles msi` — passed；WiX 反编译确认五个 `DefaultIcon` 注册表值，覆盖两套关联类。
 - `pnpm --dir reader tauri build --bundles nsis` — passed；生成脚本包含 hook、ICO 资源复制和卸载清理。
+- MSI 反编译复核 — passed；五个组件均注册到 `[INSTALLDIR]file-pdf.ico` 或 `[INSTALLDIR]file-markdown.ico`，并全部被 `External` feature 引用。
+- 当前机器关联诊断 — reproduced；`HKCU\Software\Classes\PDF Document\DefaultIcon` 与 `Markdown Document\DefaultIcon` 仍为旧 `reader.exe,0`，说明之前安装的包没有应用本轮关联修复。
 - `node scripts/generate-file-association-icons.mjs` — passed；两个 ICO 各含 16/32/48/256 帧。
 - `powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1` — passed；21 个 Markdown 文件、1 个活动任务、4 个归档任务和 2 个决策记录通过检查。
 
@@ -100,8 +104,8 @@ waiting：用户需要在真实 Windows Reader 版本中检查标签文件名左
 
 ## Next action
 
-启动可检查的 Reader 版本，按清单验收标签左对齐、PDF/Markdown 文件图标和安装/升级/卸载流程；收到反馈后关闭或修正本任务。
+使用本轮新生成的 NSIS 或 MSI 安装包更新现有 Reader 后，按清单验收标签左对齐、PDF/Markdown 文件图标和安装/升级/卸载流程；如 Explorer 仍显示旧缓存，刷新资源管理器后再判断。
 
 ## Outcome
 
-实现与自动化验证已完成，NSIS 和 MSI 安装包已基于本次源码生成；当前仅等待用户完成真实 Windows 视觉、文件关联以及安装/升级/卸载验收。提交主题为 `fix: add document association icons`。
+实现与自动化验证已完成，NSIS 和 MSI 安装包已基于本次源码生成；本轮补齐了 MSI/NSIS 交叉升级时的关联类覆盖，当前仅等待用户完成真实 Windows 视觉、文件关联以及安装/升级/卸载验收。提交主题为 `fix: repair cross-installer document association icons`。
