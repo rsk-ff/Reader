@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWorkspace } from "../workspace/store";
-import type { TabId, WindowTab } from "../workspace/types";
+import type { DocumentType, TabId, WindowTab } from "../workspace/types";
+import { DocumentTypeIcon } from "./DocumentTypeIcon";
 import { useWindowDragRegion } from "./windowDrag";
 import {
   buildReorderedOrder,
@@ -50,6 +51,7 @@ export function TabStrip() {
   const [dragPreview, setDragPreview] = useState<{
     title: string;
     dirty: boolean;
+    docType: DocumentType;
     width: number;
     height: number;
     grabOffsetX: number;
@@ -67,6 +69,7 @@ export function TabStrip() {
     ending: boolean;
     title: string;
     dirty: boolean;
+    docType: DocumentType;
     width: number;
     height: number;
     grabOffsetX: number;
@@ -121,6 +124,7 @@ export function TabStrip() {
       ending: false,
       title: tab.title,
       dirty: documentsById[tab.document_id]?.dirty ?? false,
+      docType: documentsById[tab.document_id]?.doc_type ?? "unknown",
       width: rect.width,
       height: rect.height,
       grabOffsetX: e.clientX - rect.left,
@@ -153,6 +157,7 @@ export function TabStrip() {
     setDragPreview({
       title: s.title,
       dirty: s.dirty,
+      docType: s.docType,
       width: s.width,
       height: s.height,
       grabOffsetX: s.grabOffsetX,
@@ -260,7 +265,9 @@ export function TabStrip() {
     <>
       <div className="tabstrip" role="tablist" ref={stripRef}>
       {tabs.map((tab, i) => {
-        const dirty = documentsById[tab.document_id]?.dirty ?? false;
+        const document = documentsById[tab.document_id];
+        const dirty = document?.dirty ?? false;
+        const docType = document?.doc_type ?? "unknown";
         const active = tab.id === activeTabId;
         const classes =
           "tab" +
@@ -313,7 +320,7 @@ export function TabStrip() {
             }}
             title={tab.title}
           >
-            <span className="tab-icon">{dirty ? "●" : ""}</span>
+            <DocumentTypeIcon type={docType} />
             <span className="tab-title">{tab.title}</span>
             <span
               className="tab-close"
@@ -345,7 +352,7 @@ export function TabStrip() {
                 height: dragPreview.height,
               }}
             >
-              <span className="tab-icon">{dragPreview.dirty ? "●" : ""}</span>
+              <DocumentTypeIcon type={dragPreview.docType} />
               <span className="tab-title">{dragPreview.title}</span>
               <span className="tab-close">{dragPreview.dirty ? "●" : "✕"}</span>
             </div>,

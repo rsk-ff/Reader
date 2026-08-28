@@ -198,6 +198,7 @@ html.tab-drag-preview-document #root {
   gap: 6px;
   height: 28px;
   align-self: center;
+  position: relative;
   flex: 1 1 220px;
   min-width: 28px;
   max-width: 220px;
@@ -230,29 +231,31 @@ html.tab-drag-preview-document #root {
   text-overflow: ellipsis;
 }
 
-/* At the narrow end of the responsive range, keep the close action visible
-   instead of letting the icon and title push it out of the tab. */
-@container tab (max-width: 56px) {
-  .tab {
-    justify-content: center;
-    gap: 0;
-    padding: 0 4px;
-  }
-
-  .tab-icon,
-  .tab-title {
-    display: none;
-  }
-
-  .tab-close {
-    flex: 0 0 16px;
-  }
+.tab-icon {
+  flex: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
 }
 
-.tab-icon {
-  width: 8px;
+.tab-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.tab-icon-pdf {
+  color: #b64b3f;
+}
+
+.tab-icon-markdown {
   color: var(--accent);
-  font-size: 10px;
+}
+
+.tab-icon-unknown {
+  color: var(--text-faint);
 }
 
 .tab-close {
@@ -265,11 +268,42 @@ html.tab-drag-preview-document #root {
   color: var(--text-faint);
   font-size: 11px;
   cursor: default;
+  flex: 0 0 16px;
+  position: relative;
+  z-index: 1;
 }
 
 .tab-close:hover {
   background: rgba(30, 44, 64, 0.08);
   color: var(--text);
+}
+
+/* Preserve the selected tab's close action first. Unselected close actions
+   disappear before the title is allowed to run out of room. */
+@container tab (max-width: 128px) {
+  .tab:not(.tab-active) .tab-close {
+    display: none;
+  }
+}
+
+/* At the smallest useful tab size, keep the type marker on inactive tabs and
+   put the selected tab's close action above the compressed contents. */
+@container tab (max-width: 64px) {
+  .tab {
+    gap: 0;
+    padding: 0 4px;
+    overflow: hidden;
+  }
+
+  .tab-active .tab-icon {
+    visibility: hidden;
+  }
+
+  .tab-active .tab-close {
+    position: absolute;
+    right: 4px;
+    z-index: 2;
+  }
 }
 
 .tabstrip-spacer {

@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import App from "./app/App";
 import { preventBrowserContextMenu } from "./app/browserGuards";
+import {
+  DocumentTypeIcon,
+  documentTypeFromFileName,
+} from "./components/DocumentTypeIcon";
 import { useFileDrop } from "./workspace/useFileDrop";
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./styles.css";
@@ -25,9 +29,10 @@ function ReaderRoot() {
 function TabDragPreviewRoot() {
   const title = launchParams.get("title") || "Reader tab";
   const dirty = launchParams.get("dirty") === "1";
+  const docType = documentTypeFromFileName(title);
   return (
     <div className="native-tab-drag-preview" aria-hidden="true">
-      <span className="tab-icon">{dirty ? "●" : ""}</span>
+      <DocumentTypeIcon type={docType} />
       <span className="tab-title">{title}</span>
       <span className="tab-close">{dirty ? "●" : "✕"}</span>
     </div>
