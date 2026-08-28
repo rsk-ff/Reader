@@ -2,11 +2,12 @@
 
 - Last updated: 2026-08-27
 - Application version: `0.1.0`
-- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification; cross-installer file-association icon fix built and waiting for acceptance`
+- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification; cross-installer file-association icon fix accepted by user`
 
 ## Active task
 
-- Status: `in_progress` — [`2026-08-27-file-association-icons-and-tab-alignment.md`](tasks/active/2026-08-27-file-association-icons-and-tab-alignment.md)
+- None.
+- Latest completed task: [`2026-08-27-file-association-icons-and-tab-alignment.md`](tasks/archive/2026-08-27-file-association-icons-and-tab-alignment.md).
 
 ## Implemented at the application baseline
 
@@ -52,20 +53,16 @@
 
 ## Latest local release artifacts
 
-以下本地文件由本次源码变更生成，不纳入 Git；安装、升级、卸载和资源管理器图标的真实桌面验收仍待用户完成。
+以下本地文件由本次源码变更生成，不纳入 Git；本轮安装、升级、卸载和资源管理器图标已由用户完成验收。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
 | NSIS | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,899,628 | `4561FBAF911094F8B9C2FC754D23EC8EBD0DF95B732732B84C215CE4BB0FB10B` | `NotSigned` |
 | MSI | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,815,872 | `2E8EA7C3A66EBADA7DA089D910F02F91E427211DA9D863707925312389D766AD` | `NotSigned` |
 
-## Waiting for user acceptance
+## Latest user acceptance
 
-- Markdown 左侧目录、代码字体和列表对齐的最终视觉效果。
-- 标签文件名左对齐，以及资源管理器中 PDF 与 MD/Markdown 专用图标的最终视觉效果。
-- `0.1.0` 安装包的实际安装、升级和卸载流程。
-
-这些项目没有用户验收前，不得标记为完全通过。
+- 2026-08-27：用户确认标签文件名左对齐、PDF/MD 文件专用图标以及 `0.1.0` 安装包结果可以验收。
 
 ## Known limitations
 

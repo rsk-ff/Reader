@@ -1,6 +1,6 @@
 # 标签文件名对齐与 Windows 文件关联图标
 
-- Status: `in_progress`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-08-27`
 - Last updated: `2026-08-27`
@@ -57,10 +57,10 @@
 
 ## Acceptance criteria
 
-- [ ] 标签文件名在图标右侧左对齐；窄标签下现有关闭按钮和图标保留策略不回归。
-- [ ] 新安装包中的 PDF、MD/Markdown 关联分别写入专用 `DefaultIcon`，资源管理器刷新后显示对应图标。
-- [ ] NSIS 和 MSI bundle 构建成功，资源、关联和卸载清理配置可从生成脚本/模板复核。
-- [ ] 相关自动化验证通过，文档与变更记录同步，工作树提交后干净。
+- [x] 标签文件名在图标右侧左对齐；窄标签下现有关闭按钮和图标保留策略不回归。
+- [x] 新安装包中的 PDF、MD/Markdown 关联分别写入专用 `DefaultIcon`，资源管理器刷新后显示对应图标。
+- [x] NSIS 和 MSI bundle 构建成功，资源、关联和卸载清理配置可从生成脚本/模板复核。
+- [x] 相关自动化验证通过，文档与变更记录同步，工作树提交后干净。
 
 ## Progress
 
@@ -68,7 +68,7 @@
 - [x] 确认 Tauri 2.11.4 不支持逐关联 `icon` 字段，确定安装器扩展方案。
 - [x] 实现标签布局和 Windows 图标安装器扩展。
 - [x] 运行测试、构建和安装包验证。
-- [x] 更新文档；用户视觉验收仍待完成。
+- [x] 更新文档并完成用户视觉、文件关联及安装包验收。
 
 ## Discoveries
 
@@ -95,17 +95,16 @@
 
 ## User acceptance
 
-waiting：用户需要在真实 Windows Reader 版本中检查标签文件名左对齐，以及安装后 PDF/MD 文件图标是否分别正确显示；安装、升级、卸载流程也需要用户实际验收。
+accepted：用户于 2026-08-27 确认可以验收；标签文件名左对齐、PDF/MD 文件专用图标及安装包结果通过验收。
 
 ## Risks and remaining work
 
-- Windows Explorer 图标缓存可能需要刷新或重启 Explorer 后才能观察最新 `.ico`。
 - 当前安装包未签名，SmartScreen 提示仍是已知限制。
 
 ## Next action
 
-使用本轮新生成的 NSIS 或 MSI 安装包更新现有 Reader 后，按清单验收标签左对齐、PDF/Markdown 文件图标和安装/升级/卸载流程；如 Explorer 仍显示旧缓存，刷新资源管理器后再判断。
+无；本任务已完成并归档。
 
 ## Outcome
 
-实现与自动化验证已完成，NSIS 和 MSI 安装包已基于本次源码生成；本轮补齐了 MSI/NSIS 交叉升级时的关联类覆盖，当前仅等待用户完成真实 Windows 视觉、文件关联以及安装/升级/卸载验收。提交主题为 `fix: repair cross-installer document association icons`。
+实现、自动化验证和用户验收均已完成。NSIS 和 MSI 安装包已基于本次源码生成，本轮补齐了 MSI/NSIS 交叉升级时的关联类覆盖。提交主题为 `fix: repair cross-installer document association icons`。

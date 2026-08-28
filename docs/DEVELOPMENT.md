@@ -50,10 +50,18 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Release build
 
-专用文件类型图标已经作为生成资源提交；只有修改图标生成器后才需要重新生成：
+专用文件类型图标已经作为生成资源提交。需要修改图标设计时，编辑生成器后重新生成：
 
 ```powershell
 pnpm --dir reader generate:file-icons
+```
+
+正式更换 PDF/Markdown 文件关联图标时，保持 `file-pdf.ico` 和 `file-markdown.ico` 文件名不变即可；如果使用外部设计工具制作 ICO，则直接替换这两个生成文件，再重新构建安装包。仅替换已安装目录中的 ICO 只能用于本机临时测试，正式交付仍需重新打包并安装，因为安装器会把资源复制到安装目录，Explorer 也可能缓存旧图标。
+
+图标资源变更后重新生成 Windows bundle：
+
+```powershell
+pnpm --dir reader tauri build
 ```
 
 生成全部 Windows bundle：
