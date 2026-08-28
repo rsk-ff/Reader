@@ -228,7 +228,6 @@ html.tab-drag-preview-document #root {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .tab-icon {
@@ -280,7 +279,7 @@ html.tab-drag-preview-document #root {
 
 /* Preserve the selected tab's close action first. Unselected close actions
    disappear before the title is allowed to run out of room. */
-@container tab (max-width: 128px) {
+@container tab (max-width: 80px) {
   .tab:not(.tab-active) .tab-close {
     display: none;
   }
@@ -296,13 +295,14 @@ html.tab-drag-preview-document #root {
   }
 
   .tab-active .tab-icon {
-    visibility: hidden;
+    display: none;
   }
 
   .tab-active .tab-close {
     position: absolute;
     right: 4px;
     z-index: 2;
+    background: var(--bg-active);
   }
 }
 
