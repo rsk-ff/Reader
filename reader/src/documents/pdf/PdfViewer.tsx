@@ -28,6 +28,7 @@ import type { PdfAnnotation } from "./annotation-types";
 import { PdfJsAnnotationPortals } from "./PdfJsAnnotationPortals";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { blankPageInsertArgs, pdfFileUrl } from "./pdfModel";
+import { flattenOutline } from "./pdfOutline";
 import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
 import { PdfToolbar } from "./PdfToolbar";
@@ -57,15 +58,6 @@ interface FindCountEvent {
 
 function pdfAssetUrl(directory: string): string {
   return new URL(`${import.meta.env.BASE_URL}pdfjs/${directory}/`, window.location.href).href;
-}
-
-function flattenOutline(nodes: OutlineNode[], depth = 0): { node: OutlineNode; depth: number }[] {
-  const flattened: { node: OutlineNode; depth: number }[] = [];
-  for (const node of nodes) {
-    flattened.push({ node, depth });
-    flattened.push(...flattenOutline(node.items ?? [], depth + 1));
-  }
-  return flattened;
 }
 
 async function printPdfDocument(pdfDocument: PDFDocumentProxy): Promise<void> {

@@ -1026,7 +1026,7 @@ body.pdf-sidebar-resizing * {
   color: var(--text-faint);
 }
 
-.pdf-sidebar-outline {
+.pdf-outline {
   display: flex;
   flex-direction: column;
   gap: 1px;

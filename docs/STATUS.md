@@ -6,12 +6,12 @@
 
 ## Active task
 
-- None.
+- [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-08-29-new-tab-page.md`](tasks/archive/2026-08-29-new-tab-page.md).
 
 ## Implemented at the application baseline
 
-- PDF 阅读、搜索、目录、缩略图、打印、批注和页面增删。
+- PDF 阅读、搜索、按层级逐行显示并过滤空白页占位书签的目录、缩略图、打印、批注和页面增删。
 - PDF.js 构建资源按运行时请求路径平铺复制，未嵌入 Adobe CJK 字体的 PDF 可正常加载 CMap 并显示文字。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
 - Markdown 所见即所得/源码模式、显式保存、等宽代码字体、列表对齐和左侧目录。
@@ -67,6 +67,14 @@
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml`：44 个测试通过；新增覆盖未命名 Markdown 创建、首次保存身份保持和保存目标约束。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check`：通过。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`：通过。
+
+2026-08-29 针对 PDF 目录布局和空白页占位书签记录：
+
+- 用户样本经 `pypdf` 验证包含 20 页、17 个原生书签，其中两个顶层 `空白页面` 书签分别指向第 2 页和第 4 页。
+- `pnpm --dir reader test`：15 个测试文件、100 个测试通过；新增覆盖目录顺序、层级、占位标题规范化过滤及子项保留。
+- `pnpm --dir reader build`：通过；仅保留既有大 chunk 警告。
+- Rust 后端与打包未重跑：本次变更仅涉及前端 TypeScript、CSS、测试和文档。
+- 真实 Reader 桌面视觉与交互验收待用户完成。
 
 ## Latest local release artifacts
 
