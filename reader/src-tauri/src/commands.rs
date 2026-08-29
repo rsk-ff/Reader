@@ -5,6 +5,7 @@
 //! args at first launch, drag-in, or a frontend File→Open action.
 
 use std::{
+    path::{Path, PathBuf},
     sync::Mutex,
     thread,
     time::{Duration, Instant},
@@ -821,6 +822,21 @@ pub fn create_new_tab(
 }
 
 #[tauri::command]
+pub fn create_markdown_document(
+    window_id: WindowId,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<TabId, String> {
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let tab_id = guard.create_markdown_document(&window_id)?;
+    drop(guard);
+    broadcast(&app, &ws);
+    Ok(tab_id)
+}
+
+#[tauri::command]
 pub fn focus_tab(
     tab_id: TabId,
     app: AppHandle,
@@ -1160,21 +1176,88 @@ pub fn read_file_text(path: String) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|e| format!("file '{path}' is not valid UTF-8: {e}"))
 }
 
+fn save_file_text_impl(path: &Path, content: &str) -> Result<(), String> {
+    let tmp = PathBuf::from(format!("{}.tmp", path.to_string_lossy()));
+    std::fs::write(&tmp, content.as_bytes())
+        .map_err(|e| format!("write tmp '{}': {e}", tmp.display()))?;
+    let f = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&tmp)
+        .map_err(|e| format!("reopen tmp '{}': {e}", tmp.display()))?;
+    f.sync_all()
+        .map_err(|e| format!("fsync tmp '{}': {e}", tmp.display()))?;
+    drop(f);
+    std::fs::rename(&tmp, path)
+        .map_err(|e| format!("rename '{}' -> '{}': {e}", tmp.display(), path.display()))?;
+    Ok(())
+}
+
 /// Atomically write `content` to `path` (§7 transactional save):
 ///   foo.md → foo.md.tmp → fsync → rename → foo.md
 #[tauri::command]
 pub fn save_file_text(path: String, content: String) -> Result<(), String> {
-    let tmp = format!("{path}.tmp");
-    std::fs::write(&tmp, content.as_bytes()).map_err(|e| format!("write tmp '{tmp}': {e}"))?;
-    let f = std::fs::OpenOptions::new()
-        .write(true)
-        .open(&tmp)
-        .map_err(|e| format!("reopen tmp '{tmp}': {e}"))?;
-    f.sync_all()
-        .map_err(|e| format!("fsync tmp '{tmp}': {e}"))?;
-    drop(f);
-    std::fs::rename(&tmp, &path).map_err(|e| format!("rename '{tmp}' -> '{path}': {e}"))?;
-    Ok(())
+    save_file_text_impl(Path::new(&path), &content)
+}
+
+fn canonical_markdown_target(path: &str) -> Result<PathBuf, String> {
+    let requested = PathBuf::from(path);
+    if !requested.is_absolute() {
+        return Err(format!("save path must be absolute: {path}"));
+    }
+    let extension = requested
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(str::to_ascii_lowercase);
+    if !matches!(extension.as_deref(), Some("md" | "markdown")) {
+        return Err(format!(
+            "Markdown save path must end in .md or .markdown: {path}"
+        ));
+    }
+    let file_name = requested
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| format!("save path has no valid file name: {path}"))?;
+    let parent = requested
+        .parent()
+        .ok_or_else(|| format!("save path has no parent directory: {path}"))?
+        .canonicalize()
+        .map_err(|error| format!("cannot canonicalize save directory for '{path}': {error}"))?;
+    let target = parent.join(file_name);
+    if target.exists() {
+        target
+            .canonicalize()
+            .map_err(|error| format!("cannot canonicalize save path '{path}': {error}"))
+    } else {
+        Ok(target)
+    }
+}
+
+/// First save for an in-memory Markdown document. The caller chooses the path
+/// only at save time; the existing document/tab identity remains stable.
+#[tauri::command]
+pub fn save_markdown_document_as(
+    document_id: String,
+    path: String,
+    content: String,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<String, String> {
+    let target = canonical_markdown_target(&path)?;
+    let mut guard = ws
+        .lock()
+        .map_err(|error| format!("workspace lock poisoned: {error}"))?;
+    guard.validate_markdown_save_target(&document_id, &target)?;
+    save_file_text_impl(&target, &content)?;
+    let canonical = target.canonicalize().map_err(|error| {
+        format!(
+            "cannot canonicalize saved Markdown '{}': {error}",
+            target.display()
+        )
+    })?;
+    guard.finalize_markdown_save(&document_id, canonical.clone())?;
+    drop(guard);
+    broadcast(&app, &ws);
+    Ok(canonical.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -1464,10 +1547,10 @@ fn mark_dirty_by_path(app: &AppHandle, ws: &State<'_, SharedWorkspace>, path: &s
 #[cfg(test)]
 mod tests {
     use super::{
-        commit_pdf_working_copy, cursor_moved_enough, detached_window_position_from_cursor,
-        drag_carrier_window, encode_query_component, first_titlebar_candidate_by_z_order,
-        point_in_titlebar_zone, read_file_text, save_file_text, should_detach_on_miss,
-        temporary_topmost_insert_after,
+        canonical_markdown_target, commit_pdf_working_copy, cursor_moved_enough,
+        detached_window_position_from_cursor, drag_carrier_window, encode_query_component,
+        first_titlebar_candidate_by_z_order, point_in_titlebar_zone, read_file_text,
+        save_file_text, should_detach_on_miss, temporary_topmost_insert_after,
     };
 
     #[test]
@@ -1580,6 +1663,21 @@ mod tests {
         assert!(!std::path::Path::new(&format!("{path_string}.tmp")).exists());
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn markdown_save_target_requires_an_absolute_markdown_path() {
+        assert!(canonical_markdown_target("relative-note.md").is_err());
+        let invalid = std::env::temp_dir().join("reader-note.txt");
+        assert!(canonical_markdown_target(invalid.to_str().unwrap()).is_err());
+
+        let valid = std::env::temp_dir().join("reader-note.md");
+        let canonical = canonical_markdown_target(valid.to_str().unwrap()).unwrap();
+        assert!(canonical.is_absolute());
+        assert_eq!(
+            canonical.extension().and_then(|value| value.to_str()),
+            Some("md")
+        );
     }
 
     #[test]

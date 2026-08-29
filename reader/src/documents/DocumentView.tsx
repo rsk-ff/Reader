@@ -33,7 +33,13 @@ export function DocumentView({ tab, active }: { tab: WindowTab; active: boolean 
     case "markdown":
       return (
         <Suspense fallback={<div className="md-status">loading Markdown engine…</div>}>
-          <MarkdownEditor path={doc.path} docId={doc.id} active={active} />
+          <MarkdownEditor
+            path={doc.path}
+            fileName={doc.file_name}
+            docId={doc.id}
+            untitled={doc.untitled}
+            active={active}
+          />
         </Suspense>
       );
     case "unknown":

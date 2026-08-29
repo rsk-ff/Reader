@@ -15,6 +15,8 @@ export interface DocumentSession {
   revision: number;
   last_saved_revision: number;
   file_size: number | null;
+  /** True until an in-memory Markdown document is saved for the first time. */
+  untitled: boolean;
 }
 
 export interface WindowTab {

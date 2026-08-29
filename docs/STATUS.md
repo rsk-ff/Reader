@@ -2,11 +2,11 @@
 
 - Last updated: 2026-08-29
 - Application version: `0.1.0`
-- Current application source baseline: `new-tab behavior implemented and automated verification passed; waiting for user visual acceptance`
+- Current application source baseline: `new-tab file actions and recent-files refinement implemented; waiting for user acceptance`
 
 ## Active task
 
-- [`2026-08-29-new-tab-page.md`](tasks/active/2026-08-29-new-tab-page.md) — `waiting_user_acceptance`；实现与自动化验证完成，等待检查启动、加号、最后标签关闭和文件复用。
+- [`2026-08-29-new-tab-page.md`](tasks/active/2026-08-29-new-tab-page.md) — `waiting_user_acceptance`；操作入口、未命名 Markdown 首次保存和最近文件已实现，等待视觉与交互复验。
 - Latest completed task: [`2026-08-27-file-association-icons-and-tab-alignment.md`](tasks/archive/2026-08-27-file-association-icons-and-tab-alignment.md).
 
 ## Implemented at the application baseline
@@ -15,6 +15,7 @@
 - PDF.js 构建资源按运行时请求路径平铺复制，未嵌入 Adobe CJK 字体的 PDF 可正常加载 CMap 并显示文字。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
 - Markdown 所见即所得/源码模式、显式保存、等宽代码字体、列表对齐和左侧目录。
+- 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和最多 8 项的跨启动最近文件列表。
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
 - Windows 自定义标题栏、原生窗口按钮和 Snap Layout。
@@ -56,6 +57,14 @@
 - `pnpm --dir reader test`：11 个测试文件、89 个测试通过。
 - `pnpm --dir reader build`：通过，1165 个模块完成生产构建。
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml`：41 个测试通过，其中新增覆盖最后标签补位、活动新标签文件复用及多个新标签序列化。
+- `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check`：通过。
+- `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`：通过。
+
+2026-08-29 针对新标签页操作入口、未命名 Markdown 和最近文件修订记录：
+
+- `pnpm --dir reader test`：14 个测试文件、96 个测试通过；新增覆盖最近文件、Markdown 保存扩展名和取消首次保存时保留标签。
+- `pnpm --dir reader build`：通过，1168 个模块完成生产构建；仅保留既有大 chunk 警告。
+- `cargo test --manifest-path reader/src-tauri/Cargo.toml`：44 个测试通过；新增覆盖未命名 Markdown 创建、首次保存身份保持和保存目标约束。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check`：通过。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`：通过。
 

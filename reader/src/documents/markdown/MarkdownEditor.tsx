@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save as showSaveDialog } from "@tauri-apps/plugin-dialog";
 
 import { useMarkdownText, useMarkdownSave } from "./useMarkdownText";
 import { MilkdownCrepe } from "./MilkdownCrepe";
@@ -8,36 +9,46 @@ import { MarkdownScrollbar } from "./MarkdownScrollbar";
 import { MarkdownOutline } from "./MarkdownOutline";
 import { extractMarkdownHeadings, type MarkdownHeading } from "./markdownHeadingModel";
 import { saveCoversCurrentRevision } from "./saveRevision";
+import { ensureMarkdownExtension } from "./markdownSavePath";
 import { useWorkspace } from "../../workspace/store";
 import { registerDocumentLifecycle } from "../../workspace/documentLifecycle";
 
 interface MarkdownEditorProps {
   path: string;
+  fileName: string;
   docId: string;
+  untitled: boolean;
   active: boolean;
 }
 
 type Mode = "wysiwyg" | "source";
 
-export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
-  const { text, loading, error } = useMarkdownText(path);
-  const { save } = useMarkdownSave(path);
+export function MarkdownEditor({
+  path,
+  fileName,
+  docId,
+  untitled,
+  active,
+}: MarkdownEditorProps) {
+  const { text, loading, error } = useMarkdownText(untitled ? null : path);
+  const { save: saveExisting } = useMarkdownSave(path);
   const setDocumentDirtyLocal = useWorkspace((state) => state.setDocumentDirtyLocal);
+  const refreshWorkspace = useWorkspace((state) => state.refresh);
 
   const [mode, setMode] = useState<Mode>("wysiwyg");
   /** Current working text. The single source of truth for both modes. */
-  const [workingText, setWorkingText] = useState<string | null>(null);
+  const [workingText, setWorkingText] = useState<string | null>(untitled ? "" : null);
   /** Bump to force a Crepe re-mount (e.g. after switching back from source). */
   const [crepeVersion, setCrepeVersion] = useState(0);
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(untitled);
   const [saving, setSaving] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editRevisionRef = useRef(0);
-  const saveInFlightRef = useRef<Promise<void> | null>(null);
-  const dirtyRef = useRef(false);
+  const saveInFlightRef = useRef<Promise<boolean> | null>(null);
+  const dirtyRef = useRef(untitled);
   const dirtySyncRef = useRef<Promise<void>>(Promise.resolve());
-  const lastSavedTextRef = useRef<string | null>(null);
+  const lastSavedTextRef = useRef<string | null>(untitled ? "" : null);
 
   // When the file finishes loading, seed the working text.
   useEffect(() => {
@@ -100,16 +111,33 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
   );
 
   // Ctrl+S save (§7). Only when this tab is active.
-  const doSave = useCallback((): Promise<void> => {
+  const doSave = useCallback((): Promise<boolean> => {
     if (saveInFlightRef.current) return saveInFlightRef.current;
     if (workingText == null) return Promise.reject(new Error("Markdown text is still loading."));
-    if (!dirtyRef.current) return dirtySyncRef.current;
+    if (!dirtyRef.current) return dirtySyncRef.current.then(() => true);
     const savedRevision = editRevisionRef.current;
     const textToSave = workingText;
     setSaving(true);
     const operation = (async () => {
       try {
-        await save(textToSave);
+        let savedPath = path;
+        if (untitled) {
+          const selectedPath = await showSaveDialog({
+            title: "保存 Markdown",
+            defaultPath: fileName,
+            filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+          });
+          if (!selectedPath) return false;
+          savedPath = ensureMarkdownExtension(selectedPath);
+          await invoke<string>("save_markdown_document_as", {
+            documentId: docId,
+            path: savedPath,
+            content: textToSave,
+          });
+          await refreshWorkspace();
+        } else {
+          await saveExisting(textToSave);
+        }
         lastSavedTextRef.current = textToSave;
         const savedLatest = saveCoversCurrentRevision(savedRevision, editRevisionRef.current);
         dirtyRef.current = !savedLatest;
@@ -117,8 +145,9 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
         await syncDirty(!savedLatest);
         void invoke("log_frontend", {
           level: "info",
-          message: `markdown saved: ${path}`,
+          message: `markdown saved: ${savedPath}`,
         }).catch(() => {});
+        return true;
       } catch (e) {
         void invoke("log_frontend", {
           level: "error",
@@ -139,7 +168,16 @@ export function MarkdownEditor({ path, docId, active }: MarkdownEditorProps) {
       },
     );
     return operation;
-  }, [workingText, save, path, syncDirty]);
+  }, [
+    workingText,
+    path,
+    untitled,
+    fileName,
+    docId,
+    saveExisting,
+    refreshWorkspace,
+    syncDirty,
+  ]);
 
   const discardChanges = useCallback(async () => {
     await saveInFlightRef.current?.catch(() => {});

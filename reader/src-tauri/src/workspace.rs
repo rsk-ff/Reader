@@ -24,6 +24,7 @@ pub type TabId = String;
 /// last tab is explicitly closed. Detached tabs go into dynamically-created windows.
 pub const MAIN_WINDOW: &str = "main";
 pub const NEW_TAB_TITLE: &str = "新标签页";
+pub const UNTITLED_MARKDOWN_TITLE: &str = "未命名.md";
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -58,6 +59,9 @@ pub struct DocumentSession {
     pub revision: u64,
     pub last_saved_revision: u64,
     pub file_size: Option<u64>,
+    /// An untitled Markdown document exists only in memory until its first save.
+    #[serde(default)]
+    pub untitled: bool,
     /// PDFium mutations are written here until the user explicitly saves.
     /// This is process-local state and must never leak into session snapshots.
     #[serde(skip)]
@@ -164,6 +168,33 @@ impl AppWorkspace {
         tab_id
     }
 
+    /// Create an in-memory Markdown document and place it in the active new-tab
+    /// slot. No file-system path is chosen until the first explicit save.
+    pub fn create_markdown_document(&mut self, target_window: &WindowId) -> Result<TabId, String> {
+        self.ensure_main();
+        let document_id = self.fresh_id("doc");
+        self.documents.insert(
+            document_id.clone(),
+            DocumentSession {
+                id: document_id.clone(),
+                path: PathBuf::new(),
+                file_name: UNTITLED_MARKDOWN_TITLE.to_string(),
+                doc_type: DocumentType::Markdown,
+                dirty: true,
+                revision: 1,
+                last_saved_revision: 0,
+                file_size: None,
+                untitled: true,
+                pdf_working_copy: None,
+            },
+        );
+        self.attach_document(
+            document_id,
+            UNTITLED_MARKDOWN_TITLE.to_string(),
+            target_window,
+        )
+    }
+
     fn canonicalize(path: &str) -> Result<PathBuf, String> {
         let p = PathBuf::from(path);
         p.canonicalize()
@@ -212,10 +243,22 @@ impl AppWorkspace {
             revision: 1,
             last_saved_revision: 1,
             file_size,
+            untitled: false,
             pdf_working_copy: None,
         };
         self.documents.insert(doc_id.clone(), session);
 
+        self.attach_document(doc_id, file_name, target_window)
+    }
+
+    /// Attach a document to the requested window. An active new tab is reused
+    /// so file actions do not leave an unrelated blank tab behind.
+    fn attach_document(
+        &mut self,
+        document_id: DocumentId,
+        title: String,
+        target_window: &WindowId,
+    ) -> Result<TabId, String> {
         // A file opened while a new tab is active occupies that slot instead
         // of leaving an unrelated empty tab behind.
         let reusable_tab_id = self
@@ -230,8 +273,8 @@ impl AppWorkspace {
             .cloned();
         if let Some(tab_id) = reusable_tab_id {
             if let Some(tab) = self.tabs.get_mut(&tab_id) {
-                tab.document_id = Some(doc_id);
-                tab.title = file_name;
+                tab.document_id = Some(document_id);
+                tab.title = title;
             }
             self.focus_tab(&tab_id)?;
             return Ok(tab_id);
@@ -241,8 +284,8 @@ impl AppWorkspace {
         let tab = WindowTab {
             id: tab_id.clone(),
             window_id: target_window.clone(),
-            document_id: Some(doc_id),
-            title: file_name,
+            document_id: Some(document_id),
+            title,
             position: 0,
             active: true,
         };
@@ -259,6 +302,59 @@ impl AppWorkspace {
         win.tab_ids.push(tab_id.clone());
         self.focus_tab(&tab_id)?;
         Ok(tab_id)
+    }
+
+    pub fn validate_markdown_save_target(
+        &self,
+        document_id: &DocumentId,
+        path: &Path,
+    ) -> Result<(), String> {
+        let document = self
+            .documents
+            .get(document_id)
+            .ok_or_else(|| format!("document not found: {document_id}"))?;
+        if document.doc_type != DocumentType::Markdown || !document.untitled {
+            return Err(format!("document is not untitled Markdown: {document_id}"));
+        }
+        if self.documents.iter().any(|(candidate_id, candidate)| {
+            candidate_id != document_id && !candidate.untitled && candidate.path == path
+        }) {
+            return Err(format!("file is already open: {}", path.display()));
+        }
+        Ok(())
+    }
+
+    /// Replace an untitled Markdown document's in-memory identity with its
+    /// first saved path without recreating the tab or document id.
+    pub fn finalize_markdown_save(
+        &mut self,
+        document_id: &DocumentId,
+        path: PathBuf,
+    ) -> Result<(), String> {
+        self.validate_markdown_save_target(document_id, &path)?;
+
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| format!("saved path has no valid file name: {}", path.display()))?
+            .to_string();
+        let file_size = std::fs::metadata(&path).map(|metadata| metadata.len()).ok();
+        let document = self
+            .documents
+            .get_mut(document_id)
+            .ok_or_else(|| format!("document not found: {document_id}"))?;
+        document.path = path;
+        document.file_name = file_name.clone();
+        document.file_size = file_size;
+        document.untitled = false;
+        document.dirty = false;
+        document.last_saved_revision = document.revision;
+        for tab in self.tabs.values_mut() {
+            if tab.document_id.as_ref() == Some(document_id) {
+                tab.title = file_name.clone();
+            }
+        }
+        Ok(())
     }
 
     /// Focus a tab. Finds its window, sets it active there.
@@ -830,6 +926,54 @@ mod tests {
         assert!(snap.tabs[0].document_id.is_some());
         assert_eq!(snap.documents.len(), 1);
         assert_eq!(snap.active_tab_id, Some(new_tab));
+    }
+
+    #[test]
+    fn creating_markdown_reuses_new_tab_without_choosing_a_path() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let new_tab = ws.create_new_tab(&MAIN_WINDOW.into());
+
+        let markdown_tab = ws
+            .create_markdown_document(&MAIN_WINDOW.into())
+            .expect("create untitled Markdown");
+        let snapshot = ws.snapshot_for(&MAIN_WINDOW.into());
+        let document = snapshot.documents.first().expect("Markdown document");
+
+        assert_eq!(markdown_tab, new_tab);
+        assert_eq!(snapshot.tabs.len(), 1);
+        assert_eq!(snapshot.tabs[0].title, UNTITLED_MARKDOWN_TITLE);
+        assert_eq!(document.doc_type, DocumentType::Markdown);
+        assert!(document.path.as_os_str().is_empty());
+        assert!(document.untitled);
+        assert!(document.dirty);
+    }
+
+    #[test]
+    fn first_markdown_save_keeps_identity_and_updates_tab_title() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let tab_id = ws
+            .create_markdown_document(&MAIN_WINDOW.into())
+            .expect("create untitled Markdown");
+        let document_id = ws.tabs[&tab_id].document_id.clone().unwrap();
+        let saved_path = tmp_file("saved-note.md", "# saved").canonicalize().unwrap();
+
+        ws.finalize_markdown_save(&document_id, saved_path.clone())
+            .expect("finalize first save");
+        let snapshot = ws.snapshot_for(&MAIN_WINDOW.into());
+        let document = snapshot
+            .documents
+            .iter()
+            .find(|document| document.id == document_id)
+            .expect("same document identity");
+
+        assert_eq!(snapshot.tabs[0].id, tab_id);
+        assert_eq!(snapshot.tabs[0].document_id.as_ref(), Some(&document_id));
+        assert_eq!(snapshot.tabs[0].title, document.file_name);
+        assert_eq!(document.path, saved_path);
+        assert!(!document.untitled);
+        assert!(!document.dirty);
     }
 
     #[test]

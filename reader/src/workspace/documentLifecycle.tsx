@@ -5,8 +5,16 @@ import type { DocumentSession } from "./types";
 
 export type CloseDecision = "save" | "discard" | "cancel";
 
+export function lifecycleResultAllowsClose(
+  decision: Exclude<CloseDecision, "cancel">,
+  completed: boolean | void,
+): boolean {
+  return decision !== "save" || completed !== false;
+}
+
 interface DocumentLifecycleHandlers {
-  save: () => Promise<void>;
+  /** False means the user cancelled an untitled document's Save dialog. */
+  save: () => Promise<boolean | void>;
   discard: () => Promise<void>;
 }
 
@@ -85,8 +93,10 @@ export async function prepareDocumentForClose(
 
   try {
     const handlers = lifecycleHandlers.get(document.id);
-    if (handlers) await handlers[decision === "save" ? "save" : "discard"]();
-    else await runFallback(document, decision);
+    if (handlers) {
+      const completed = await handlers[decision === "save" ? "save" : "discard"]();
+      if (!lifecycleResultAllowsClose(decision, completed)) return false;
+    } else await runFallback(document, decision);
     return true;
   } catch (error) {
     window.alert(

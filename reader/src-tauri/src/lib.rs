@@ -42,6 +42,7 @@ pub fn run() {
             .snap_overlay(true)
             .build(),
     );
+    builder = builder.plugin(tauri_plugin_dialog::init());
 
     #[cfg(desktop)]
     {
@@ -80,6 +81,7 @@ pub fn run() {
             commands::get_workspace,
             commands::open_document_command,
             commands::create_new_tab,
+            commands::create_markdown_document,
             commands::focus_tab,
             commands::close_tab,
             commands::reorder_tabs,
@@ -93,6 +95,7 @@ pub fn run() {
             commands::log_frontend,
             commands::read_file_text,
             commands::save_file_text,
+            commands::save_markdown_document_as,
             commands::canonicalize_path,
             commands::set_dirty,
             commands::create_annotation,

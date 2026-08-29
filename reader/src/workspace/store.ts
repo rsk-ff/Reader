@@ -5,6 +5,14 @@ import { listen } from "@tauri-apps/api/event";
 
 import type { TabId, WindowId, WorkspaceSnapshot } from "./types";
 import { prepareDocumentForClose } from "./documentLifecycle";
+import {
+  loadRecentFiles,
+  mergeRecentFilesFromSnapshot,
+  persistRecentFiles,
+  recentFileFromPath,
+  rememberRecentFile,
+  type RecentFile,
+} from "./recentFiles";
 
 export interface TabDragGrabOffset {
   x: number;
@@ -29,9 +37,11 @@ interface WorkspaceState extends WorkspaceSnapshot {
   ready: boolean;
   myWindowId: WindowId;
   documentsById: Record<string, import("./types").DocumentSession>;
+  recentFiles: RecentFile[];
   init: () => Promise<void>;
   openDocument: (path: string) => Promise<void>;
   createNewTab: () => Promise<void>;
+  createMarkdownDocument: () => Promise<void>;
   focusTab: (id: TabId) => Promise<void>;
   closeTab: (id: TabId) => Promise<void>;
   reorderTabs: (tabIds: TabId[]) => Promise<void>;
@@ -67,6 +77,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   active_tab_id: null,
   documentsById: {},
   ready: false,
+  recentFiles: loadRecentFiles(),
 
   setDocumentDirtyLocal: (documentId, dirty) => {
     set((state) => {
@@ -87,7 +98,18 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     const snap = await invoke<WorkspaceSnapshot>("get_workspace", {
       windowId: myWindowId,
     });
-    set({ ...snap, documentsById: indexDocuments(snap), ready: true });
+    const recentFiles = mergeRecentFilesFromSnapshot(
+      get().recentFiles,
+      get().documents,
+      snap,
+    );
+    persistRecentFiles(recentFiles);
+    set({
+      ...snap,
+      documentsById: indexDocuments(snap),
+      recentFiles,
+      ready: true,
+    });
   },
 
   init: async () => {
@@ -115,11 +137,24 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   openDocument: async (path) => {
     const myWindowId = get().myWindowId;
     await invoke<string>("open_document_command", { path, windowId: myWindowId });
+    const file = recentFileFromPath(path);
+    if (file) {
+      const recentFiles = rememberRecentFile(get().recentFiles, file);
+      persistRecentFiles(recentFiles);
+      set({ recentFiles });
+    }
+    await get().refresh();
   },
 
   createNewTab: async () => {
     const myWindowId = get().myWindowId;
     await invoke<string>("create_new_tab", { windowId: myWindowId });
+  },
+
+  createMarkdownDocument: async () => {
+    const myWindowId = get().myWindowId;
+    await invoke<string>("create_markdown_document", { windowId: myWindowId });
+    await get().refresh();
   },
 
   focusTab: async (id) => {
