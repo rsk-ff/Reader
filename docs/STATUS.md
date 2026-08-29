@@ -2,12 +2,12 @@
 
 - Last updated: 2026-08-29
 - Application version: `0.1.0`
-- Current application source baseline: `new-tab recent-files Windows path normalization fixed; waiting for user acceptance`
+- Current application source baseline: `new-tab page, file actions, untitled Markdown, and normalized recent files accepted`
 
 ## Active task
 
-- [`2026-08-29-new-tab-page.md`](tasks/active/2026-08-29-new-tab-page.md) — `waiting_user_acceptance`；普通盘符路径与 `\\?\` 扩展长度路径已统一并迁移旧记录，等待用户复验最近文件列表。
-- Latest completed task: [`2026-08-27-file-association-icons-and-tab-alignment.md`](tasks/archive/2026-08-27-file-association-icons-and-tab-alignment.md).
+- None.
+- Latest completed task: [`2026-08-29-new-tab-page.md`](tasks/archive/2026-08-29-new-tab-page.md).
 
 ## Implemented at the application baseline
 
@@ -79,6 +79,7 @@
 
 ## Latest user acceptance
 
+- 2026-08-29：用户验收新标签页、原生打开文件、延迟到首次保存时选路径的新建 Markdown，以及最近文件 Windows 路径清理和去重结果。
 - 2026-08-27：用户确认标签文件名左对齐、PDF/MD 文件专用图标以及 `0.1.0` 安装包结果可以验收。
 
 ## Known limitations
