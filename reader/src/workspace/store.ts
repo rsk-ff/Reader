@@ -31,6 +31,7 @@ interface WorkspaceState extends WorkspaceSnapshot {
   documentsById: Record<string, import("./types").DocumentSession>;
   init: () => Promise<void>;
   openDocument: (path: string) => Promise<void>;
+  createNewTab: () => Promise<void>;
   focusTab: (id: TabId) => Promise<void>;
   closeTab: (id: TabId) => Promise<void>;
   reorderTabs: (tabIds: TabId[]) => Promise<void>;
@@ -116,6 +117,11 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     await invoke<string>("open_document_command", { path, windowId: myWindowId });
   },
 
+  createNewTab: async () => {
+    const myWindowId = get().myWindowId;
+    await invoke<string>("create_new_tab", { windowId: myWindowId });
+  },
+
   focusTab: async (id) => {
     await invoke("focus_tab", { tabId: id });
   },
@@ -123,7 +129,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   closeTab: async (id) => {
     const state = get();
     const tab = state.tabs.find((candidate) => candidate.id === id);
-    const document = tab ? state.documentsById[tab.document_id] : undefined;
+    const document = tab?.document_id
+      ? state.documentsById[tab.document_id]
+      : undefined;
     if (
       document?.dirty &&
       !(await prepareDocumentForClose(document, tab?.title ?? document.file_name))
@@ -150,7 +158,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   detachTab: async (id) => {
     const state = get();
     const tab = state.tabs.find((candidate) => candidate.id === id);
-    const document = tab ? state.documentsById[tab.document_id] : undefined;
+    const document = tab?.document_id
+      ? state.documentsById[tab.document_id]
+      : undefined;
     if (document?.dirty && document.doc_type === "markdown") {
       throw new Error("Save Markdown changes before moving this tab to another window.");
     }
@@ -184,7 +194,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   completeTabDrag: async (id, detachOnMiss, grabOffset = { x: 0, y: 0 }) => {
     const state = get();
     const tab = state.tabs.find((candidate) => candidate.id === id);
-    const document = tab ? state.documentsById[tab.document_id] : undefined;
+    const document = tab?.document_id
+      ? state.documentsById[tab.document_id]
+      : undefined;
     if (document?.dirty && document.doc_type === "markdown") {
       if (detachOnMiss) {
         throw new Error("Save Markdown changes before moving this tab to another window.");

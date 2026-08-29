@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWorkspace } from "../workspace/store";
 import type { DocumentType, TabId, WindowTab } from "../workspace/types";
-import { DocumentTypeIcon } from "./DocumentTypeIcon";
+import { DocumentTypeIcon, NewTabIcon } from "./DocumentTypeIcon";
 import { useWindowDragRegion } from "./windowDrag";
 import {
   buildReorderedOrder,
@@ -30,6 +30,7 @@ export function TabStrip() {
   const activeTabId = useWorkspace((s) => s.active_tab_id);
   const focusTab = useWorkspace((s) => s.focusTab);
   const closeTab = useWorkspace((s) => s.closeTab);
+  const createNewTab = useWorkspace((s) => s.createNewTab);
   const reorderTabs = useWorkspace((s) => s.reorderTabs);
   const beginTabDrag = useWorkspace((s) => s.beginTabDrag);
   const cancelTabDrag = useWorkspace((s) => s.cancelTabDrag);
@@ -52,6 +53,7 @@ export function TabStrip() {
     title: string;
     dirty: boolean;
     docType: DocumentType;
+    newTab: boolean;
     width: number;
     height: number;
     grabOffsetX: number;
@@ -70,6 +72,7 @@ export function TabStrip() {
     title: string;
     dirty: boolean;
     docType: DocumentType;
+    newTab: boolean;
     width: number;
     height: number;
     grabOffsetX: number;
@@ -109,6 +112,7 @@ export function TabStrip() {
     // the whole window, so it must never enter reorder/detach pointer capture.
     if (tabsRef.current.length === 1) return;
     const rect = el.getBoundingClientRect();
+    const document = tab.document_id ? documentsById[tab.document_id] : undefined;
     try {
       el.setPointerCapture(e.pointerId);
     } catch {
@@ -123,8 +127,9 @@ export function TabStrip() {
       started: false,
       ending: false,
       title: tab.title,
-      dirty: documentsById[tab.document_id]?.dirty ?? false,
-      docType: documentsById[tab.document_id]?.doc_type ?? "unknown",
+      dirty: document?.dirty ?? false,
+      docType: document?.doc_type ?? "unknown",
+      newTab: tab.document_id === null,
       width: rect.width,
       height: rect.height,
       grabOffsetX: e.clientX - rect.left,
@@ -158,6 +163,7 @@ export function TabStrip() {
       title: s.title,
       dirty: s.dirty,
       docType: s.docType,
+      newTab: s.newTab,
       width: s.width,
       height: s.height,
       grabOffsetX: s.grabOffsetX,
@@ -265,7 +271,7 @@ export function TabStrip() {
     <>
       <div className="tabstrip" role="tablist" ref={stripRef}>
       {tabs.map((tab, i) => {
-        const document = documentsById[tab.document_id];
+        const document = tab.document_id ? documentsById[tab.document_id] : undefined;
         const dirty = document?.dirty ?? false;
         const docType = document?.doc_type ?? "unknown";
         const active = tab.id === activeTabId;
@@ -320,7 +326,7 @@ export function TabStrip() {
             }}
             title={tab.title}
           >
-            <DocumentTypeIcon type={docType} />
+            {tab.document_id === null ? <NewTabIcon /> : <DocumentTypeIcon type={docType} />}
             <span className="tab-title">{tab.title}</span>
             <span
               className="tab-close"
@@ -338,6 +344,15 @@ export function TabStrip() {
           </button>
         );
       })}
+      <button
+        type="button"
+        className="tab-add"
+        aria-label="新标签页"
+        title="新标签页"
+        onClick={() => void createNewTab().catch(() => {})}
+      >
+        +
+      </button>
       <div className="tabstrip-spacer" onMouseDown={drag.onMouseDown} />
       </div>
       {dragPreview
@@ -352,7 +367,11 @@ export function TabStrip() {
                 height: dragPreview.height,
               }}
             >
-              <DocumentTypeIcon type={dragPreview.docType} />
+              {dragPreview.newTab ? (
+                <NewTabIcon />
+              ) : (
+                <DocumentTypeIcon type={dragPreview.docType} />
+              )}
               <span className="tab-title">{dragPreview.title}</span>
               <span className="tab-close">{dragPreview.dirty ? "●" : "✕"}</span>
             </div>,

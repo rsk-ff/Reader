@@ -1,12 +1,12 @@
 # Current status
 
-- Last updated: 2026-08-27
+- Last updated: 2026-08-29
 - Application version: `0.1.0`
-- Current application source baseline: `tab-width and compact tab-control behavior accepted in local visual verification; cross-installer file-association icon fix accepted by user`
+- Current application source baseline: `new-tab behavior implemented and automated verification passed; waiting for user visual acceptance`
 
 ## Active task
 
-- None.
+- [`2026-08-29-new-tab-page.md`](tasks/active/2026-08-29-new-tab-page.md) — `waiting_user_acceptance`；实现与自动化验证完成，等待检查启动、加号、最后标签关闭和文件复用。
 - Latest completed task: [`2026-08-27-file-association-icons-and-tab-alignment.md`](tasks/archive/2026-08-27-file-association-icons-and-tab-alignment.md).
 
 ## Implemented at the application baseline
@@ -18,7 +18,7 @@
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
 - Windows 自定义标题栏、原生窗口按钮和 Snap Layout。
-- 文件关联、拖放打开、单实例文件转发和上次会话恢复。
+- 文件关联、拖放打开和单实例文件转发；会话元数据会保存，但普通启动不自动恢复上次文档。
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
@@ -50,6 +50,14 @@
 - `pnpm --dir reader tauri build --bundles msi`：通过；WiX 反编译确认五个关联类的 `DefaultIcon` 分别指向 PDF 或 Markdown ICO。
 - `pnpm --dir reader tauri build --bundles nsis`：通过；生成的 NSIS 脚本包含两个 ICO 资源、安装/卸载 hook 和资源清理。
 - `reader/src-tauri/icons/file-pdf.ico` 与 `file-markdown.ico` 均包含 16、32、48、256 四个图像帧。
+
+2026-08-29 针对“新标签页”记录：
+
+- `pnpm --dir reader test`：11 个测试文件、89 个测试通过。
+- `pnpm --dir reader build`：通过，1165 个模块完成生产构建。
+- `cargo test --manifest-path reader/src-tauri/Cargo.toml`：41 个测试通过，其中新增覆盖最后标签补位、活动新标签文件复用及多个新标签序列化。
+- `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check`：通过。
+- `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`：通过。
 
 ## Latest local release artifacts
 

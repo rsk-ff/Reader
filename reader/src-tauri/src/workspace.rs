@@ -3,7 +3,7 @@
 //! Three independent concepts:
 //!   - DocumentSession : a file + its parser/annotation/dirty state (global)
 //!   - WindowState     : a native window holding an ordered list of tab ids
-//!   - WindowTab       : a tab slot referencing a DocumentSession, living in a window
+//!   - WindowTab       : a tab slot, optionally referencing a DocumentSession
 //!
 //! Phase 6 makes this truly multi-window: tabs can be reordered, detached into
 //! new windows, and moved between windows — all without recreating the
@@ -20,9 +20,10 @@ pub type WindowId = String;
 pub type DocumentId = String;
 pub type TabId = String;
 
-/// The primary window label. Always exists; shows the empty state when it has
-/// no tabs. Detached tabs go into dynamically-created windows.
+/// The primary window label. Always exists and receives a new tab whenever its
+/// last tab is explicitly closed. Detached tabs go into dynamically-created windows.
 pub const MAIN_WINDOW: &str = "main";
+pub const NEW_TAB_TITLE: &str = "新标签页";
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -67,7 +68,8 @@ pub struct DocumentSession {
 pub struct WindowTab {
     pub id: TabId,
     pub window_id: WindowId,
-    pub document_id: DocumentId,
+    /// `None` represents a real new-tab slot that is not backed by a file.
+    pub document_id: Option<DocumentId>,
     pub title: String,
     pub position: usize,
     pub active: bool,
@@ -128,6 +130,40 @@ impl AppWorkspace {
             });
     }
 
+    /// Create and focus a file-less tab in the requested native window.
+    pub fn create_new_tab(&mut self, target_window: &WindowId) -> TabId {
+        self.ensure_main();
+        let tab_id = self.fresh_id("tab");
+        let position = self
+            .windows
+            .get(target_window)
+            .map(|window| window.tab_ids.len())
+            .unwrap_or(0);
+        self.tabs.insert(
+            tab_id.clone(),
+            WindowTab {
+                id: tab_id.clone(),
+                window_id: target_window.clone(),
+                document_id: None,
+                title: NEW_TAB_TITLE.to_string(),
+                position,
+                active: true,
+            },
+        );
+        let window = self
+            .windows
+            .entry(target_window.clone())
+            .or_insert_with(|| WindowState {
+                id: target_window.clone(),
+                tab_ids: vec![],
+                active_tab: None,
+                bounds: None,
+            });
+        window.tab_ids.push(tab_id.clone());
+        window.active_tab = Some(tab_id.clone());
+        tab_id
+    }
+
     fn canonicalize(path: &str) -> Result<PathBuf, String> {
         let p = PathBuf::from(path);
         p.canonicalize()
@@ -145,8 +181,9 @@ impl AppWorkspace {
             .tabs
             .values()
             .find(|t| {
-                self.documents
-                    .get(&t.document_id)
+                t.document_id
+                    .as_ref()
+                    .and_then(|document_id| self.documents.get(document_id))
                     .is_some_and(|d| d.path == canon)
             })
             .cloned()
@@ -179,11 +216,32 @@ impl AppWorkspace {
         };
         self.documents.insert(doc_id.clone(), session);
 
+        // A file opened while a new tab is active occupies that slot instead
+        // of leaving an unrelated empty tab behind.
+        let reusable_tab_id = self
+            .windows
+            .get(target_window)
+            .and_then(|window| window.active_tab.as_ref())
+            .filter(|tab_id| {
+                self.tabs
+                    .get(*tab_id)
+                    .is_some_and(|tab| tab.document_id.is_none())
+            })
+            .cloned();
+        if let Some(tab_id) = reusable_tab_id {
+            if let Some(tab) = self.tabs.get_mut(&tab_id) {
+                tab.document_id = Some(doc_id);
+                tab.title = file_name;
+            }
+            self.focus_tab(&tab_id)?;
+            return Ok(tab_id);
+        }
+
         let tab_id = self.fresh_id("tab");
         let tab = WindowTab {
             id: tab_id.clone(),
             window_id: target_window.clone(),
-            document_id: doc_id,
+            document_id: Some(doc_id),
             title: file_name,
             position: 0,
             active: true,
@@ -226,20 +284,31 @@ impl AppWorkspace {
             .tabs
             .remove(tab_id)
             .ok_or_else(|| format!("tab not found: {tab_id}"))?;
-        let win = self
-            .windows
-            .get_mut(&tab.window_id)
-            .ok_or_else(|| format!("window not found: {}", tab.window_id))?;
-        win.tab_ids.retain(|id| id != tab_id);
-        if win.active_tab.as_deref() == Some(tab_id) {
-            win.active_tab = win.tab_ids.first().cloned();
-        }
-        // drop session if nothing references it
-        let still_referenced = self.tabs.values().any(|t| t.document_id == tab.document_id);
-        if !still_referenced {
-            if let Some(document) = self.documents.remove(&tab.document_id) {
-                remove_pdf_working_copy(&document);
+        let window_empty = {
+            let win = self
+                .windows
+                .get_mut(&tab.window_id)
+                .ok_or_else(|| format!("window not found: {}", tab.window_id))?;
+            win.tab_ids.retain(|id| id != tab_id);
+            if win.active_tab.as_deref() == Some(tab_id) {
+                win.active_tab = win.tab_ids.first().cloned();
             }
+            win.tab_ids.is_empty()
+        };
+        // Drop a document session if no remaining file tab references it.
+        if let Some(document_id) = &tab.document_id {
+            let still_referenced = self
+                .tabs
+                .values()
+                .any(|candidate| candidate.document_id.as_ref() == Some(document_id));
+            if !still_referenced {
+                if let Some(document) = self.documents.remove(document_id) {
+                    remove_pdf_working_copy(&document);
+                }
+            }
+        }
+        if tab.window_id == MAIN_WINDOW && window_empty {
+            self.create_new_tab(&tab.window_id);
         }
         Ok(tab.window_id)
     }
@@ -321,11 +390,15 @@ impl AppWorkspace {
         if let Some(win) = self.windows.remove(window_id) {
             for tab_id in &win.tab_ids {
                 if let Some(tab) = self.tabs.remove(tab_id) {
-                    let still_referenced =
-                        self.tabs.values().any(|t| t.document_id == tab.document_id);
-                    if !still_referenced {
-                        if let Some(document) = self.documents.remove(&tab.document_id) {
-                            remove_pdf_working_copy(&document);
+                    if let Some(document_id) = &tab.document_id {
+                        let still_referenced = self
+                            .tabs
+                            .values()
+                            .any(|candidate| candidate.document_id.as_ref() == Some(document_id));
+                        if !still_referenced {
+                            if let Some(document) = self.documents.remove(document_id) {
+                                remove_pdf_working_copy(&document);
+                            }
                         }
                     }
                 }
@@ -513,10 +586,12 @@ impl AppWorkspace {
                 let Some(tab) = ws.tabs.get(tab_id) else {
                     return false;
                 };
-                if !ws.documents.contains_key(&tab.document_id)
-                    || !seen_documents.insert(tab.document_id.clone())
-                {
-                    return false;
+                if let Some(document_id) = &tab.document_id {
+                    if !ws.documents.contains_key(document_id)
+                        || !seen_documents.insert(document_id.clone())
+                    {
+                        return false;
+                    }
                 }
                 retained_tabs.insert(tab_id.clone());
                 true
@@ -533,7 +608,7 @@ impl AppWorkspace {
         let retained_documents: HashSet<_> = ws
             .tabs
             .values()
-            .map(|tab| tab.document_id.clone())
+            .filter_map(|tab| tab.document_id.clone())
             .collect();
         ws.documents.retain(|id, _| retained_documents.contains(id));
 
@@ -721,7 +796,7 @@ mod tests {
     }
 
     #[test]
-    fn close_last_tab_leaves_empty_window() {
+    fn close_last_main_tab_creates_a_new_tab() {
         let mut ws = AppWorkspace::default();
         ws.ensure_main();
         let a = tmp_file("only.pdf", "%PDF");
@@ -730,9 +805,48 @@ mod tests {
             .unwrap();
         ws.close_tab(&ta).unwrap();
         let snap = ws.snapshot_for(&MAIN_WINDOW.into());
-        assert!(snap.tabs.is_empty());
+        assert_eq!(snap.tabs.len(), 1);
         assert!(snap.documents.is_empty());
-        assert!(snap.active_tab_id.is_none());
+        assert_eq!(snap.tabs[0].document_id, None);
+        assert_eq!(snap.tabs[0].title, NEW_TAB_TITLE);
+        assert_eq!(snap.active_tab_id, Some(snap.tabs[0].id.clone()));
+        assert_ne!(snap.tabs[0].id, ta);
+    }
+
+    #[test]
+    fn opening_a_document_reuses_the_active_new_tab() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let new_tab = ws.create_new_tab(&MAIN_WINDOW.into());
+        let path = tmp_file("new-tab-target.md", "# target");
+
+        let opened = ws
+            .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+
+        assert_eq!(opened, new_tab);
+        assert_eq!(snap.tabs.len(), 1);
+        assert!(snap.tabs[0].document_id.is_some());
+        assert_eq!(snap.documents.len(), 1);
+        assert_eq!(snap.active_tab_id, Some(new_tab));
+    }
+
+    #[test]
+    fn multiple_new_tabs_survive_serialization_without_documents() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let first = ws.create_new_tab(&MAIN_WINDOW.into());
+        let second = ws.create_new_tab(&MAIN_WINDOW.into());
+
+        let restored = AppWorkspace::restore(&ws.serialize()).expect("restore");
+        let snap = restored.snapshot_for(&MAIN_WINDOW.into());
+
+        assert_eq!(snap.tabs.len(), 2);
+        assert!(snap.tabs.iter().all(|tab| tab.document_id.is_none()));
+        assert!(snap.documents.is_empty());
+        assert_eq!(snap.active_tab_id, Some(second));
+        assert_ne!(first, snap.active_tab_id.unwrap());
     }
 
     #[test]
@@ -744,7 +858,7 @@ mod tests {
         let ta = ws
             .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
             .unwrap();
-        let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone();
+        let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone().unwrap();
 
         // mark dirty to prove dirty state survives the detach
         ws.set_dirty(&doc_id, true);
@@ -778,7 +892,7 @@ mod tests {
         let ta = ws
             .open_document(a.to_str().unwrap(), &MAIN_WINDOW.into())
             .unwrap();
-        let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone();
+        let doc_id = ws.tabs.get(&ta).unwrap().document_id.clone().unwrap();
         ws.set_dirty(&doc_id, true);
 
         let other = "win-other".to_string();
@@ -873,7 +987,7 @@ mod tests {
         let tab_id = ws
             .open_document(original.to_str().unwrap(), &MAIN_WINDOW.into())
             .unwrap();
-        let document_id = ws.tabs[&tab_id].document_id.clone();
+        let document_id = ws.tabs[&tab_id].document_id.clone().unwrap();
         let working_copy = ws
             .ensure_pdf_working_copy(original.to_str().unwrap())
             .expect("create working copy");
@@ -920,14 +1034,14 @@ mod tests {
         let original_tab = ws
             .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
             .unwrap();
-        let document_id = ws.tabs[&original_tab].document_id.clone();
+        let document_id = ws.tabs[&original_tab].document_id.clone().unwrap();
         let duplicate_tab = ws.fresh_id("tab");
         ws.tabs.insert(
             duplicate_tab.clone(),
             WindowTab {
                 id: duplicate_tab.clone(),
                 window_id: MAIN_WINDOW.into(),
-                document_id,
+                document_id: Some(document_id),
                 title: "duplicate".into(),
                 position: 1,
                 active: true,

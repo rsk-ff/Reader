@@ -3,7 +3,9 @@ import type { WindowTab } from "../workspace/types";
 
 /** Phase 1 placeholder. PDF/MD engines land in Phase 2/3. */
 export function PlaceholderView({ tab }: { tab: WindowTab }) {
-  const doc = useWorkspace((s) => s.documentsById[tab.document_id]);
+  const doc = useWorkspace((s) =>
+    tab.document_id ? s.documentsById[tab.document_id] : undefined,
+  );
 
   if (!doc) {
     return <div className="placeholder">No document session.</div>;

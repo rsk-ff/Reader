@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { useWorkspace } from "../workspace/store";
+import { NewTabPage } from "../components/NewTabPage";
 import { PlaceholderView } from "../components/PlaceholderView";
 import type { WindowTab } from "../workspace/types";
 
@@ -16,7 +17,10 @@ const MarkdownEditor = lazy(() =>
  * (§35) lives behind this — the tab system only ever sees a DocumentView.
  */
 export function DocumentView({ tab, active }: { tab: WindowTab; active: boolean }) {
-  const doc = useWorkspace((s) => s.documentsById[tab.document_id]);
+  const doc = useWorkspace((s) =>
+    tab.document_id ? s.documentsById[tab.document_id] : undefined,
+  );
+  if (tab.document_id === null) return <NewTabPage />;
   if (!doc) return <PlaceholderView tab={tab} />;
 
   switch (doc.doc_type) {

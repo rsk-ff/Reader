@@ -258,6 +258,10 @@ html.tab-drag-preview-document #root {
   color: var(--text-faint);
 }
 
+.tab-icon-new {
+  color: var(--text-muted);
+}
+
 .tab-close {
   display: inline-flex;
   align-items: center;
@@ -311,6 +315,33 @@ html.tab-drag-preview-document #root {
   flex: 1 1 auto;
   min-width: 0;
   cursor: default;
+}
+
+.tab-add {
+  -webkit-app-region: no-drag;
+  flex: 0 0 28px;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 4px;
+  padding: 0 0 2px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: default;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.tab-add:hover {
+  background: var(--bg-elev);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 /* ---- Content ---- */
@@ -398,9 +429,9 @@ html.tab-drag-preview-document #root {
   line-height: 1.5;
 }
 
-/* ---- Empty state ---- */
+/* ---- New tab page ---- */
 
-.empty-state {
+.new-tab-page {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -408,31 +439,53 @@ html.tab-drag-preview-document #root {
   padding: 48px;
 }
 
-.empty-card {
+.new-tab-card {
+  width: min(440px, 100%);
   text-align: center;
   color: var(--text-dim);
 }
 
-.empty-card h2 {
-  margin: 0 0 8px;
+.new-tab-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  color: var(--text-muted);
+}
+
+.new-tab-mark svg {
+  width: 22px;
+  height: 22px;
+}
+
+.new-tab-mark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.4;
+}
+
+.new-tab-card h2 {
+  margin: 0 0 10px;
   font-weight: 600;
   color: var(--text);
 }
 
-.empty-card p {
-  margin: 0 0 6px;
+.new-tab-card p {
+  margin: 0;
+  line-height: 1.6;
 }
 
-.empty-card code {
+.new-tab-card code {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 1px 5px;
-  font-size: 12px;
-}
-
-.empty-sub {
-  color: var(--text-faint) !important;
   font-size: 12px;
 }
 

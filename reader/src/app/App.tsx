@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspace } from "../workspace/store";
 import { WindowTitleBar } from "../components/WindowTitleBar";
-import { EmptyState } from "../components/EmptyState";
+import { NewTabPage } from "../components/NewTabPage";
 import { DocumentView } from "../documents/DocumentView";
 import {
   prepareDocumentForClose,
@@ -38,7 +38,7 @@ export default function App() {
       const { tabs: currentTabs, documentsById } = state;
       try {
         for (const tab of currentTabs) {
-          const document = documentsById[tab.document_id];
+          const document = tab.document_id ? documentsById[tab.document_id] : undefined;
           if (document?.dirty && !(await prepareDocumentForClose(document, tab.title))) {
             closeInProgress = false;
             return;
@@ -111,7 +111,7 @@ export default function App() {
             ))}
           </div>
         ) : (
-          <EmptyState />
+          <NewTabPage />
         )}
       </div>
       <UnsavedChangesDialog />

@@ -20,7 +20,8 @@ export interface DocumentSession {
 export interface WindowTab {
   id: string;
   window_id: string;
-  document_id: string;
+  /** Null identifies a real new tab that is not backed by a document. */
+  document_id: string | null;
   title: string;
   position: number;
   active: boolean;

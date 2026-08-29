@@ -756,12 +756,21 @@ pub fn open_initial_files(app: &AppHandle) {
     let ws = app.state::<SharedWorkspace>().inner();
     let args: Vec<String> = std::env::args().collect();
     let paths = collect_paths_from_args(&args);
-    if paths.is_empty() {
-        return;
-    }
     for path in &paths {
         if let Err(e) = open_document(app, ws, path) {
             log::warn!("open_document('{path}') failed: {e}");
+        }
+    }
+    // A normal launch (or a launch where every supplied path failed) starts
+    // with a real new tab. Successful file launches stay file-only.
+    if let Ok(mut guard) = ws.lock() {
+        guard.ensure_main();
+        let main_is_empty = guard
+            .windows
+            .get(MAIN_WINDOW)
+            .is_none_or(|window| window.tab_ids.is_empty());
+        if main_is_empty {
+            guard.create_new_tab(&MAIN_WINDOW.to_string());
         }
     }
 }
@@ -791,6 +800,21 @@ pub fn open_document_command(
         .map_err(|e| format!("workspace lock poisoned: {e}"))?;
     guard.ensure_main();
     let tab_id = guard.open_document(&path, &window_id)?;
+    drop(guard);
+    broadcast(&app, &ws);
+    Ok(tab_id)
+}
+
+#[tauri::command]
+pub fn create_new_tab(
+    window_id: WindowId,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<TabId, String> {
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    let tab_id = guard.create_new_tab(&window_id);
     drop(guard);
     broadcast(&app, &ws);
     Ok(tab_id)
@@ -997,7 +1021,10 @@ pub async fn complete_tab_drag(
             .tabs
             .get(&tab_id)
             .ok_or_else(|| format!("tab not found: {tab_id}"))?;
-        let document = guard.documents.get(&tab.document_id);
+        let document = tab
+            .document_id
+            .as_ref()
+            .and_then(|document_id| guard.documents.get(document_id));
         (
             tab.window_id.clone(),
             guard

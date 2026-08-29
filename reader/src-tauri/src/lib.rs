@@ -79,6 +79,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_workspace,
             commands::open_document_command,
+            commands::create_new_tab,
             commands::focus_tab,
             commands::close_tab,
             commands::reorder_tabs,
