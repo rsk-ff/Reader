@@ -2,11 +2,11 @@
 
 - Last updated: 2026-08-29
 - Application version: `0.1.0`
-- Current application source baseline: `new-tab file actions and recent-files refinement implemented; waiting for user acceptance`
+- Current application source baseline: `new-tab recent-files Windows path normalization fixed; waiting for user acceptance`
 
 ## Active task
 
-- [`2026-08-29-new-tab-page.md`](tasks/active/2026-08-29-new-tab-page.md) — `waiting_user_acceptance`；操作入口、未命名 Markdown 首次保存和最近文件已实现，等待视觉与交互复验。
+- [`2026-08-29-new-tab-page.md`](tasks/active/2026-08-29-new-tab-page.md) — `waiting_user_acceptance`；普通盘符路径与 `\\?\` 扩展长度路径已统一并迁移旧记录，等待用户复验最近文件列表。
 - Latest completed task: [`2026-08-27-file-association-icons-and-tab-alignment.md`](tasks/archive/2026-08-27-file-association-icons-and-tab-alignment.md).
 
 ## Implemented at the application baseline
@@ -62,7 +62,7 @@
 
 2026-08-29 针对新标签页操作入口、未命名 Markdown 和最近文件修订记录：
 
-- `pnpm --dir reader test`：14 个测试文件、96 个测试通过；新增覆盖最近文件、Markdown 保存扩展名和取消首次保存时保留标签。
+- `pnpm --dir reader test`：14 个测试文件、97 个测试通过；新增覆盖最近文件、Windows 扩展长度路径迁移去重、Markdown 保存扩展名和取消首次保存时保留标签。
 - `pnpm --dir reader build`：通过，1168 个模块完成生产构建；仅保留既有大 chunk 警告。
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml`：44 个测试通过；新增覆盖未命名 Markdown 创建、首次保存身份保持和保存目标约束。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check`：通过。

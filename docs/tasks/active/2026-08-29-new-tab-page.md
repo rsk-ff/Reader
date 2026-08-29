@@ -92,6 +92,8 @@
 - [x] 实现文件对话框、未命名 Markdown 首次保存和最近文件模型。
 - [x] 重新完成自动化验证。
 - [x] 启动修订版并等待用户完成视觉与交互复验。
+- [x] 记录用户发现的最近文件重复和 Windows `\\?\` 路径前缀问题。
+- [x] 统一最近文件路径显示与去重身份，迁移已有本地记录并重新验证。
 
 ## Discoveries
 
@@ -102,6 +104,7 @@
 - 原项目未安装文件对话框能力；本轮已接入 Tauri 官方 dialog plugin、前端包和最小 `open`/`save` capability。
 - 未命名 Markdown 使用空路径和稳定文档 ID 的 Rust `DocumentSession`；首次保存成功后原位绑定规范化路径，不重建标签或编辑器身份。
 - 最近文件保存在 webview 本地存储，最多 8 项；只记录成功打开或首次保存后的 PDF/Markdown，未命名文档不会进入列表。
+- Windows Rust `canonicalize()` 返回的扩展长度路径带 `\\?\` 前缀，而原生文件选择器返回普通盘符路径；当前前端未统一两者，导致同一文件显示两次并暴露内部路径前缀。
 
 ## Verification
 
@@ -110,8 +113,6 @@
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml` — `passed`：41 个测试通过；普通 PowerShell 首次因 `RC.EXE` 不在 `PATH` 而未进入编译，随后在仓库主机的 Visual Studio Build Tools 环境中通过。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check` — `passed`。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — `passed`：Visual Studio Build Tools 环境，零警告。
-- `pnpm --dir reader tauri dev` — `running`：调试版 `reader.exe` 已启动，Vite 本地入口返回 HTTP 200，等待用户复验。
-- `powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1` — `passed`：22 个 Markdown 文件、1 个活动任务、5 个归档任务和 2 个决策记录通过检查。
 
 2026-08-29 用户反馈修订：
 
@@ -120,15 +121,25 @@
 - `cargo test --manifest-path reader/src-tauri/Cargo.toml` — `passed`：44 个测试通过；覆盖未命名 Markdown 创建、首次保存身份保持与保存目标约束。
 - `cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check` — `passed`。
 - `cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — `passed`：Visual Studio Build Tools 环境，零警告。
+- `pnpm --dir reader tauri dev` — `running`：调试版 `reader.exe` 已启动，Vite 本地入口返回 HTTP 200，等待用户复验。
+- `powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1` — `passed`：22 个 Markdown 文件、1 个活动任务、5 个归档任务和 2 个决策记录通过检查。
+
+2026-08-29 最近文件 Windows 路径反馈修订：
+
+- `pnpm --dir reader test -- src/workspace/recentFiles.test.ts` — `passed`：4 个针对性测试通过，覆盖 `\\?\C:\...`、`\\?\UNC\...` 的友好转换及旧重复记录迁移。
+- `pnpm --dir reader test` — `passed`：14 个测试文件、97 个测试通过。
+- `pnpm --dir reader build` — `passed`：TypeScript 与 Vite 生产构建通过，1168 个模块完成转换；仅有既有大 chunk 警告。
+- `powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1` — `passed`：22 个 Markdown 文件、1 个活动任务、5 个归档任务和 2 个决策记录通过检查。
+- 运行中的 `pnpm --dir reader tauri dev` 已由 Vite 整页刷新；旧最近文件在重新加载时自动迁移并持久化。
 
 ## User acceptance
 
-首轮 `feedback_received`：用户要求新标签页增加“打开文件”“新建 md”按钮，并在下方美观地列出最近文件。随后明确“新建 md”不得预先选择位置，而应在首次保存时选择。首轮检查清单由本轮修订后的新清单替代。
+首轮 `feedback_received`：用户要求新标签页增加“打开文件”“新建 md”按钮，并在下方美观地列出最近文件。随后明确“新建 md”不得预先选择位置，而应在首次保存时选择。第二轮 `feedback_received`：截图确认最近文件把普通 `C:\...` 与扩展长度 `\\?\C:\...` 当成两项，且后者不应展示。检查清单由本轮修订后的新清单替代。
 
 上一版已通过 `pnpm --dir reader tauri dev` 启动；修订版完成后重新启动并提供检查清单。
 
 1. 新标签页上方的“打开文件”“新建 md”两个操作卡片层级清晰，下方最近文件与空状态间距、对齐和悬停状态自然；窄窗口下两个操作改为纵向排列且无溢出。
-2. 点击“打开文件”出现原生选择器，只显示 PDF/Markdown；选中文件后当前新标签原位变为文件标签，该文件出现在最近文件首位。
+2. 点击“打开文件”出现原生选择器，只显示 PDF/Markdown；选中文件后当前新标签原位变为文件标签，该文件只出现一次，路径显示为普通 `C:\...` 或 UNC 形式，不含 `\\?\`。
 3. 点击“新建 md”后不出现路径选择器，当前新标签立即变为“未命名.md”编辑器；输入内容后按 `Ctrl+S` 才出现原生保存对话框。
 4. 在首次保存对话框中取消：未命名标签、内容和未保存状态均保留；再次保存并选择位置后，标签改为真实文件名，最近文件同步出现该文件。
 5. 新增一个未命名 Markdown 并尝试关闭，选择“Save”后再取消原生保存对话框；该标签不能被关闭，内容仍保留。
@@ -142,7 +153,7 @@
 
 ## Next action
 
-启动修订版供用户按上述清单完成视觉与交互复验；收到反馈后归档任务。
+请用户复验现有最近文件已自动合并、路径前缀已隐藏，并继续完成其余视觉与交互检查。
 
 ## Outcome
 

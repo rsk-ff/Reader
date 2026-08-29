@@ -6,6 +6,7 @@ import {
   parseRecentFiles,
   recentFileFromPath,
   rememberRecentFile,
+  toUserFacingPath,
 } from "./recentFiles";
 import type { DocumentSession, WorkspaceSnapshot } from "./types";
 
@@ -45,6 +46,24 @@ describe("recent files", () => {
     }
     expect(files).toHaveLength(MAX_RECENT_FILES);
     expect(files[0].file_name).toBe(`${MAX_RECENT_FILES + 2}.pdf`);
+  });
+
+  it("hides Windows extended-length prefixes and migrates duplicate records", () => {
+    const regular = {
+      path: "C:\\Notes\\Draft.md",
+      file_name: "Draft.md",
+      doc_type: "markdown" as const,
+    };
+    const extended = {
+      ...regular,
+      path: "\\\\?\\C:\\Notes\\Draft.md",
+    };
+
+    expect(toUserFacingPath(extended.path)).toBe(regular.path);
+    expect(toUserFacingPath("\\\\?\\UNC\\server\\share\\Draft.md")).toBe(
+      "\\\\server\\share\\Draft.md",
+    );
+    expect(parseRecentFiles(JSON.stringify([regular, extended]))).toEqual([regular]);
   });
 
   it("adds saved or newly opened documents and ignores untitled ones", () => {

@@ -23,8 +23,18 @@ function browserStorage(): StorageLike | undefined {
   }
 }
 
+/** Hide Windows extended-length syntax while preserving local and UNC paths. */
+export function toUserFacingPath(path: string): string {
+  const prefix = path.slice(0, 8).toUpperCase();
+  if (prefix === "\\\\?\\UNC\\") return `\\\\${path.slice(8)}`;
+  if (path.startsWith("\\\\?\\")) return path.slice(4);
+  if (prefix === "//?/UNC/") return `//${path.slice(8)}`;
+  if (path.startsWith("//?/")) return path.slice(4);
+  return path;
+}
+
 function normalizedPath(path: string): string {
-  const unified = path.replace(/\\/g, "/");
+  const unified = toUserFacingPath(path).replace(/\\/g, "/");
   return /^[a-z]:\//i.test(unified) || unified.startsWith("//")
     ? unified.toLocaleLowerCase()
     : unified;
@@ -55,11 +65,16 @@ function isRecentFile(value: unknown): value is RecentFile {
 }
 
 export function rememberRecentFile(files: RecentFile[], file: RecentFile): RecentFile[] {
-  const identity = normalizedPath(file.path);
-  return [file, ...files.filter((candidate) => normalizedPath(candidate.path) !== identity)].slice(
-    0,
-    MAX_RECENT_FILES,
-  );
+  const friendlyFile = { ...file, path: toUserFacingPath(file.path) };
+  const identity = normalizedPath(friendlyFile.path);
+  const friendlyFiles = files.map((candidate) => ({
+    ...candidate,
+    path: toUserFacingPath(candidate.path),
+  }));
+  return [
+    friendlyFile,
+    ...friendlyFiles.filter((candidate) => normalizedPath(candidate.path) !== identity),
+  ].slice(0, MAX_RECENT_FILES);
 }
 
 export function parseRecentFiles(serialized: string | null): RecentFile[] {
@@ -99,15 +114,20 @@ export function persistRecentFiles(
 }
 
 export function recentFileFromPath(path: string): RecentFile | null {
-  const doc_type = fileTypeFromPath(path);
+  const friendlyPath = toUserFacingPath(path);
+  const doc_type = fileTypeFromPath(friendlyPath);
   if (!doc_type) return null;
-  return { path, file_name: fileNameFromPath(path), doc_type };
+  return {
+    path: friendlyPath,
+    file_name: fileNameFromPath(friendlyPath),
+    doc_type,
+  };
 }
 
 export function recentFileFromDocument(document: DocumentSession): RecentFile | null {
   if (document.untitled || !document.path || document.doc_type === "unknown") return null;
   return {
-    path: document.path,
+    path: toUserFacingPath(document.path),
     file_name: document.file_name,
     doc_type: document.doc_type,
   };
@@ -125,17 +145,20 @@ export function mergeRecentFilesFromSnapshot(
   const activeDocumentId = snapshot.tabs.find(
     (tab) => tab.id === snapshot.active_tab_id,
   )?.document_id;
+  const activeDocumentPath = snapshot.documents.find(
+    (document) => document.id === activeDocumentId,
+  )?.path;
   const additions = snapshot.documents
     .filter((document) => previousPaths.get(document.id) !== document.path)
     .map(recentFileFromDocument)
     .filter((file): file is RecentFile => file !== null)
     .sort((left, right) => {
-      const leftActive = snapshot.documents.some(
-        (document) => document.id === activeDocumentId && document.path === left.path,
-      );
-      const rightActive = snapshot.documents.some(
-        (document) => document.id === activeDocumentId && document.path === right.path,
-      );
+      const leftActive = activeDocumentPath
+        ? normalizedPath(activeDocumentPath) === normalizedPath(left.path)
+        : false;
+      const rightActive = activeDocumentPath
+        ? normalizedPath(activeDocumentPath) === normalizedPath(right.path)
+        : false;
       return Number(leftActive) - Number(rightActive);
     });
 
