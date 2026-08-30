@@ -1,5 +1,5 @@
-/* Crepe's common + Frame styles own typography, blocks and editing controls.
-   Reader only adapts local fonts and the space around the document. */
+/* Keep Crepe's common + Frame styles as the baseline. Reader adapts fonts,
+   document spacing, compact headings and the code-fold marker alignment. */
 .milkdown-root {
   display: flex;
   justify-content: center;
@@ -26,10 +26,46 @@
   padding: 48px 60px;
 }
 
+/* Only H1–H3 have a size gradient; preserve H4–H6 as semantic headings. */
+.milkdown-root .ProseMirror :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1.25em;
+  margin-bottom: 0.4em;
+}
+
+.milkdown-root .ProseMirror h1 {
+  font-size: 1.75em;
+}
+
+.milkdown-root .ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.milkdown-root .ProseMirror h3 {
+  font-size: 1.25em;
+}
+
+.milkdown-root .ProseMirror :is(h4, h5, h6) {
+  font-size: 1em;
+}
+
+.milkdown-root .ProseMirror > :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
 /* CodeMirror has its own font rule and does not read Crepe's font variable. */
 .milkdown-root .cm-editor .cm-scroller {
   font-family: var(--crepe-font-code);
   font-variant-ligatures: none;
+}
+
+/* CodeMirror's open marker is the baseline-low text glyph ⌄. Keep the
+   closed marker (›), line numbers, gutter hit target and folding untouched.
+   The title is CodeMirror's default English phrase; revisit if localized. */
+.milkdown-root .cm-foldGutter .cm-gutterElement > span[title="Fold line"] {
+  display: inline-block;
+  transform: translateY(-0.2em);
 }
 
 @media (max-width: 767px) {
@@ -39,7 +75,6 @@
   }
 
   .milkdown-root > .milkdown > .ProseMirror {
-    /* Leave a gutter for Crepe's block handle even in a narrow window. */
     padding: 24px 40px 72px;
   }
 }

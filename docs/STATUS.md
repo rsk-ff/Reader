@@ -1,12 +1,12 @@
 # Current status
 
-- Last updated: 2026-08-29
+- Last updated: 2026-08-30
 - Application version: `0.1.0`
 - Current application source baseline: `new-tab page, file actions, untitled Markdown, and normalized recent files accepted`
 
 ## Active task
 
-- [`2026-08-29-markdown-official-theme.md`](tasks/active/2026-08-29-markdown-official-theme.md) — `waiting_user_acceptance`; Crepe's complete official Frame theme is integrated, mixed GitHub/custom typography is removed, and a review version is running.
+- [`2026-08-29-markdown-official-theme.md`](tasks/active/2026-08-29-markdown-official-theme.md) — `waiting_user_acceptance`; compact headings, disabled block controls, and raised code-fold marker are implemented; the running review version has received the update.
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-08-29-new-tab-page.md`](tasks/archive/2026-08-29-new-tab-page.md).
 
@@ -84,6 +84,14 @@
 - 构建后的 Markdown CSS 包确认包含 Frame 主题、官方列表/表格样式和本地代码字体，不再包含 `markdown-body` 或远程 CSS 导入。
 - `scripts/check-docs.ps1` 与 `git diff --check`：通过。
 - 开发版 Reader 已启动并传入排版样本的临时副本；视觉、交互及实际问题文档仍待用户验收。本次未改 Rust 或生成新安装包。
+
+2026-08-30 针对 Markdown 视觉反馈修订记录：
+
+- H1/H2/H3 调整为 28/24/20px（正文基准 16px），H4–H6 统一为 16px 粗体；标题语义和目录模型不变。
+- 禁用 Crepe BlockEdit，移除左侧加号/点阵及其斜杠菜单；仅上调展开状态的 CodeMirror 折叠标记，折叠实现不变。
+- `pnpm --dir reader test`：15 个测试文件、100 个测试通过。
+- `pnpm --dir reader build`：TypeScript 与生产构建通过，1170 个模块；仅保留既有大 chunk 警告。
+- Vite 已热更新当前 Reader 窗口，两个相关模块返回 200 且包含最新修改；本次热更新未记录新的前端初始化错误。视觉及交互复验待用户完成，Rust 与安装包未重跑。
 
 ## Latest local release artifacts
 

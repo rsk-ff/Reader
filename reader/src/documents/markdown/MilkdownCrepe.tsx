@@ -79,11 +79,11 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
       root,
       defaultValue: value,
       features: {
-        // Disable AI and top-bar (we render our own toolbar). Keep the rest of
-        // the Typora-like experience: code-mirror code blocks, link tooltip,
-        // image block, table, latex, block-edit, toolbar, cursor, placeholder.
+        // Reader keeps inline editing without Notion-style block handles.
+        // Its own toolbar supplies document actions; AI stays disabled.
         [Crepe.Feature.TopBar]: false,
         [Crepe.Feature.AI]: false,
+        [Crepe.Feature.BlockEdit]: false,
       },
       featureConfigs: {
         // Crepe defaults to oneDark even when the outer editor is light. Null
