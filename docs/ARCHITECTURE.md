@@ -35,6 +35,7 @@ Windows / Tauri
 ## Markdown path
 
 - Milkdown/Crepe 提供所见即所得编辑，源码模式通过 `Ctrl+/` 切换。
+- `MilkdownCrepe.tsx` 按顺序导入官方 common 样式、Frame 浅色主题和局部 `milkdownTheme.css`。官方样式负责正文排版、列表、表格及编辑控件；局部适配仅负责字体变量、CodeMirror 等宽字体和文档宽度/边距，不混用 GitHub Markdown CSS。源码与应用工具栏/目录样式仍在 `styles.css`。
 - 两种模式共享同一个内存 Markdown 字符串。
 - 保存使用临时文件、刷新和原子替换；保存过程使用修订号，避免并发编辑被错误标记为已保存。
 - 新建 Markdown 先由 Rust 工作区创建 `untitled` 内存文档（空路径、稳定文档 ID），首次保存时前端才调用原生保存对话框；Rust 在原子写入成功后为同一文档和标签绑定规范化路径。

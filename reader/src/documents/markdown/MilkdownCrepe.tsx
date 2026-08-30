@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Crepe } from "@milkdown/crepe";
 import "@milkdown/crepe/theme/common/style.css";
-import "github-markdown-css/github-markdown-light.css";
+import "@milkdown/crepe/theme/frame.css";
+import "./milkdownTheme.css";
 
 interface MilkdownCrepeProps {
   /** Initial markdown value. Re-mounts when this string identity changes. */
@@ -136,5 +137,5 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  return <div ref={rootRef} className="milkdown-root markdown-body" />;
+  return <div ref={rootRef} className="milkdown-root" />;
 }

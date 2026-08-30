@@ -6,6 +6,7 @@
 
 ## Active task
 
+- [`2026-08-29-markdown-official-theme.md`](tasks/active/2026-08-29-markdown-official-theme.md) — `waiting_user_acceptance`; Crepe's complete official Frame theme is integrated, mixed GitHub/custom typography is removed, and a review version is running.
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-08-29-new-tab-page.md`](tasks/archive/2026-08-29-new-tab-page.md).
 
@@ -14,7 +15,7 @@
 - PDF 阅读、搜索、按层级逐行显示并过滤空白页占位书签的目录、缩略图、打印、批注和页面增删。
 - PDF.js 构建资源按运行时请求路径平铺复制，未嵌入 Adobe CJK 字体的 PDF 可正常加载 CMap 并显示文字。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
-- Markdown 所见即所得/源码模式、显式保存、等宽代码字体、列表对齐和左侧目录。
+- Markdown 所见即所得/源码模式、显式保存、等宽代码字体和左侧目录；渲染区域采用 Crepe 官方完整 Frame 浅色主题。
 - 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和最多 8 项的跨启动最近文件列表。
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
@@ -75,6 +76,14 @@
 - `pnpm --dir reader build`：通过；仅保留既有大 chunk 警告。
 - Rust 后端与打包未重跑：本次变更仅涉及前端 TypeScript、CSS、测试和文档。
 - 真实 Reader 桌面视觉与交互验收待用户完成。
+
+2026-08-29 针对 Markdown 官方主题整合记录：
+
+- `pnpm --dir reader test`：15 个测试文件、100 个测试通过。
+- `pnpm --dir reader build`：TypeScript 与生产构建通过；仅保留既有大 chunk 警告。
+- 构建后的 Markdown CSS 包确认包含 Frame 主题、官方列表/表格样式和本地代码字体，不再包含 `markdown-body` 或远程 CSS 导入。
+- `scripts/check-docs.ps1` 与 `git diff --check`：通过。
+- 开发版 Reader 已启动并传入排版样本的临时副本；视觉、交互及实际问题文档仍待用户验收。本次未改 Rust 或生成新安装包。
 
 ## Latest local release artifacts
 

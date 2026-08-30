@@ -21,8 +21,10 @@ pnpm --dir reader tauri dev
 打开测试文件：
 
 ```powershell
-pnpm --dir reader tauri dev -- tests/fixtures/text-3.pdf tests/fixtures/gfm.md
+pnpm --dir reader tauri dev -- -- tests/fixtures/text-3.pdf tests/fixtures/gfm.md
 ```
+
+第一个 `--` 分隔 Tauri CLI 与 Cargo runner 参数，第二个 `--` 之后才是传给 Reader 的文件路径；只写一个会将后续 Cargo 选项混入应用参数。
 
 ## Automated verification
 

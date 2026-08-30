@@ -1,0 +1,45 @@
+/* Crepe's common + Frame styles own typography, blocks and editing controls.
+   Reader only adapts local fonts and the space around the document. */
+.milkdown-root {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+  padding: 0 24px 96px;
+}
+
+.milkdown-root > .milkdown {
+  --crepe-font-title: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --crepe-font-default: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --crepe-font-code: "Cascadia Mono", "Cascadia Code", Consolas,
+    "SFMono-Regular", "SF Mono", Menlo, "Liberation Mono", monospace;
+
+  width: 100%;
+  max-width: 980px;
+  min-width: 0;
+}
+
+.milkdown-root > .milkdown > .ProseMirror {
+  min-height: 100%;
+  padding: 48px 60px;
+}
+
+/* CodeMirror has its own font rule and does not read Crepe's font variable. */
+.milkdown-root .cm-editor .cm-scroller {
+  font-family: var(--crepe-font-code);
+  font-variant-ligatures: none;
+}
+
+@media (max-width: 767px) {
+  .milkdown-root {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .milkdown-root > .milkdown > .ProseMirror {
+    /* Leave a gutter for Crepe's block handle even in a narrow window. */
+    padding: 24px 40px 72px;
+  }
+}
