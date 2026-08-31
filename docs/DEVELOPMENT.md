@@ -81,6 +81,8 @@ reader/src-tauri/target/release/bundle/msi/Reader_<version>_x64_en-US.msi
 
 发布前至少记录：源提交、版本、构建退出码、安装包大小、SHA-256、签名状态，以及安装/升级/卸载是否实际验证。Windows 文件关联图标还应检查生成的 NSIS `installer.nsi` 和 WiX `main.wxs` 是否分别包含图标资源与 `DefaultIcon` 注册表项。证据写入对应发布任务，仍影响当前使用的限制同步到 `docs/STATUS.md`。
 
+核对安装后的可执行文件时，注意 Tauri 会向 MSI 内的二进制写入 `__TAURI_BUNDLE_TYPE_VAR_MSI`，而构建目录的标记可在打包结束后恢复为 `UNK`；这会导致 SHA-256 不同。应检查包内文件或逐字节确认差异仅限包类型标记，不能仅据这两个哈希不同判定安装保留了旧程序。
+
 ## Repository layout
 
 ```text

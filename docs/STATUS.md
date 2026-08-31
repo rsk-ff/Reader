@@ -2,13 +2,12 @@
 
 - Last updated: 2026-08-30
 - Application version: `0.1.0`
-- Current application source baseline: `new-tab page, file actions, untitled Markdown, and normalized recent files accepted`
+- Current application source baseline: `6097a1c — Markdown official theme, compact headings, and simplified editor controls accepted`
 
 ## Active task
 
-- [`2026-08-29-markdown-official-theme.md`](tasks/active/2026-08-29-markdown-official-theme.md) — `waiting_user_acceptance`; compact headings, disabled block controls, and raised code-fold marker are implemented; the running review version has received the update.
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
-- Latest completed task: [`2026-08-29-new-tab-page.md`](tasks/archive/2026-08-29-new-tab-page.md).
+- Latest completed task: [`2026-08-29-markdown-official-theme.md`](tasks/archive/2026-08-29-markdown-official-theme.md).
 
 ## Implemented at the application baseline
 
@@ -95,15 +94,25 @@
 
 ## Latest local release artifacts
 
-以下本地文件由本次源码变更生成，不纳入 Git；本轮安装、升级、卸载和资源管理器图标已由用户完成验收。
+以下本地文件不纳入 Git。MSI 已于 2026-08-30 从应用源码 `6097a1c` 重新构建，版本仍为 `0.1.0`；NSIS 为历史产物，本轮未重建。此前安装包的验收不代表新 MSI 的安装结果。
 
-| Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
-| --- | --- | ---: | --- | --- |
-| NSIS | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,899,628 | `4561FBAF911094F8B9C2FC754D23EC8EBD0DF95B732732B84C215CE4BB0FB10B` | `NotSigned` |
-| MSI | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,815,872 | `2E8EA7C3A66EBADA7DA089D910F02F91E427211DA9D863707925312389D766AD` | `NotSigned` |
+| Format | Build scope | Repository-relative output | Size (bytes) | SHA-256 | Signature |
+| --- | --- | --- | ---: | --- | --- |
+| NSIS | 历史产物，未重建 | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,899,628 | `4561FBAF911094F8B9C2FC754D23EC8EBD0DF95B732732B84C215CE4BB0FB10B` | `NotSigned` |
+| MSI | 2026-08-30 / `6097a1c` | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,983,808 | `631D97DF32D21EC6D3671A5705928F9F22525CA0E5953AF2C77DD0D94D120F0B` | `NotSigned` |
+
+本次 MSI 构建与启动证据：
+
+- `pnpm --dir reader tauri build --bundles msi`：退出码 `0`；前端 1170 个模块、Rust release 与 WiX candle/light 均完成，仅保留既有前端大 chunk 警告。构建日志为 `reader/msi-build-20260830.log`。
+- MSI 数据库：`ProductVersion=0.1.0`、`ALLUSERS=1`、`ProductCode={F234FE2F-E737-45B3-8DB4-D7EDEC3B0A62}`；UpgradeCode 保持 `{8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}`，升级表最小版本 `0`、无最大版本、属性 `257`，覆盖现有同版本 MSI。
+- 包内含 `reader.exe`、`pdfium.dll`、PDF/Markdown ICO；注册表表中五项 `DefaultIcon` 均指向相应 ICO。
+- 已通过 `msiexec /i` 运行安装，日志确认 `Installation completed successfully`、退出码 `0`；新 ProductCode 已注册，旧 MSI ProductCode `{6D5BCA1C-BFAB-45DA-9DBD-C78032EFE4E9}` 的卸载记录已移除。日志位于 `C:\Users\fanq1\AppData\Local\Temp\Reader-MSI-Install-20260830-2259.log`；未主动卸载原 NSIS 安装，本轮未测试卸载。
+- 安装目录为 `C:\Users\fanq1\AppData\Local\Reader`。安装后的 `reader.exe` 与本次 release 二进制等长，逐字节比较仅 `__TAURI_BUNDLE_TYPE_VAR_UNK` → `__TAURI_BUNDLE_TYPE_VAR_MSI` 的三字节不同，其余内容一致；这是 Tauri 打包标记，不是保留旧程序。已启动安装后的 Reader，安装版视觉结果未单独复验。
+- 本轮仅归档文档和重新打包，未改应用源码；不重复运行先前已通过的前端单元测试及 Rust 测试套件。
 
 ## Latest user acceptance
 
+- 2026-08-30：用户验收 Markdown 官方主题及标题、块控件和代码折叠箭头修订，并要求生成和运行新的 MSI 安装包。
 - 2026-08-29：用户验收新标签页、原生打开文件、延迟到首次保存时选路径的新建 Markdown，以及最近文件 Windows 路径清理和去重结果。
 - 2026-08-27：用户确认标签文件名左对齐、PDF/MD 文件专用图标以及 `0.1.0` 安装包结果可以验收。
 

@@ -1,6 +1,6 @@
 # Markdown 官方主题整合
 
-- Status: `waiting_user_acceptance`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-08-29`
 - Last updated: `2026-08-30`
@@ -60,9 +60,9 @@
 - [x] 原有目录、源码切换、保存逻辑未改动。
 - [x] 前端测试、TypeScript/生产构建、文档与 diff 检查通过。
 - [x] 可检查版本已启动；本轮改动以 `fix: adopt official Crepe markdown theme` 本地提交交付，最终 Git 状态在交付时检查。
-- [ ] 用户确认视觉和交互结果。
-- [ ] 本轮标题缩小，H4–H6 同字号且不改变 Markdown 语义。
-- [ ] 不再提供左侧块加号与点阵，代码折叠仍可用且展开箭头不再下沉。
+- [x] 用户确认视觉和交互结果。
+- [x] 本轮标题缩小，H4–H6 同字号且不改变 Markdown 语义。
+- [x] 不再提供左侧块加号与点阵，代码折叠仍可用且展开箭头不再下沉。
 
 ## Progress
 
@@ -71,7 +71,8 @@
 - [x] 实施并验证。
 - [x] 启动应用等待用户反馈。
 - [x] 收到 2026-08-30 三项截图反馈并定位上游规则。
-- [x] 完成标题、块控件和折叠箭头调整与自动化验证；等待视觉复验。
+- [x] 完成标题、块控件和折叠箭头调整与自动化验证。
+- [x] 2026-08-30 用户回复“验收”，本 Markdown 任务完成并归档。
 
 ## Discoveries
 
@@ -97,7 +98,7 @@
 
 ## User acceptance
 
-waiting。已传入临时样本 `C:\Users\fanq1\AppData\Local\Temp\Reader-Markdown-Theme-Review-20260829-231539.md`，可自由修改和保存，不影响仓库样本。
+accepted，2026-08-30 用户明确回复“验收”。此前使用临时样本 `C:\Users\fanq1\AppData\Local\Temp\Reader-Markdown-Theme-Review-20260829-231539.md`，修改和保存不影响仓库样本。
 
 2026-08-30 已收到三项反馈并完成实现；本轮只需复验：
 
@@ -105,20 +106,20 @@ waiting。已传入临时样本 `C:\Users\fanq1\AppData\Local\Temp\Reader-Markdo
 2. 鼠标移到正文左侧不再出现加号和点阵；正文仍能直接编辑。
 3. 代码第 1、6 行展开箭头是否与代码行对齐，点击折叠后能再次展开。
 
-前三项尚未获得用户复验确认，不视为视觉或交互通过。
+前三项已获得用户复验确认。本次验收只覆盖 Markdown 任务，不自动关闭独立的 PDF 目录任务。
 
 启动日志保存在同一临时目录的 `Reader-Markdown-Theme-20260829-231539.stdout.log` 与 `.stderr.log`。
 
 ## Risks and remaining work
 
-- 官方主题的外观和实际编辑交互仍需用户验收。
+- 本任务范围内没有剩余验收项。
 - 本轮只统一样式，不承诺解决尚未提供样本的 Markdown 语法兼容问题。
 - 折叠标记适配限定 CodeMirror 当前默认英文提示 `Fold line`；未来若引入编辑器本地化，需要同时更新这条局部规则。
 
 ## Next action
 
-等待用户按三项清单复验当前窗口，继续在本任务内处理反馈或在验收后归档。
+无；任务已结束。用户随后要求重新生成并运行 MSI，作为独立的机械打包操作执行。
 
 ## Outcome
 
-首轮提交 `26f36b5` 完成官方主题整合；2026-08-30 修订以 `fix: refine markdown headings and editor controls` 本地提交交付。实现与自动化验证已完成，视觉与交互复验未完成，任务保留 active。
+首轮提交 `26f36b5` 完成官方主题整合；修订提交 `6097a1c` 完成标题与控件调整。2026-08-30 用户确认验收，自动化和视觉/交互验收完成，任务归档。
