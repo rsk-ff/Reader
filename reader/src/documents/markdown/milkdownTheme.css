@@ -50,7 +50,10 @@
   font-size: 1em;
 }
 
-.milkdown-root .ProseMirror > :is(h1, h2, h3, h4, h5, h6):first-child {
+/* The virtual caret is a decoration before the first document block. It is
+   removed for a text range, so :first-child would change the heading margin
+   whenever selection changes. Count content blocks, not cursor widgets. */
+.milkdown-root .ProseMirror > :is(h1, h2, h3, h4, h5, h6):nth-child(1 of :not(.ProseMirror-widget, .prosemirror-virtual-cursor)) {
   margin-top: 0;
 }
 

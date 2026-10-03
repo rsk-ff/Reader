@@ -102,12 +102,13 @@ export function MarkdownEditor({
   // Switch modes: source→WYSIWYG must re-mount Crepe with the edited text.
   const switchMode = useCallback(
     (m: Mode) => {
+      if (m === mode) return;
       setMode(m);
       if (m === "wysiwyg") {
         setCrepeVersion((v) => v + 1);
       }
     },
-    [],
+    [mode],
   );
 
   // Ctrl+S save (§7). Only when this tab is active.

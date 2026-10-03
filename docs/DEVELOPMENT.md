@@ -40,6 +40,10 @@ cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-fea
 
 只改文档时不重复运行应用测试；需要检查 Markdown 链接、Git diff 和工作树状态。
 
+Markdown 编辑器生命周期回归测试使用开发依赖 `jsdom` 挂载真实 React 组件，并模拟 Crepe 引擎与 Tauri 边界；覆盖实例稳定、模式切换、异步清理、保存及放弃修改。运行 `pnpm --dir reader test src/documents/markdown/MilkdownCrepe.test.tsx` 可单独检查；这不替代真实桌面中文输入法与交互验收。
+
+Markdown 浏览器功能回归测试运行 `pnpm --dir reader test:browser`，使用开发依赖 `@playwright/test` 和已安装的 Microsoft Edge，无需另行下载浏览器。测试启动独立的 `127.0.0.1:1422` 服务，加载真实 React/Crepe/CSS，仅模拟原生文件接口；以坐标和内容断言验证选区稳定、连续输入及撤销，不生成截图、视频或 trace。入口为 `reader/playwright.config.ts` 和 `reader/tests/browser/`。Vitest 仅发现 `src/**/*.test.{ts,tsx}`，避免混跑 Playwright 用例。此测试仍不替代用户在真实 Reader 中的中文输入法和交互验收。
+
 文档结构与内部链接检查：
 
 ```powershell

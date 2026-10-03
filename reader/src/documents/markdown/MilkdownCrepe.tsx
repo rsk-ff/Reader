@@ -6,7 +6,7 @@ import "@milkdown/crepe/theme/frame.css";
 import "./milkdownTheme.css";
 
 interface MilkdownCrepeProps {
-  /** Initial markdown value. Re-mounts when this string identity changes. */
+  /** Initial markdown for this mount. Use a React key to load another value. */
   value: string;
   /** Fired on every user edit with the new markdown string. */
   onChange: (markdown: string) => void;
@@ -18,18 +18,33 @@ interface MilkdownCrepeProps {
  * Crepe (Milkdown) WYSIWYG editor wrapper.
  *
  * Lifecycle is managed imperatively: Crepe owns the DOM inside `rootRef`, and
- * we create/destroy it on mount/unmount. Re-mounting on `value` identity change
- * is intentional — it's how source↔WYSIWYG switching reloads content safely.
+ * we create/destroy it on mount/unmount. Editing echoes updated text through
+ * React without replacing the live editor, its selection or undo history.
+ * The parent explicitly re-mounts when loading source edits or discarding edits.
  */
 export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const crepeRef = useRef<Crepe | null>(null);
+  const initialValueRef = useRef(value);
+  const callbacksRef = useRef({ onChange, onReady });
+  const lifecycleRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    callbacksRef.current = { onChange, onReady };
+  }, [onChange, onReady]);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     let destroyed = false;
     let hasEditIntent = false;
+    let crepe: Crepe | null = null;
+
+    const reportError = (phase: string, error: unknown) => {
+      void invoke("log_frontend", {
+        level: "error",
+        message: `milkdown ${phase} failed: ${error}`,
+      }).catch(() => {});
+    };
 
     const markEditIntent = (event: Event) => {
       if (event.isTrusted) hasEditIntent = true;
@@ -75,52 +90,42 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
     root.addEventListener("keydown", onEditingKey, true);
     root.addEventListener("pointerdown", onEditingControlPointer, true);
 
-    const crepe = new Crepe({
-      root,
-      defaultValue: value,
-      features: {
-        // Reader keeps inline editing without Notion-style block handles.
-        // Its own toolbar supplies document actions; AI stays disabled.
-        [Crepe.Feature.TopBar]: false,
-        [Crepe.Feature.AI]: false,
-        [Crepe.Feature.BlockEdit]: false,
-      },
-      featureConfigs: {
-        // Crepe defaults to oneDark even when the outer editor is light. Null
-        // deliberately bypasses that default and lets CodeMirror basicSetup use
-        // its maintained light theme. The public type does not expose "none".
-        [Crepe.Feature.CodeMirror]: { theme: null as never },
-      },
-    });
+    // StrictMode can replay this effect on the same DOM root. Serialize the
+    // previous cleanup before starting again, and skip cancelled setup work.
+    const created = lifecycleRef.current
+      .then(async () => {
+        if (destroyed) return;
+        crepe = new Crepe({
+          root,
+          defaultValue: initialValueRef.current,
+          features: {
+            // Reader keeps inline editing without Notion-style block handles.
+            // Its own toolbar supplies document actions; AI stays disabled.
+            [Crepe.Feature.TopBar]: false,
+            [Crepe.Feature.AI]: false,
+            [Crepe.Feature.BlockEdit]: false,
+          },
+          featureConfigs: {
+            // Crepe defaults to oneDark even when the outer editor is light.
+            // Null selects CodeMirror's basic light theme; the public type
+            // does not expose "none".
+            [Crepe.Feature.CodeMirror]: { theme: null as never },
+          },
+        });
 
-    crepe.on((listener) => {
-      listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
-        // Crepe normalizes valid GFM again as async table/task-list features
-        // mount. Only publish changes after a trusted editing gesture so those
-        // bootstrap transactions cannot make a freshly opened file dirty.
-        if (!hasEditIntent) return;
-        // Only fire on actual content change, not selection/attribute updates.
-        if (markdown !== prevMarkdown) onChange(markdown);
-      });
-    });
+        crepe.on((listener) => {
+          listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
+            // Async table/task-list setup can normalize GFM without an edit.
+            // Ignore those changes, and ignore events from an obsolete mount.
+            if (destroyed || !hasEditIntent) return;
+            if (markdown !== prevMarkdown) callbacksRef.current.onChange(markdown);
+          });
+        });
 
-    crepe
-      .create()
-      .then(() => {
-        if (destroyed) {
-          void crepe.destroy();
-          return;
-        }
-        onReady?.();
+        await crepe.create();
+        if (!destroyed) callbacksRef.current.onReady?.();
       })
-      .catch((e) => {
-        void invoke("log_frontend", {
-          level: "error",
-          message: `milkdown init failed: ${e}`,
-        }).catch(() => {});
-      });
-
-    crepeRef.current = crepe;
+      .catch((error: unknown) => reportError("init", error));
 
     return () => {
       destroyed = true;
@@ -131,11 +136,12 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
       root.removeEventListener("drop", markEditIntent, true);
       root.removeEventListener("keydown", onEditingKey, true);
       root.removeEventListener("pointerdown", onEditingControlPointer, true);
-      void crepe.destroy();
-      crepeRef.current = null;
+      lifecycleRef.current = created
+        .then(async () => { await crepe?.destroy(); })
+        .catch((error: unknown) => reportError("destroy", error));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, []);
 
   return <div ref={rootRef} className="milkdown-root" />;
 }
