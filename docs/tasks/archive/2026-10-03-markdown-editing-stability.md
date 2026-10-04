@@ -1,6 +1,6 @@
 # Markdown editing stability
 
-- Status: `waiting_user_acceptance`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-10-03`
 - Last updated: `2026-10-03`
@@ -56,7 +56,7 @@ Markdown 编辑器生命周期、模式切换保护、选择文字时滚动稳�
 - [x] 初始化期间卸载和 React StrictMode 清理无旧实例回调或重复销毁。
 - [x] 真实引擎中，H1–H6 开头和已滚动文档的鼠标选区变化不改变正文坐标与滚动位置。
 - [x] 回归测试、前端完整测试、类型检查/生产构建和文档检查通过。
-- [ ] 启动可检查开发版，用户验收连续中英文输入、换行、选区及撤销。
+- [x] 启动可检查开发版，用户于 2026-10-03 确认“验收了”。
 - [x] 检查完整 diff；代码、测试和文档纳入同一提交 `fix: stabilize markdown editing and text selection`，提交后核对工作树。
 
 ## Progress
@@ -67,6 +67,7 @@ Markdown 编辑器生命周期、模式切换保护、选择文字时滚动稳�
 - [x] 添加开发依赖 jsdom 与 8 项组件回归测试，涵盖源码返回、最新内容保存和放弃修改。
 - [x] 自动化验证并启动用户验收版本。
 - [x] 复现选区上跳；首标题选择器排除光标/widget 装饰节点，新增浏览器功能回归测试，9 项通过。
+- [x] 用户验收通过，更新项目状态并归档；收尾仅修改文档，不重复运行应用测试。
 
 ## Discoveries
 
@@ -89,7 +90,7 @@ Markdown 编辑器生命周期、模式切换保护、选择文字时滚动稳�
 
 ## User acceptance
 
-waiting。已启动开发版，传入临时文件 `C:\Users\fanq1\AppData\Local\Temp\reader-md-editing-review-20261003.md`。使用临时配置 `C:\Users\fanq1\AppData\Local\Temp\reader-markdown-review-20261003.json`，仅覆盖 identifier 为 `com.earendil.reader.markdown-review`，与已运行的安装版并存。启动日志为 `reader/markdown-editing-dev.log` 和 `reader/markdown-editing-dev-error.log`（不纳入 Git）。
+passed。用户于 2026-10-03 明确确认“验收了”，本次 Markdown 编辑稳定性与选区跳动修复通过验收。验收时传入临时文件 `C:\Users\fanq1\AppData\Local\Temp\reader-md-editing-review-20261003.md`，使用临时配置 `C:\Users\fanq1\AppData\Local\Temp\reader-markdown-review-20261003.json`，仅覆盖 identifier 为 `com.earendil.reader.markdown-review`。启动日志不纳入 Git。
 
 - 连续中英文输入、在段落中间移动光标并回车换行。
 - 鼠标选中文字后替换，Ctrl+Z 撤销。
@@ -98,13 +99,13 @@ waiting。已启动开发版，传入临时文件 `C:\Users\fanq1\AppData\Local\
 
 ## Risks and remaining work
 
-- 已定位的生命周期问题不能证明涵盖用户所有编辑体验问题，修复后仍需真实桌面反馈。
+- 本次反馈已通过用户验收，无待处理的同范围问题；安装包未重新生成。
 - 跨源码/所见即所得切换仍按原设计重建，不承诺跨模式撤销历史。
 
 ## Next action
 
-收集用户对已启动最新版的输入、选区跳动和撤销反馈；若通过则更新用户验收、归档任务，否则在本任务继续复现修复。
+无。本任务结束，下一个独立需求应新建会话。
 
 ## Outcome
 
-生命周期与选区跳动修复、自动化验证均完成，最新验收版已启动；提交主题为 `fix: stabilize markdown editing and text selection`。等待用户真实桌面复验，本任务继续本会话，不并入其他独立需求。
+生命周期与选区跳动修复已完成，代码提交为 `87f488e — fix: stabilize markdown editing and text selection`；108 项前端测试、9 项浏览器测试及构建通过，用户于 2026-10-03 验收。收尾提交主题为 `docs: archive accepted markdown editing stability task`。未调用 Pi；安装包与跨模式撤销历史不在本次范围。

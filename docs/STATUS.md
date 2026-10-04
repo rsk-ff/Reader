@@ -2,14 +2,12 @@
 
 - Last updated: 2026-10-03
 - Application version: `0.1.0`
-- Latest user-accepted application source baseline: `6097a1c — Markdown official theme, compact headings, and simplified editor controls accepted`
-- 当前源码另包含 Markdown 编辑稳定性修复；自动化验证结果见下，真实桌面交互尚待用户验收。
+- Latest user-accepted application source baseline: `87f488e — Markdown editing stability and selection-induced page shift fixes accepted`
 
 ## Active task
 
-- [`2026-10-03-markdown-editing-stability.md`](tasks/active/2026-10-03-markdown-editing-stability.md) — `waiting_user_acceptance`; editor lifecycle and selection-induced page shift fixed; 108 unit/component tests and 9 browser checks passed; latest review build launched.
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
-- Latest completed task: [`2026-08-29-markdown-official-theme.md`](tasks/archive/2026-08-29-markdown-official-theme.md).
+- Latest completed task: [`2026-10-03-markdown-editing-stability.md`](tasks/archive/2026-10-03-markdown-editing-stability.md).
 
 ## Implemented at the application baseline
 
@@ -33,7 +31,7 @@
 - `pnpm --dir reader test:browser`：9 项真实 Edge 浏览器功能测试通过，覆盖 H1–H6 开头文档的选区切换、中部滚动选字、普通标题间距和实际编辑器的连续输入/撤销/重做。旧首标题样式实测选择后向上移动 35px，修复后坐标与滚动位置保持不变。无截图或桌面视觉验收。
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1170 个模块；仅既有大 chunk 警告。
 - 文档与 diff 检查通过；Tauri 开发编译完成，独立验收窗口已启动并传入临时 Markdown 样本。
-- 选区跳动修复后再次通过 108 项前端测试与生产构建。Rust 测试和安装包本轮未重跑；真实桌面验收待完成。源码/所见即所得切换仍不保留跨模式撤销历史。
+- 选区跳动修复后再次通过 108 项前端测试与生产构建；用户于 2026-10-03 确认验收通过。Rust 测试和安装包本轮未重跑。源码/所见即所得切换仍不保留跨模式撤销历史。
 
 2026-08-24 在应用代码基线 `01c49f1` 上记录：
 
@@ -123,6 +121,7 @@
 
 ## Latest user acceptance
 
+- 2026-10-03：用户确认 Markdown 编辑稳定性与选区跳动修复验收通过，源码基线为 `87f488e`；任务已归档，未生成新安装包。
 - 2026-08-30：用户验收 Markdown 官方主题及标题、块控件和代码折叠箭头修订，并要求生成和运行新的 MSI 安装包。
 - 2026-08-29：用户验收新标签页、原生打开文件、延迟到首次保存时选路径的新建 Markdown，以及最近文件 Windows 路径清理和去重结果。
 - 2026-08-27：用户确认标签文件名左对齐、PDF/MD 文件专用图标以及 `0.1.0` 安装包结果可以验收。
