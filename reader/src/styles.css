@@ -1480,6 +1480,9 @@ body.pdf-sidebar-resizing * {
 
 .pdfjs-viewer-container .textLayer {
   cursor: text;
+  /* Allow a native selection to start in page whitespace. Text spans already
+     opt in, but the layer otherwise inherits the application shell's none. */
+  user-select: text;
 }
 
 .pdfjs-viewer-container .textLayer ::selection {

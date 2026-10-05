@@ -29,6 +29,7 @@ import { PdfJsAnnotationPortals } from "./PdfJsAnnotationPortals";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { blankPageInsertArgs, pdfFileUrl } from "./pdfModel";
 import { flattenOutline } from "./pdfOutline";
+import { installPdfMarginSelection } from "./pdfMarginSelection";
 import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
 import { PdfToolbar } from "./PdfToolbar";
@@ -186,6 +187,11 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
     activeRef.current = active;
     if (active) setHasActivated(true);
   }, [active]);
+
+  useEffect(() => {
+    if (!containerElement || !active) return;
+    return installPdfMarginSelection(containerElement);
+  }, [containerElement, active]);
 
   useEffect(() => {
     setLocalDirty(false);

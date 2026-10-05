@@ -1,11 +1,12 @@
 # Current status
 
-- Last updated: 2026-10-03
+- Last updated: 2026-10-05
 - Application version: `0.1.0`
 - Latest user-accepted application source baseline: `87f488e — Markdown editing stability and selection-induced page shift fixes accepted`
 
 ## Active task
 
+- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; PDF 从文字行空白处开始拖动选择已修复，全量自动化验证通过，独立开发窗口已启动，待用户检查原问题 PDF。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-03-markdown-editing-stability.md`](tasks/archive/2026-10-03-markdown-editing-stability.md).
 
@@ -23,6 +24,15 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-05 针对 PDF 空白起点选字记录：
+
+- 修复前真实 Edge 测试复现左侧空白起点产生空选区，而文字内部拖动正常；仅启用文字层选择仍漏首字，因此加入局部起点校正。
+- `pnpm --dir reader test`：16 个文件、108 项测试通过。
+- `pnpm --dir reader test:browser`：17 项真实 Edge 功能测试通过，含新增 8 项 PDF 回归，覆盖左右空白起点、文字内部、反向、重选、空白单击取消、跨行、缩放/滚动及高亮 quads；PDF.js/React/CSS 真实运行，文件协议与批注写入模拟，无截图、视频或 trace。
+- `pnpm --dir reader build`：TypeScript 与生产构建通过，1171 个模块；仅既有大 chunk 警告。
+- 文档和 diff 检查通过；Tauri 开发编译完成，通过临时独立应用标识启动验收窗口并打开文字 PDF 样本副本。纠正 pnpm 启动示例的分隔符，直接 Tauri CLI 启动已验证文件参数正确。
+- 原问题 PDF 的真实 WebView2 交互待用户验收；本次未改 Rust，Rust 测试和安装包未重跑。
 
 2026-10-03 针对 Markdown 编辑稳定性记录：
 
