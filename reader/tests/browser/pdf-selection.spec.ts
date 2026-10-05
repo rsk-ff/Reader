@@ -105,6 +105,119 @@ test("selects across lines from the left margin", async ({ page }) => {
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(`${firstText}\n${end.text}`);
 });
 
+for (const fromMargin of [false, true]) {
+  test(`selects the whole last line when dragging below it from ${fromMargin ? "a margin" : "text"}`, async ({ page }) => {
+    const lines = page.locator('.page[data-page-number="1"] .textLayer span[role="presentation"]')
+      .filter({ hasText: /\S.{10}/ });
+    await expect(lines).toHaveCount(3);
+    const offset = fromMargin ? 0 : 2;
+    const start = await linePoints(lines.nth(0), offset);
+    const second = await linePoints(lines.nth(1));
+    const last = await linePoints(lines.nth(2));
+    const texts = await lines.allTextContents();
+    await page.mouse.move(fromMargin ? start.left : start.start, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.end, start.y, { steps: 8 });
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(start.text);
+    await page.mouse.move(second.end, second.y, { steps: 8 });
+    expect(await page.evaluate(() => window.getSelection()?.toString()))
+      .toBe(`${texts[0].slice(offset)}\n${second.text}`);
+    const bottom = (await lines.nth(2).boundingBox())!;
+    await page.mouse.move(last.end, bottom.y + bottom.height + 18, { steps: 8 });
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString()))
+      .toBe(`${texts[0].slice(offset)}\n${texts[1]}\n${texts[2]}`);
+    await page.mouse.up();
+    expect(await page.evaluate(() => window.getSelection()?.toString()))
+      .toBe(`${texts[0].slice(offset)}\n${texts[1]}\n${texts[2]}`);
+  });
+}
+
+test("returns to an exact text endpoint after completing a line in whitespace", async ({ page }) => {
+  await page.getByRole("searchbox", { name: "search", exact: true }).fill("Page");
+  await page.getByRole("searchbox", { name: "search", exact: true }).press("Enter");
+  await expect(page.locator('.page[data-page-number="1"] .textLayer .highlight')).toBeAttached();
+  await firstLine(page).scrollIntoViewIfNeeded();
+  const lines = page.locator('.page[data-page-number="1"] .textLayer span[role="presentation"]')
+    .filter({ hasText: /\S.{10}/ });
+  const start = await linePoints(lines.nth(0), 2);
+  const last = await linePoints(lines.nth(2));
+  const texts = await lines.allTextContents();
+  const bottom = (await lines.nth(2).boundingBox())!;
+  await page.mouse.move(start.start, start.y);
+  await page.mouse.down();
+  await page.mouse.move(last.end, last.y, { steps: 12 });
+  const partial = `${texts[0].slice(2)}\n${texts[1]}\n${last.text}`;
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(partial);
+  // This vertical move need not change the native character caret.
+  await page.mouse.move(last.end, bottom.y + bottom.height + 18, { steps: 8 });
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString()))
+    .toBe(`${texts[0].slice(2)}\n${texts[1]}\n${texts[2]}`);
+  await page.mouse.move(last.end, last.y, { steps: 8 });
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(partial);
+  // Further pointer motion after release must leave that selection untouched.
+  await page.mouse.move(last.end, bottom.y + bottom.height + 18);
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(partial);
+});
+
+test("completes the first line when selecting backwards above it", async ({ page }) => {
+  const lines = page.locator('.page[data-page-number="1"] .textLayer span[role="presentation"]')
+    .filter({ hasText: /\S.{10}/ });
+  const first = await linePoints(lines.nth(0));
+  const last = await linePoints(lines.nth(2));
+  const top = (await lines.nth(0).boundingBox())!;
+  const texts = await lines.allTextContents();
+  await drag(page, last.end, last.y, first.end, top.y - 18);
+  expect(await page.evaluate(() => window.getSelection()?.toString()))
+    .toBe(`${texts[0]}\n${texts[1]}\n${last.text}`);
+  expect(await page.evaluate(() => window.getSelection()?.focusOffset)).toBe(0);
+});
+
+test("completes a line when dragging past its right margin", async ({ page }) => {
+  const line = firstLine(page);
+  const points = await linePoints(line, 2);
+  await drag(page, points.start, points.y, points.right);
+  expect(await page.evaluate(() => window.getSelection()?.toString()))
+    .toBe((await line.textContent())!.slice(2));
+});
+
+test("includes the completed last line in a highlight annotation", async ({ page }) => {
+  await page.getByTitle("Highlight (select text)", { exact: true }).click();
+  await expect(page.locator('.page[data-page-number="1"] .pdf-annot-text-tool')).toBeAttached();
+  const lines = page.locator('.page[data-page-number="1"] .textLayer span[role="presentation"]')
+    .filter({ hasText: /\S.{10}/ });
+  const first = await linePoints(lines.nth(0), 2);
+  const last = await linePoints(lines.nth(2));
+  const bottom = (await lines.nth(2).boundingBox())!;
+  // Record the actual range geometry before the markup tool consumes it.
+  const expectedWidth = await lines.nth(2).evaluate(element => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    return range.getBoundingClientRect().width;
+  });
+  await page.mouse.move(first.start, first.y);
+  await page.mouse.down();
+  await page.mouse.move(last.end, bottom.y + bottom.height + 18, { steps: 12 });
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString()))
+    .toContain((await lines.nth(2).textContent())!);
+  const geometry = await page.evaluate(() => {
+    const range = window.getSelection()!.getRangeAt(0);
+    const rects = Array.from(range.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0);
+    return { firstWidth: rects[0].width, lastWidth: rects.at(-1)!.width };
+  });
+  expect(geometry.lastWidth).toBeCloseTo(expectedWidth, 0);
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => (window as any).createdAnnotations.length)).toBe(1);
+  const quads = await page.evaluate(() => (window as any).createdAnnotations[0].quad_points);
+  expect(quads.length).toBeGreaterThanOrEqual(3);
+  // DOM ranges can report both an element and its text rectangle for a full
+  // intermediate line. Compare the end-line geometry rather than line count.
+  const lastQuad = quads.at(-1);
+  expect(Math.abs(lastQuad.x2 - lastQuad.x1) / Math.abs(quads[0].x2 - quads[0].x1))
+    .toBeCloseTo(geometry.lastWidth / geometry.firstWidth, 2);
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
+});
+
 test("selects from the margin after zooming and scrolling to another page", async ({ page }) => {
   await page.getByTitle("Fit page", { exact: true }).click();
   await page.getByRole("spinbutton", { name: "page", exact: true }).fill("2");

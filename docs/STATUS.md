@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; 针对第二次 Ctrl＋滚轮失效反馈修订：连续缩放及延迟重绘期间保持选中文字层可用，31 项浏览器测试与构建通过；当前窗口完整重载并核对全部 PDF 实例，待用户复验原 PDF。
+- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; 用户已确认缩放及起点正常；末行下方空白终点漏字已修订，108 项前端、37 项浏览器测试及构建通过，当前窗口完整重载并核对终点适配器，待用户验收末行补全及拖回文字的精确选择。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-03-markdown-editing-stability.md`](tasks/archive/2026-10-03-markdown-editing-stability.md).
 
@@ -47,6 +47,13 @@
 - `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：31 项通过（PDF 22、Markdown 9）。新增 5 项覆盖连续滚轮、选区绘制范围、延迟重绘期间文本和复制处理器、搜索及跨页；复制测试使用事件剪贴板，不读写 Windows 剪贴板。
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。
 - 已新开检查 PDF，并在确认无未保存 Markdown 后完整重载当前窗口。临时运行诊断确认重载后的所有 PDF 实例包含即时文字更新；诊断与重载代码已移除，不进入提交。用户真实原 PDF、蓝色选区及 Ctrl+C 验收仍待完成；未截图，Rust 与安装包未重跑。
+
+同日用户确认缩放和选择起点正常，继续反馈末行空白终点漏字后的修订记录：
+
+- 真实三行鼠标手势先复现从文字或空白起点向下拖动后，第三行只选到 `Page one`；现仅在 PDF 文字层空白处补正拖动终点，越过行底/行顶分别补到行尾/行首，回到文字后保持原生字符终点。
+- `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：37 项通过（PDF 28、Markdown 9），新增 6 项覆盖末行补全、返回文字和释放稳定、反向、右侧空白及完整末行高亮几何；已验收的缩放回归仍通过。
+- `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。当前窗口在无未保存 Markdown 的情况下完整重载，临时运行诊断确认终点适配器已加载；诊断代码已移除。
+- 用户原 PDF 的终点交互及实际 Ctrl+C 待验收；未截图，Rust 与安装包未重跑。
 
 2026-10-03 针对 Markdown 编辑稳定性记录：
 
