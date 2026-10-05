@@ -8,6 +8,7 @@ interface TextPosition {
 interface ZoomSelection {
   anchor: TextPosition;
   focus: TextPosition;
+  layers: Set<HTMLElement>;
 }
 
 function textPosition(node: Node, offset: number): TextPosition | null {
@@ -35,6 +36,7 @@ function textBoundary(position: TextPosition): { node: Node; offset: number } | 
 export class SelectionPreservingPdfViewer extends PDFViewer {
   private zoomDepth = 0;
   private zoomSelection: ZoomSelection | null = null;
+  private pendingLayers = new Set<HTMLElement>();
 
   constructor(options: ConstructorParameters<typeof PDFViewer>[0]) {
     super(options);
@@ -46,6 +48,7 @@ export class SelectionPreservingPdfViewer extends PDFViewer {
 
   private cancelRestoration = (): void => {
     this.zoomSelection = null;
+    this.pendingLayers.clear();
   };
 
   private onKeyDown = (event: KeyboardEvent): void => {
@@ -61,7 +64,11 @@ export class SelectionPreservingPdfViewer extends PDFViewer {
       !viewer.contains(selection.anchorNode) || !viewer.contains(selection.focusNode)) return null;
     const anchor = textPosition(selection.anchorNode, selection.anchorOffset);
     const focus = textPosition(selection.focusNode, selection.focusOffset);
-    return anchor && focus ? { anchor, focus } : null;
+    if (!anchor || !focus) return null;
+    const range = selection.getRangeAt(0);
+    const layers = new Set(Array.from(viewer.querySelectorAll<HTMLElement>(".textLayer"))
+      .filter(layer => range.intersectsNode(layer)));
+    return { anchor, focus, layers };
   }
 
   private restoreSelection(): void {
@@ -84,12 +91,29 @@ export class SelectionPreservingPdfViewer extends PDFViewer {
     selection?.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset);
   }
 
-  private onTextLayerRendered = (): void => {
+  private onTextLayerRendered = (event: { source?: { textLayer?: { div: HTMLElement } } }): void => {
     this.restoreSelection();
-    const snapshot = this.zoomSelection;
-    if (snapshot && !snapshot.anchor.span.closest<HTMLElement>(".textLayer")?.hidden &&
-      !snapshot.focus.span.closest<HTMLElement>(".textLayer")?.hidden) this.cancelRestoration();
+    const layer = event.source?.textLayer?.div;
+    if (!layer || layer.hidden || !this.pendingLayers.delete(layer)) return;
+    if (this.pendingLayers.size === 0) this.cancelRestoration();
   };
+
+  private updateSelectedTextLayers(): void {
+    const snapshot = this.zoomSelection;
+    if (!snapshot) return;
+    // Delayed canvas painting hides text until it finishes. Keep the selected
+    // pages' cached text at the new viewport so selection/copy stays available
+    // during a continuous wheel gesture as well as after the canvas repaint.
+    for (const layer of snapshot.layers) {
+      const pageNumber = Number(layer.closest<HTMLElement>(".page")?.dataset.pageNumber);
+      const page = this.getPageView(pageNumber - 1);
+      if (page?.textLayer?.div === layer) {
+        void page.textLayer.render({ viewport: page.viewport }).catch((error: unknown) => {
+          console.error("update selected PDF text layer", error);
+        });
+      }
+    }
+  }
 
   disposeSelectionPreservation(): void {
     this.cancelRestoration();
@@ -102,13 +126,19 @@ export class SelectionPreservingPdfViewer extends PDFViewer {
   private duringZoom(update: () => void): void {
     // PDF.js keeps text spans on zoom, but search highlighting replaces their
     // child text nodes. Record offsets in those spans rather than a DOM Range.
-    if (this.zoomDepth === 0) this.zoomSelection = this.captureSelection() ?? this.zoomSelection;
+    if (this.zoomDepth === 0) {
+      this.zoomSelection = this.captureSelection() ?? this.zoomSelection;
+      this.pendingLayers = new Set(this.zoomSelection?.layers);
+    }
     this.zoomDepth += 1;
     try {
       update();
     } finally {
       this.zoomDepth -= 1;
-      if (this.zoomDepth === 0) this.restoreSelection();
+      if (this.zoomDepth === 0) {
+        this.updateSelectedTextLayers();
+        this.restoreSelection();
+      }
     }
   }
 
@@ -121,6 +151,12 @@ export class SelectionPreservingPdfViewer extends PDFViewer {
 
   override updateScale(options: Parameters<PDFViewer["updateScale"]>[0]): void {
     this.duringZoom(() => super.updateScale(options));
+  }
+
+  override refresh(...args: Parameters<PDFViewer["refresh"]>): void {
+    super.refresh(...args);
+    this.updateSelectedTextLayers();
+    this.restoreSelection();
   }
 
   override get currentScaleValue(): string {

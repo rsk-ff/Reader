@@ -158,6 +158,111 @@ test("keeps a backwards selection through repeated zoom and fit changes", async 
   }
 });
 
+test("keeps the painted selection through continuous Ctrl wheel zoom", async ({ page }) => {
+  const points = await linePoints(firstLine(page));
+  await drag(page, points.left, points.y, points.end);
+  const paintedSelection = page.locator('.page[data-page-number="1"] .canvasWrapper .selection');
+  await expect(paintedSelection).toBeVisible();
+  await page.mouse.move(points.end, points.y);
+  await page.keyboard.down("Control");
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -120);
+  await expect(firstLine(page)).toBeVisible();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+  await expect(paintedSelection).toBeVisible();
+  const geometry = await paintedSelection.evaluate(element => {
+    const path = element.querySelector("path")!;
+    const box = (path as SVGGraphicsElement).getBBox();
+    const selection = window.getSelection()!.getRangeAt(0).getBoundingClientRect();
+    const page = element.getBoundingClientRect();
+    return {
+      painted: { x: page.x + box.x * page.width, y: page.y + box.y * page.height,
+        width: box.width * page.width, height: box.height * page.height },
+      selected: { x: selection.x, y: selection.y, width: selection.width, height: selection.height },
+    };
+  });
+  const overlapWidth = Math.max(0, Math.min(geometry.painted.x + geometry.painted.width,
+    geometry.selected.x + geometry.selected.width) - Math.max(geometry.painted.x, geometry.selected.x));
+  const overlapHeight = Math.max(0, Math.min(geometry.painted.y + geometry.painted.height,
+    geometry.selected.y + geometry.selected.height) - Math.max(geometry.painted.y, geometry.selected.y));
+  // PDF.js rounds the page/canvas and text bounds separately. Check that the
+  // painted area covers the selection without imposing identical rounding.
+  expect(overlapWidth * overlapHeight / (geometry.selected.width * geometry.selected.height)).toBeGreaterThan(0.95);
+  await page.keyboard.up("Control");
+});
+
+test("keeps a full-line selection through continuous Ctrl wheel zoom out", async ({ page }) => {
+  const line = firstLine(page);
+  const points = await linePoints(line, 0, (await line.textContent())!.length);
+  await drag(page, points.left, points.y, points.end - 1);
+  const selected = await page.evaluate(() => window.getSelection()?.toString());
+  expect(selected).toContain(points.text);
+  await page.mouse.move(points.end, points.y);
+  await page.keyboard.down("Control");
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 120);
+  await expect(firstLine(page)).toBeVisible();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
+  await expect(page.locator('.page[data-page-number="1"] .canvasWrapper .selection')).toBeVisible();
+  await page.keyboard.up("Control");
+});
+
+for (const withSearch of [false, true]) {
+  test(`keeps selected text and copy available during delayed Ctrl wheel repaint${withSearch ? " with search" : ""}`, async ({ page }) => {
+    if (withSearch) {
+      await page.getByRole("searchbox", { name: "search", exact: true }).fill("Reader");
+      await page.getByRole("searchbox", { name: "search", exact: true }).press("Enter");
+      await expect(page.locator('.page[data-page-number="1"] .textLayer .highlight')).toBeAttached();
+    }
+    const points = await linePoints(firstLine(page));
+    await drag(page, points.left, points.y, points.end);
+    await page.mouse.move(points.end, points.y);
+    await page.keyboard.down("Control");
+    for (let i = 0; i < 3; i++) {
+      await page.mouse.wheel(0, -60);
+      expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+      await expect(firstLine(page)).toBeVisible();
+      // Exercise PDF.js's copy handler with an isolated event clipboard, leaving
+      // the user's Windows clipboard untouched.
+      const copied = await firstLine(page).evaluate(element => {
+        const clipboardData = new DataTransfer();
+        element.dispatchEvent(new ClipboardEvent("copy", { clipboardData, bubbles: true, cancelable: true }));
+        return clipboardData.getData("text/plain");
+      });
+      expect(copied).toBe(points.text);
+    }
+    // The delayed canvas refresh must also leave the selected text available.
+    await page.waitForTimeout(250);
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+    await page.keyboard.up("Control");
+  });
+}
+
+test("keeps all selected pages readable during wheel repaint", async ({ page }) => {
+  await page.getByTitle("Fit page", { exact: true }).click();
+  await page.locator('.page[data-page-number="3"]').scrollIntoViewIfNeeded();
+  await expect(firstLine(page, 3)).toBeVisible();
+  await firstLine(page).scrollIntoViewIfNeeded();
+  const selected = await page.evaluate(() => {
+    const line = (number: number) => Array.from(document.querySelectorAll(
+      `.page[data-page-number="${number}"] .textLayer span[role="presentation"]`))
+      .find(element => /\S.{10}/.test(element.textContent!))!.firstChild!;
+    const selection = window.getSelection()!;
+    selection.setBaseAndExtent(line(1), 0, line(3), 8);
+    return selection.toString();
+  });
+  expect(selected).toContain("Hello, Reader.");
+  const points = await linePoints(firstLine(page));
+  await page.mouse.move(points.end, points.y);
+  await page.keyboard.down("Control");
+  for (let i = 0; i < 3; i++) {
+    await page.mouse.wheel(0, -60);
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
+    for (let number = 1; number <= 3; number++) await expect(firstLine(page, number)).toBeVisible();
+  }
+  await page.keyboard.up("Control");
+  await page.waitForTimeout(250);
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
+});
+
 test("zoom does not resurrect a cancelled selection and page navigation still clears it", async ({ page }) => {
   const points = await linePoints(firstLine(page));
   await drag(page, points.left, points.y, points.end);
@@ -205,9 +310,14 @@ test("cancelling during zoom repaint does not restore the previous search select
   await expect(page.locator('.page[data-page-number="1"] .textLayer .highlight')).toBeAttached();
   const points = await linePoints(firstLine(page), 2, 10);
   await drag(page, points.start, points.y, points.end);
+  const canvas = page.locator('.page[data-page-number="1"] .canvasWrapper canvas');
+  const previousWidth = await canvas.evaluate(element => (element as HTMLCanvasElement).width);
   await page.keyboard.press("Control+=");
-  await expect(page.locator('.page[data-page-number="1"] .textLayer')).toBeHidden();
-  await page.mouse.click(points.left, points.y);
+  const zoomed = await linePoints(firstLine(page), 2, 10);
+  await page.mouse.click(zoomed.left, zoomed.y);
+  await expect.poll(() => canvas.last().evaluate(element => (element as HTMLCanvasElement).width))
+    .not.toBe(previousWidth);
+  await expect(canvas).toHaveCount(1);
   await expect(firstLine(page)).toBeVisible();
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
 });

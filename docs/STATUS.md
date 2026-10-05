@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; PDF 空白起点及选字后缩放丢失选区已修复，全量验证通过，当前开发窗口已热更新，待用户复验原问题 PDF。
+- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; 针对第二次 Ctrl＋滚轮失效反馈修订：连续缩放及延迟重绘期间保持选中文字层可用，31 项浏览器测试与构建通过；当前窗口完整重载并核对全部 PDF 实例，待用户复验原 PDF。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-03-markdown-editing-stability.md`](tasks/archive/2026-10-03-markdown-editing-stability.md).
 
@@ -40,6 +40,13 @@
 - `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：26 项通过，其中 PDF 17 项、Markdown 9 项。新增 9 项验证已有选区缩放后的文本、方向、比例几何、搜索高亮重绘、重绘期间取消及普通页面跳转清选。
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。文档与 diff 检查通过。
 - 开发窗口继续运行；Vite 已热更新 `PdfViewer.tsx`，新适配模块和引用模块均返回 200 并含当前修订，没有新增前端初始化错误。真实 WebView2 复验待用户完成；Rust 与安装包本轮未重跑。
+
+同日用户再次反馈 Ctrl＋滚轮仍失效后的第二次修订记录：
+
+- 新回归复现滚轮后立即读选中文字为空；旧测试等待重绘完成，漏查 `drawingDelay: 180` 隐藏文字层的阶段。缩放和延迟 refresh 后立即更新所有选中页面的缓存文字层，保持文字及复制可用；引擎照常重绘画布，用户取消仍取消恢复。
+- `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：31 项通过（PDF 22、Markdown 9）。新增 5 项覆盖连续滚轮、选区绘制范围、延迟重绘期间文本和复制处理器、搜索及跨页；复制测试使用事件剪贴板，不读写 Windows 剪贴板。
+- `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。
+- 已新开检查 PDF，并在确认无未保存 Markdown 后完整重载当前窗口。临时运行诊断确认重载后的所有 PDF 实例包含即时文字更新；诊断与重载代码已移除，不进入提交。用户真实原 PDF、蓝色选区及 Ctrl+C 验收仍待完成；未截图，Rust 与安装包未重跑。
 
 2026-10-03 针对 Markdown 编辑稳定性记录：
 
