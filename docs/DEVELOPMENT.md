@@ -45,7 +45,7 @@ Markdown 编辑器生命周期回归测试使用开发依赖 `jsdom` 挂载真�
 浏览器功能回归测试运行 `pnpm --dir reader test:browser`，使用开发依赖 `@playwright/test` 和已安装的 Microsoft Edge，无需另行下载浏览器。测试启动独立的 `127.0.0.1:1422` 服务，不生成截图、视频或 trace。入口为 `reader/playwright.config.ts` 和 `reader/tests/browser/`。Vitest 仅发现 `src/**/*.test.{ts,tsx}`，避免混跑 Playwright 用例。此测试仍不替代用户在真实 Reader 中的中文输入法和交互验收。
 
 - Markdown：加载真实 React/Crepe/CSS，仅模拟原生文件接口；以坐标和内容断言验证选区稳定、连续输入及撤销。
-- PDF：加载真实 `PdfViewer`、PDF.js、文字层和应用 CSS，仅把原生文件协议映射到 `tests/fixtures/text-3.pdf` 并模拟批注写入；通过真实鼠标拖动检查空白起点、文字内部、反向、跨行、缩放/滚动及文字高亮的选区几何。单独运行：`pnpm --dir reader test:browser -- pdf-selection.spec.ts`。模拟批注写入不证明 PDFium 文件写入结果。
+- PDF：加载真实 `PdfViewer`、PDF.js、文字层和应用 CSS，仅把原生文件协议映射到 `tests/fixtures/text-3.pdf` 并模拟批注写入；通过真实鼠标拖动检查空白起点、文字内部、反向、跨行、缩放/滚动及文字高亮的选区几何；另外检查已有选区经按钮/快捷键/Ctrl＋滚轮/适合模式缩放后的内容、方向和几何，以及搜索高亮重绘和取消选区时的行为。单独运行：`pnpm --dir reader test:browser -- pdf-selection.spec.ts`。模拟批注写入不证明 PDFium 文件写入结果。
 
 文档结构与内部链接检查：
 

@@ -18,7 +18,6 @@ import {
   LinkTarget,
   PDFFindController,
   PDFLinkService,
-  PDFViewer as PdfJsViewer,
 } from "pdfjs-dist/web/pdf_viewer.mjs";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
@@ -30,6 +29,7 @@ import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { blankPageInsertArgs, pdfFileUrl } from "./pdfModel";
 import { flattenOutline } from "./pdfOutline";
 import { installPdfMarginSelection } from "./pdfMarginSelection";
+import { SelectionPreservingPdfViewer as PdfJsViewer } from "./SelectionPreservingPdfViewer";
 import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
 import { PdfToolbar } from "./PdfToolbar";
@@ -328,6 +328,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
       eventBus.off("pagerendered", onPageRendered);
       eventBus.off("updatefindmatchescount", onMatchesCount);
       eventBus.off("updatefindcontrolstate", onFindState);
+      viewer.disposeSelectionPreservation();
       viewer.cleanup();
       if (viewerRef.current === viewer) {
         viewerRef.current = null;

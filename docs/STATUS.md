@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; PDF 从文字行空白处开始拖动选择已修复，全量自动化验证通过，独立开发窗口已启动，待用户检查原问题 PDF。
+- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; PDF 空白起点及选字后缩放丢失选区已修复，全量验证通过，当前开发窗口已热更新，待用户复验原问题 PDF。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-03-markdown-editing-stability.md`](tasks/archive/2026-10-03-markdown-editing-stability.md).
 
@@ -33,6 +33,13 @@
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1171 个模块；仅既有大 chunk 警告。
 - 文档和 diff 检查通过；Tauri 开发编译完成，通过临时独立应用标识启动验收窗口并打开文字 PDF 样本副本。纠正 pnpm 启动示例的分隔符，直接 Tauri CLI 启动已验证文件参数正确。
 - 原问题 PDF 的真实 WebView2 交互待用户验收；本次未改 Rust，Rust 测试和安装包未重跑。
+
+同日用户反馈“已有选区在缩放后失效”后的修订记录：
+
+- 修复前按钮、快捷键、Ctrl＋滚轮和适合模式四项真实浏览器回归均复现选区变空；PDF.js 缩放会主动清选，搜索高亮还会替换文字子节点。
+- `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：26 项通过，其中 PDF 17 项、Markdown 9 项。新增 9 项验证已有选区缩放后的文本、方向、比例几何、搜索高亮重绘、重绘期间取消及普通页面跳转清选。
+- `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。文档与 diff 检查通过。
+- 开发窗口继续运行；Vite 已热更新 `PdfViewer.tsx`，新适配模块和引用模块均返回 200 并含当前修订，没有新增前端初始化错误。真实 WebView2 复验待用户完成；Rust 与安装包本轮未重跑。
 
 2026-10-03 针对 Markdown 编辑稳定性记录：
 

@@ -12,17 +12,27 @@ test.beforeEach(async ({ page }) => {
 });
 
 function firstLine(page: Page, pageNumber = 1) {
-  return page.locator(`.page[data-page-number="${pageNumber}"] .textLayer span`)
+  return page.locator(`.page[data-page-number="${pageNumber}"] .textLayer span[role="presentation"]`)
     .filter({ hasText: /\S.{10}/ }).first();
 }
 
 async function linePoints(line: Locator, start = 0, end = 8) {
   await expect(line).toBeVisible();
   return line.evaluate((element, offsets) => {
-    const text = element.firstChild!;
+    const boundary = (offset: number) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const length = node.textContent!.length;
+        if (offset <= length) return { node, offset };
+        offset -= length;
+      }
+      throw new Error("Text offset outside the PDF line");
+    };
+    const start = boundary(offsets.start);
+    const end = boundary(offsets.end);
     const range = document.createRange();
-    range.setStart(text, offsets.start);
-    range.setEnd(text, offsets.end);
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
     const rect = range.getBoundingClientRect();
     const lineRect = element.getBoundingClientRect();
     return {
@@ -102,6 +112,104 @@ test("selects from the margin after zooming and scrolling to another page", asyn
   const points = await linePoints(firstLine(page, 2));
   await drag(page, points.left, points.y, points.end);
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+});
+
+for (const zoom of ["button", "keyboard", "wheel", "fit"] as const) {
+  test(`keeps an existing selection through ${zoom} zoom`, async ({ page }) => {
+    const points = await linePoints(firstLine(page));
+    await drag(page, points.left, points.y, points.end);
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+    const scaleBefore = await page.locator(".pdf-zoom-pct").textContent();
+    if (zoom === "button") {
+      await page.getByTitle("Zoom in", { exact: true }).click();
+    } else if (zoom === "keyboard") {
+      await page.keyboard.press("Control+=");
+    } else if (zoom === "wheel") {
+      await page.mouse.move(points.end, points.y);
+      await page.keyboard.down("Control");
+      await page.mouse.wheel(0, -120);
+      await page.keyboard.up("Control");
+    } else {
+      await page.getByTitle("Fit page", { exact: true }).click();
+    }
+    await expect(page.locator(".pdf-zoom-pct")).not.toHaveText(scaleBefore!);
+    await expect(firstLine(page)).toBeVisible();
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+  });
+}
+
+test("keeps a backwards selection through repeated zoom and fit changes", async ({ page }) => {
+  const line = firstLine(page);
+  const points = await linePoints(line, 4, (await line.textContent())!.length);
+  await drag(page, points.right, points.y, points.start);
+  const selectedWidth = await page.evaluate(() => window.getSelection()!.getRangeAt(0).getBoundingClientRect().width);
+  const lineWidth = (await line.boundingBox())!.width;
+  for (const title of ["Zoom in", "Zoom out", "Fit page", "Fit width", "Fit width"]) {
+    await page.getByTitle(title, { exact: true }).click();
+    await expect(firstLine(page)).toBeVisible();
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+    const selection = await page.evaluate(() => {
+      const value = window.getSelection()!;
+      return { width: value.getRangeAt(0).getBoundingClientRect().width,
+        anchor: value.anchorOffset, focus: value.focusOffset };
+    });
+    expect(selection.anchor).toBeGreaterThan(selection.focus);
+    expect(selection.width / selectedWidth).toBeCloseTo((await line.boundingBox())!.width / lineWidth, 1);
+  }
+});
+
+test("zoom does not resurrect a cancelled selection and page navigation still clears it", async ({ page }) => {
+  const points = await linePoints(firstLine(page));
+  await drag(page, points.left, points.y, points.end);
+  await page.mouse.click(points.left, points.y);
+  await page.getByTitle("Zoom in", { exact: true }).click();
+  await expect(firstLine(page)).toBeVisible();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
+  const selected = await linePoints(firstLine(page));
+  await drag(page, selected.left, selected.y, selected.end);
+  await page.getByRole("spinbutton", { name: "page", exact: true }).fill("2");
+  await page.getByRole("spinbutton", { name: "page", exact: true }).press("Enter");
+  await expect(firstLine(page, 2)).toBeVisible();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
+});
+
+test("keeps a selection overlapping search highlights after zoom", async ({ page }) => {
+  await page.getByRole("searchbox", { name: "search", exact: true }).fill("Reader");
+  await page.getByRole("searchbox", { name: "search", exact: true }).press("Enter");
+  await expect(page.locator('.page[data-page-number="1"] .textLayer .highlight')).toBeAttached();
+  const points = await linePoints(firstLine(page), 2, 10);
+  await drag(page, points.start, points.y, points.end);
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+  await page.getByTitle("Zoom in", { exact: true }).click();
+  await expect(firstLine(page)).toBeVisible();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(points.text);
+});
+
+test("keeps a cross-line selection after zooming in and out", async ({ page }) => {
+  const lines = page.locator('.page[data-page-number="1"] .textLayer span[role="presentation"]')
+    .filter({ hasText: /\S.{10}/ });
+  const start = await linePoints(lines.nth(0));
+  const end = await linePoints(lines.nth(1));
+  const expected = `${await lines.nth(0).textContent()}\n${end.text}`;
+  await drag(page, start.left, start.y, end.end, end.y);
+  for (const title of ["Zoom in", "Zoom out"]) {
+    await page.getByTitle(title, { exact: true }).click();
+    await expect(lines.nth(1)).toBeVisible();
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(expected);
+  }
+});
+
+test("cancelling during zoom repaint does not restore the previous search selection", async ({ page }) => {
+  await page.getByRole("searchbox", { name: "search", exact: true }).fill("Reader");
+  await page.getByRole("searchbox", { name: "search", exact: true }).press("Enter");
+  await expect(page.locator('.page[data-page-number="1"] .textLayer .highlight')).toBeAttached();
+  const points = await linePoints(firstLine(page), 2, 10);
+  await drag(page, points.start, points.y, points.end);
+  await page.keyboard.press("Control+=");
+  await expect(page.locator('.page[data-page-number="1"] .textLayer')).toBeHidden();
+  await page.mouse.click(points.left, points.y);
+  await expect(firstLine(page)).toBeVisible();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
 });
 
 test("margin selection supplies text quads to the highlight tool", async ({ page }) => {
