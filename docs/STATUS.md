@@ -2,18 +2,18 @@
 
 - Last updated: 2026-10-05
 - Application version: `0.1.0`
-- Latest user-accepted application source baseline: `87f488e — Markdown editing stability and selection-induced page shift fixes accepted`
+- Latest user-accepted application source baseline: `c267f35 — PDF text selection from whitespace, zoom preservation and drag endpoints accepted`
 
 ## Active task
 
-- [`2026-10-05-pdf-margin-selection.md`](tasks/active/2026-10-05-pdf-margin-selection.md) — `waiting_user_acceptance`; 用户已确认缩放及起点正常；末行下方空白终点漏字已修订，108 项前端、37 项浏览器测试及构建通过，当前窗口完整重载并核对终点适配器，待用户验收末行补全及拖回文字的精确选择。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
-- Latest completed task: [`2026-10-03-markdown-editing-stability.md`](tasks/archive/2026-10-03-markdown-editing-stability.md).
+- Latest completed task: [`2026-10-05-pdf-margin-selection.md`](tasks/archive/2026-10-05-pdf-margin-selection.md).
 
 ## Implemented at the application baseline
 
 - PDF 阅读、搜索、按层级逐行显示并过滤空白页占位书签的目录、缩略图、打印、批注和页面增删。
 - PDF.js 构建资源按运行时请求路径平铺复制，未嵌入 Adobe CJK 字体的 PDF 可正常加载 CMap 并显示文字。
+- PDF 文字可从行侧空白开始选择，拖到末行下方补全该行，拖回文字恢复精确终点；已有选区在缩放和连续 Ctrl＋滚轮重绘期间保留。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
 - Markdown 所见即所得/源码模式、显式保存、等宽代码字体和左侧目录；渲染区域采用 Crepe 官方完整 Frame 浅色主题。
 - 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和最多 8 项的跨启动最近文件列表。
@@ -32,28 +32,28 @@
 - `pnpm --dir reader test:browser`：17 项真实 Edge 功能测试通过，含新增 8 项 PDF 回归，覆盖左右空白起点、文字内部、反向、重选、空白单击取消、跨行、缩放/滚动及高亮 quads；PDF.js/React/CSS 真实运行，文件协议与批注写入模拟，无截图、视频或 trace。
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1171 个模块；仅既有大 chunk 警告。
 - 文档和 diff 检查通过；Tauri 开发编译完成，通过临时独立应用标识启动验收窗口并打开文字 PDF 样本副本。纠正 pnpm 启动示例的分隔符，直接 Tauri CLI 启动已验证文件参数正确。
-- 原问题 PDF 的真实 WebView2 交互待用户验收；本次未改 Rust，Rust 测试和安装包未重跑。
+- 首轮交付时原问题 PDF 的真实 WebView2 交互待用户验收，后续反馈及最终验收见下文；本次未改 Rust，Rust 测试和安装包未重跑。
 
 同日用户反馈“已有选区在缩放后失效”后的修订记录：
 
 - 修复前按钮、快捷键、Ctrl＋滚轮和适合模式四项真实浏览器回归均复现选区变空；PDF.js 缩放会主动清选，搜索高亮还会替换文字子节点。
 - `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：26 项通过，其中 PDF 17 项、Markdown 9 项。新增 9 项验证已有选区缩放后的文本、方向、比例几何、搜索高亮重绘、重绘期间取消及普通页面跳转清选。
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。文档与 diff 检查通过。
-- 开发窗口继续运行；Vite 已热更新 `PdfViewer.tsx`，新适配模块和引用模块均返回 200 并含当前修订，没有新增前端初始化错误。真实 WebView2 复验待用户完成；Rust 与安装包本轮未重跑。
+- 开发窗口继续运行；Vite 已热更新 `PdfViewer.tsx`，新适配模块和引用模块均返回 200 并含当前修订，没有新增前端初始化错误。该轮交付时真实 WebView2 复验待用户完成，后续反馈及最终验收见下文；Rust 与安装包本轮未重跑。
 
 同日用户再次反馈 Ctrl＋滚轮仍失效后的第二次修订记录：
 
 - 新回归复现滚轮后立即读选中文字为空；旧测试等待重绘完成，漏查 `drawingDelay: 180` 隐藏文字层的阶段。缩放和延迟 refresh 后立即更新所有选中页面的缓存文字层，保持文字及复制可用；引擎照常重绘画布，用户取消仍取消恢复。
 - `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：31 项通过（PDF 22、Markdown 9）。新增 5 项覆盖连续滚轮、选区绘制范围、延迟重绘期间文本和复制处理器、搜索及跨页；复制测试使用事件剪贴板，不读写 Windows 剪贴板。
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。
-- 已新开检查 PDF，并在确认无未保存 Markdown 后完整重载当前窗口。临时运行诊断确认重载后的所有 PDF 实例包含即时文字更新；诊断与重载代码已移除，不进入提交。用户真实原 PDF、蓝色选区及 Ctrl+C 验收仍待完成；未截图，Rust 与安装包未重跑。
+- 已新开检查 PDF，并在确认无未保存 Markdown 后完整重载当前窗口。临时运行诊断确认重载后的所有 PDF 实例包含即时文字更新；诊断与重载代码已移除，不进入提交。该轮交付时用户验收待完成，最终验收见下文；未截图，Rust 与安装包未重跑。
 
 同日用户确认缩放和选择起点正常，继续反馈末行空白终点漏字后的修订记录：
 
 - 真实三行鼠标手势先复现从文字或空白起点向下拖动后，第三行只选到 `Page one`；现仅在 PDF 文字层空白处补正拖动终点，越过行底/行顶分别补到行尾/行首，回到文字后保持原生字符终点。
 - `pnpm --dir reader test`：108 项通过；`pnpm --dir reader test:browser`：37 项通过（PDF 28、Markdown 9），新增 6 项覆盖末行补全、返回文字和释放稳定、反向、右侧空白及完整末行高亮几何；已验收的缩放回归仍通过。
 - `pnpm --dir reader build`：TypeScript 与生产构建通过，1172 个模块，仅既有大 chunk 警告。当前窗口在无未保存 Markdown 的情况下完整重载，临时运行诊断确认终点适配器已加载；诊断代码已移除。
-- 用户原 PDF 的终点交互及实际 Ctrl+C 待验收；未截图，Rust 与安装包未重跑。
+- 用户于 2026-10-05 回复“验收”，确认本任务整体通过，最终源码基线 `c267f35`，任务已归档。用户未提供独立剪贴板内容记录；未截图，Rust 与安装包未重跑。
 
 2026-10-03 针对 Markdown 编辑稳定性记录：
 
@@ -152,6 +152,7 @@
 
 ## Latest user acceptance
 
+- 2026-10-05：用户确认 PDF 文字选择起点、缩放选区保留及末行空白终点修复验收通过，源码基线为 `c267f35`；任务已归档，未生成新安装包。PDF 目录任务仍独立等待验收。
 - 2026-10-03：用户确认 Markdown 编辑稳定性与选区跳动修复验收通过，源码基线为 `87f488e`；任务已归档，未生成新安装包。
 - 2026-08-30：用户验收 Markdown 官方主题及标题、块控件和代码折叠箭头修订，并要求生成和运行新的 MSI 安装包。
 - 2026-08-29：用户验收新标签页、原生打开文件、延迟到首次保存时选路径的新建 Markdown，以及最近文件 Windows 路径清理和去重结果。
