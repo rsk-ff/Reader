@@ -6,6 +6,7 @@
 
 ## Active task
 
+- [`2026-10-05-msi-release-install.md`](tasks/active/2026-10-05-msi-release-install.md) — `waiting_user_acceptance`; 本地 MSI 构建及覆盖安装成功，升级登记、程序与资源核对通过，安装版已启动，待用户复验 PDF 选择及缩放。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-05-pdf-margin-selection.md`](tasks/archive/2026-10-05-pdf-margin-selection.md).
 
@@ -134,21 +135,21 @@
 
 ## Latest local release artifacts
 
-以下本地文件不纳入 Git。MSI 已于 2026-08-30 从应用源码 `6097a1c` 重新构建，版本仍为 `0.1.0`；NSIS 为历史产物，本轮未重建。此前安装包的验收不代表新 MSI 的安装结果。
+以下本地文件不纳入 Git。MSI 已于 2026-10-05 从 `7273983`（已验收应用源码 `c267f35`）重新构建并覆盖安装，版本仍为 `0.1.0`；NSIS 为历史产物，本轮未重建。此前源码验收不替代本次安装版交互复验。
 
 | Format | Build scope | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | --- | ---: | --- | --- |
 | NSIS | 历史产物，未重建 | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,899,628 | `4561FBAF911094F8B9C2FC754D23EC8EBD0DF95B732732B84C215CE4BB0FB10B` | `NotSigned` |
-| MSI | 2026-08-30 / `6097a1c` | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,983,808 | `631D97DF32D21EC6D3671A5705928F9F22525CA0E5953AF2C77DD0D94D120F0B` | `NotSigned` |
+| MSI | 2026-10-05 / `7273983` | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,983,808 | `A7AF5384F30ACFC9884533787AD3DFFE8549C06CD21A4EB300D08DD888C72AE6` | `NotSigned` |
 
 本次 MSI 构建与启动证据：
 
-- `pnpm --dir reader tauri build --bundles msi`：退出码 `0`；前端 1170 个模块、Rust release 与 WiX candle/light 均完成，仅保留既有前端大 chunk 警告。构建日志为 `reader/msi-build-20260830.log`。
-- MSI 数据库：`ProductVersion=0.1.0`、`ALLUSERS=1`、`ProductCode={F234FE2F-E737-45B3-8DB4-D7EDEC3B0A62}`；UpgradeCode 保持 `{8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}`，升级表最小版本 `0`、无最大版本、属性 `257`，覆盖现有同版本 MSI。
+- `pnpm --dir reader tauri build --bundles msi`：退出码 `0`；前端 1172 个模块、Rust release 与 WiX candle/light 均完成，仅保留既有前端大 chunk 警告。构建日志为 `reader/msi-build-20261005.log`。
+- MSI 数据库：`ProductVersion=0.1.0`、`ALLUSERS=1`、`ProductCode={0BCEC9F0-9CE3-4EF1-8CE3-CBA1F61806AD}`；UpgradeCode 保持 `{8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}`，升级表最小版本 `0`、无最大版本、属性 `257`，覆盖现有同版本 MSI。
 - 包内含 `reader.exe`、`pdfium.dll`、PDF/Markdown ICO；注册表表中五项 `DefaultIcon` 均指向相应 ICO。
-- 已通过 `msiexec /i` 运行安装，日志确认 `Installation completed successfully`、退出码 `0`；新 ProductCode 已注册，旧 MSI ProductCode `{6D5BCA1C-BFAB-45DA-9DBD-C78032EFE4E9}` 的卸载记录已移除。日志位于 `C:\Users\fanq1\AppData\Local\Temp\Reader-MSI-Install-20260830-2259.log`；未主动卸载原 NSIS 安装，本轮未测试卸载。
-- 安装目录为 `C:\Users\fanq1\AppData\Local\Reader`。安装后的 `reader.exe` 与本次 release 二进制等长，逐字节比较仅 `__TAURI_BUNDLE_TYPE_VAR_UNK` → `__TAURI_BUNDLE_TYPE_VAR_MSI` 的三字节不同，其余内容一致；这是 Tauri 打包标记，不是保留旧程序。已启动安装后的 Reader，安装版视觉结果未单独复验。
-- 本轮仅归档文档和重新打包，未改应用源码；不重复运行先前已通过的前端单元测试及 Rust 测试套件。
+- 已通过 `msiexec /i` 运行安装，日志确认 `Installation completed successfully`、退出码 `0`；新 ProductCode 已注册，旧 MSI ProductCode `{F234FE2F-E737-45B3-8DB4-D7EDEC3B0A62}` 的卸载记录已移除。日志位于 `C:\Users\fanq1\AppData\Local\Temp\Reader-MSI-Install-20261005.log`；未主动卸载原 NSIS 安装，本轮未测试卸载。
+- 安装目录为 `C:\Users\fanq1\AppData\Local\Reader`。安装后的 `reader.exe` 为 17,300,480 字节，与本次 release 二进制逐字节比较仅 `__TAURI_BUNDLE_TYPE_VAR_UNK` → `__TAURI_BUNDLE_TYPE_VAR_MSI` 的三字节不同，归一后完全一致；PDFium 和两种 ICO 均与源资源哈希匹配，安装后的五项 DefaultIcon 指向正确资源。已确认安装版 PID `82732` 及非零窗口句柄，安装版视觉/交互待用户复验。
+- 本轮仅重新打包、安装和更新文档，未改应用源码；复用先前通过的 108 项前端、37 项浏览器测试，不重复 Rust 测试套件，release 编译已重新完成。
 
 ## Latest user acceptance
 
