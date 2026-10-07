@@ -1,14 +1,14 @@
 # Icon sources
 
-Base SVG artwork comes from [Bootstrap Icons 1.13.1](https://github.com/twbs/icons/tree/v1.13.1/icons), used under the adjacent [MIT license](LICENSE). No icon font or runtime dependency is required.
+Toolbar and compact in-app SVG artwork comes from [Bootstrap Icons 1.13.1](https://github.com/twbs/icons/tree/v1.13.1/icons), used under the adjacent [MIT license](LICENSE). The native application mark comes from Microsoft Fluent Emoji under [its MIT license](LICENSE-fluent-emoji). No icon font or runtime dependency is required.
 
 ## Application UI and Windows shell
 
 - `journal-bookmark-fill.svg`, `filetype-pdf.svg`, `filetype-md.svg`: recolored upstream marks for the title bar, tabs and home screen.
-- `shell-reader.svg`: local solid book and bookmark drawing, based on the same application symbol, with intentional transparent outer margins.
+- `shell-reader.svg`: Microsoft Fluent Emoji [Open book / Color](https://github.com/microsoft/fluentui-emoji/blob/e8a613a0baedbca8f144fa70950714f2583318a8/assets/Open%20book/Color/open_book_color.svg), retaining all original paths, gradients and filters. The original 32×32 SVG is placed at x=4 on a 40×40 canvas to reduce visual size and center the actual book body. The source file SHA-256 before wrapping was `DDD214B2383BA8206A8519003FBB8B345EB2A1A77AE860E732B11DAA76776582`. The copyright notice and license are retained in LICENSE-fluent-emoji.
 - `shell-pdf.svg`, `shell-markdown.svg`: local white paper, folded corner and colored format badge; format letter outlines come from the corresponding Bootstrap filetype SVG.
 
-The solid application mark was rejected by the user on 2026-10-07. Three replacement [vector proposals and a size proof](proposals/README.md) are awaiting direction selection; none has replaced the current generator input or installed application yet.
+The rejected local solid mark and three outline proposals were superseded by this complete upstream illustration on 2026-10-07. The proposals were removed from the working source; their history remains in Git. The Fluent mark is wired into the generator and current native development build; the installed release has not been updated. Bundle resources include the Microsoft copyright/license notice as `licenses/fluent-emoji.txt`.
 
 Run `pnpm --dir reader generate:file-icons` from the repository root. The generator reads only the three `shell-*.svg` sources and uses the existing Tauri converter to generate application PNG/ICO/ICNS resources and Windows file association ICOs. Changing the system marks does not alter the compact in-app marks.
 

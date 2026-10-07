@@ -56,6 +56,7 @@
 - [x] 实现及验证。
 - [ ] 用户验收。
 - [x] 用户否定实心软件图标后，重新绘制三种白色书页/文档方案，提供实际小尺寸图标预览；尚未接入程序。
+- [x] 用户进一步否定粗糙设计及候选流程后，直接采用 Microsoft Fluent 完整书本图形并更新原生检查版；移除失败提案源文件。
 
 ## Discoveries
 
@@ -64,6 +65,8 @@
 - 系统主体使用独立 shell SVG；应用内标记未变。PDF 工具改用和 Markdown 相同的遮罩组件；插页加号分别位于纸面上/下部，折角方向一致。
 - Tauri 开发子进程工作目录为 src-tauri，初次相对 PDF 参数找不到文件；改用绝对路径通过单实例转发补开，开发文档同步纠正。
 - 2026-10-07 用户反馈“这个软件图标太丑了”，否定当前实心书本；不据此推断其余图标已通过。新候选位于 reader/src/assets/icons/proposals，A 为展开书页、B 为文档与折角、C 为简洁书签；建议 A，尚待用户选择。应用内、当前 shell-reader.svg、生成资源及安装版本均未被候选替换。
+- 后续用户强烈否定上一轮交付。无需用户选方向：直接采用 Microsoft Fluent Emoji Open book / Color，来源固定为 e8a613a0baedbca8f144fa70950714f2583318a8，MIT 许可保存为 LICENSE-fluent-emoji。shell-reader.svg 保留上游完整路径、渐变和过滤器，以 x=4 放置到 40×40 画布，减少占比并使实际主体居中；输入原始 SHA256 与出处见图标 README。已删提案文件，历史保留 Git；应用内紧凑标记、文件 ICO 和两栏工具未再改动。
+- Tauri bundle 资源映射携带微软版权/许可至 licenses/fluent-emoji.txt；正式安装器尚未重建，发布时应核对该 notice。
 
 ## Verification
 
@@ -76,12 +79,16 @@
 - Tauri dev（临时配置）— 3m49s 编译完成；identifier=com.earendil.reader.icons20261007，窗口 Reader · 图标调整验收，PID 17580，句柄 460768、Responding=True。样本：临时 Markdown 副本和绝对路径 text-3.pdf；首次相对路径错误已补开。
 - `scripts/check-docs.ps1` 与 `git diff --check` — 通过；最终提交前再检查。
 - 软件图标返工提案 — 三个 SVG 均使用现有 Tauri CLI 在系统临时目录生成成功；.NET 解码三个 ICO 的 24/32/48px 帧，并在对应像素大小绘制到 proposals/preview.png（720×400），无新增依赖。程序逻辑未改，不重复应用测试或编译。提交主题 `design: propose replacement Reader application icons`。
+- Fluent 软件标记替换 — 生成命令成功，应用 PNG/ICO/ICNS 更新；.NET 实际解码 256/64/48/32/24/16 全部六帧，尺寸/数据边界正确，中心 alpha=255、外角 alpha=0，256px 首帧保留。SVG 无 script、foreignObject 或外部图像引用。
+- 开发检查版自动重编译 — 10.66s 通过，PID 7588、Responding=True；枚举元数据确认 Reader · 图标调整验收 可见窗口句柄 395220，PDF 已补发绝对路径。未截图/自动化视觉验收；未重复浏览器测试或打包安装，因为本轮仅软件图标资产改变。
+- 加入许可资源后原生编译 — 13.65s 通过，最新 PID 24540 响应正常，绝对 PDF 参数再次补发；debug/licenses/fluent-emoji.txt 与许可源文件 SHA256 相同。固定提交原始 SVG 下载核对哈希并复原画布包装，确认未改上游图形内容。
+- 文件 ICO、组件、工具逻辑和浏览器测试源码 — 与前一提交无差异。本地提交主题 `style: adopt Fluent book artwork for the Reader app icon`。
 
 ## User acceptance
 
 waiting：
 
-- 最新反馈：用户明确否定实心软件图标。当前先看 proposals/preview.png 的 A/B/C，确定新方向；候选未替换实际程序图标。
+- 最新反馈：用户否定实心软件图标及粗糙候选交付；已直接更新检查版为 Fluent 完整书本图形，不再等待候选选择。检查实际任务栏软件图标的轮廓、占比和清晰度；文件图标和两栏反馈仍未确认。
 - 检查版的任务栏软件图标是否大小适中、实心主体清晰；文件系统图标先看上述 PNG 帧预览（正式关联尚未更新）。
 - 切换 PDF/Markdown，确认右栏笔画、尺寸与颜色协调；两者删除线是否清楚。
 - 如需试删除线，PDF 仅使用测试样本；Markdown 使用临时副本，选字点删除线后可撤销。
@@ -92,8 +99,8 @@ Windows 可能缓存旧关联图标；正式版本更换需重新打包安装。
 
 ## Next action
 
-等待用户选择软件图标候选或提出具体修订，再将选定 SVG 接入软件原生图标并启动复验。
+等待用户对已经运行的 Fluent 软件图标及本任务其他图标给出视觉反馈，按反馈继续修订同一任务。
 
 ## Outcome
 
-首轮实现与自动化验证完成，但软件图标被用户否定；三种新候选已绘制并生成大小预览，等待方向反馈，尚未接入程序。未发布或覆盖正式安装。无 Pi 调用，会话 ID 无。整体用户验收后归档本任务。
+粗绘软件标记和三种候选均已被成熟 Fluent 书本图形替代；图标资源全部生成并验证，原生检查版已更新运行，等待实际视觉反馈。未发布或覆盖正式安装。无 Pi 调用，会话 ID 无。整体用户验收后归档本任务。

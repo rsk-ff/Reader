@@ -61,7 +61,7 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Release build
 
-软件与文件图标的 SVG 源文件在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)，基础图形采用 Bootstrap Icons 1.13.1 并保留 MIT 许可。应用内透明图标与原生图标分开：生成器只读取 `shell-reader.svg`、`shell-pdf.svg`、`shell-markdown.svg`，使原生图标具有实心主体与留边，不影响标题栏、标签和首页的小图标。需要修改系统图标时编辑这三个 SVG 后重新生成：
+软件与文件图标的 SVG 源文件在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)：原生软件标记采用 Microsoft Fluent Emoji，应用内和工具图形采用 Bootstrap Icons 1.13.1，分别保留 MIT 许可。应用内透明图标与原生图标分开：生成器只读取 `shell-reader.svg`、`shell-pdf.svg`、`shell-markdown.svg`，使原生图标具有实心主体与留边，不影响标题栏、标签和首页的小图标。软件 SVG 保留 Fluent 原有的渐变和过滤器，在 40×40 画布里放置原始 32×32 图形以调整占比；上游固定提交与许可见图标来源文档。需要修改系统图标时编辑这三个 SVG 后重新生成：
 
 ```powershell
 pnpm --dir reader generate:file-icons

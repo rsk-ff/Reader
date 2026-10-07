@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户否定实心书本软件图标，现有三个白色书页/文档候选及大小预览待选择；候选尚未接入程序。文件图标、竖栏与删除线反馈仍未单独确认，正式安装版本尚未更新。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户否定粗糙软件图标及候选流程后，已直接采用 Microsoft Fluent 完整书本图形、生成原生资源并更新运行中的检查版；本轮只需对实际版本反馈。文件图标、竖栏与删除线尚未单独验收，正式安装版本尚未更新。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
@@ -28,6 +28,9 @@
 
 2026-10-07 图标修订（未验收、未发布）：
 
+- 最新修订：弃用本地粗绘软件标记和三种提案，采用 Microsoft Fluent Emoji Open book / Color（固定提交 e8a613a0baedbca8f144fa70950714f2583318a8，MIT 许可），保留原路径/渐变/过滤器，扩展画布调整占比。应用 PNG/ICO/ICNS 已重生成，全部六个 ICO 帧解码和尺寸检查通过，所有中心完全不透明、外角透明、首帧 256px；文件 ICO 与工具实现未再改变。
+- Tauri 开发自动重编译通过（10.66s），检查版 PID 7588 响应正常，实际标题 Reader · 图标调整验收 的可见窗口句柄 395220；绝对路径 PDF 参数已补发。这里只读取窗口元数据，不做截图或视觉验收。未重复无关应用测试或正式安装。
+- 许可资源映射加入后再次原生编译通过（13.65s），当前检查进程 PID 24540 响应正常，PDF 绝对路径参数再次补发；debug/licenses/fluent-emoji.txt 已复制且哈希与许可源文件一致。固定提交的原始 SVG 哈希核对通过，软件 SVG 除画布与定位外完整保留上游内容。
 - 软件图标被用户明确否定；新增本地矢量候选 A 展开书页（建议）、B 文档与折角、C 简洁书签。三者经 Tauri 转换成功，预览使用 ICO 原生 24/32/48px 帧及 128px PNG；候选未替换 shell-reader.svg 或已安装图标。本轮仅提案与文档，未重复应用测试、编译或重启检查程序。
 - 两栏共用 18px SVG 遮罩及删除线；Markdown 16、PDF 10 个图形全部实际解码，删除线图形、尺寸和未激活颜色一致。
 - 41 个相关浏览器用例有通过记录：首轮 38 通过，2 项页面加载超时、1 项 PDF 手势失败；仅重跑失败的 3 项后全部通过，未修改选择或编辑实现。Markdown 生命周期 8 项组件测试通过。

@@ -6,7 +6,7 @@
 
 ### Changed
 
-- Windows 软件图标改为留边的实心书本，PDF/Markdown 文件图标改为白色纸面与紧凑格式标记，应用内小图标保留。PDF 右侧工具与 Markdown 共用 Bootstrap SVG 遮罩和尺寸，两者共用重新绘制的删除线。
+- Windows 软件图标采用 Microsoft Fluent 的白色纸页/蓝色封面书本，调整系统图标占比并保留成熟图形的明暗层次；PDF/Markdown 文件图标改为白色纸面与紧凑格式标记，应用内小图标保留。PDF 右侧工具与 Markdown 共用 Bootstrap SVG 遮罩和尺寸，两者共用重新绘制的删除线。
 
 - 最近文件不再按 8 条截断，保持完整历史、路径去重和最近打开顺序，长列表可滚动查看。
 
