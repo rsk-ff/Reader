@@ -1,6 +1,6 @@
 # Windows and document rail icon refinement
 
-- Status: `in_progress`
+- Status: `waiting_user_acceptance`
 - Owner: Codex
 - Created: `2026-10-07`
 - Last updated: `2026-10-07`
@@ -11,7 +11,7 @@
 
 ## Goal
 
-改善用户截图中 Windows 软件/文件图标透出桌面、占比过大的表现，并统一 PDF/Markdown 右侧工具图形和删除线。
+统一 Reader 在软件内部与 Windows 的软件/文件图标，并统一 PDF/Markdown 右侧工具图形和删除线。用户已接受 Fluent 软件图标；最新明确要求 PDF/MD 恢复之前的轮廓与字母，只把纸张内部填为不透明白色。
 
 ## Related context
 
@@ -19,94 +19,79 @@
 - [Development](../../DEVELOPMENT.md)
 - [Icon sources](../../../reader/src/assets/icons/README.md)
 - [Generator](../../../scripts/generate-file-association-icons.mjs)
+- [Brand catalogue](../../../reader/src/components/brandIcons.ts)
+- [Shared rail](../../../reader/src/components/DocumentToolRail.tsx)
 - [PDF tools](../../../reader/src/documents/pdf/PdfToolbar.tsx)
 - [Markdown tools](../../../reader/src/documents/markdown/MarkdownTools.tsx)
-- [Shared rail](../../../reader/src/components/DocumentToolRail.tsx)
-- [Shared brand icons](../../../reader/src/components/brandIcons.ts)
 
 ## Current behavior
 
-系统 ICO 从应用内透明轮廓直接生成，图形几乎占满画布。PDF 使用 24px 自绘描边，Markdown 使用 16px Bootstrap 填充遮罩；删除线图形也不同。
+修订前系统轮廓图标透出桌面且占比过大；PDF/Markdown 工具来源与删除线不同。原生图标更新后，标题栏/首页和文件组件仍引用旧 SVG，已安装 Windows 资源也未同步。
 
 ## Expected behavior
 
-系统图标有可辨识实心主体和留边，保留外部透明区域；最新用户明确要求文件恢复之前的 Bootstrap 轮廓、字母与颜色，仅添加纸张内部不透明白底，取消格式色块。两种工具栏采用相同图标来源、18px 图形和按钮样式，删除线共用简洁 S/横线图形。
+软件采用已被用户接受的 Microsoft Fluent 书本。文件完整保留原 Bootstrap filetype-pdf/md 路径、字母与配色，在纸张轮廓后增加纯白、不透明底层，外围仍透明，无格式色块。软件内部与 Windows 共用母版并同步更新。两栏图标采用相同来源、尺寸和按钮样式，删除线相同。
 
 ## Scope
 
-本地图标 SVG、生成资源/脚本、PDF/Markdown 工具栏图标接入、针对性验证及文档。
+图标资产/生成资源、所有应用内引用、针对性验证和文档；本机 MSI 覆盖安装、Windows 正常刷新通知与已授权的编译缓存清理。
 
 ## Out of scope
 
-工具功能、文档写入、目录任务和编辑器行为；为完成 Windows 所有位置图标更新，本轮允许重新打包并本机覆盖安装，不外部发布。
+编辑、文档写入、目录任务和工具功能；不上传外部平台，不改变默认应用选择，不删除用户数据或全局缓存。
 
 ## Constraints and decisions
 
-不增加依赖；保留许可、多尺寸 ICO 与应用 256px 首帧。最新用户要求所有位置更新，应用内与 Windows 改为共用同一 SVG 母版，只有显示尺寸不同。Codex 直接实现，不调用 Pi，不截图或桌面自动化验收。
+无新增依赖；版权/许可随包携带，多尺寸 ICO 与应用 256px 首帧保留。Codex 直接实现，不调用 Pi、不截图或桌面自动化视觉验收。软件采用 Fluent 上游完整图形，只扩画布调整占比；文件恢复原轮廓，仅加白底。应用内和原生生成器共用 brandIcons 对应母版，避免后续遗漏。
 
 ## Acceptance criteria
 
-- [ ] 系统图标填实主体、缩小占比，用户确认桌面实际效果。
-- [x] 两种工具栏共用样式/图形与删除线，原操作自动化通过；美观由用户判断。
-- [x] 图标生成、资源解码、针对性浏览器、类型/构建与文档检查通过。
-- [x] 启动可检查开发版；本地提交主题 `style: refine shell icons and unify document tool rails`，工作树状态以 Git 为准。
+- [x] 用户接受 Fluent 软件设计；未将该认可扩大为整个交互验收。
+- [x] 标题栏、首页、favicon、标签、最近文件、前端拖拽和原生拖拽预览同步新版母版。
+- [x] PDF/MD 原轮廓及颜色保持，内部白底和全部尺寸解码通过。
+- [x] 两栏共用图形/尺寸/删除线，原操作自动化有通过记录。
+- [x] 正式 MSI/NSIS 构建、MSI 覆盖安装、资源/关联核对、启动及缓存清理完成。
+- [ ] 用户确认正式版所有位置实际显示效果。
 
 ## Progress
 
-- [x] 核对干净工作树、用户截图、当前图标和两套工具接入。
-- [x] 实现及验证。
+- [x] 核对 Git、代码、用户截图和所有图标入口。
+- [x] 两栏统一；软件粗绘和三种提案被用户否定，直接替换为成熟 Fluent 书本并移除失败提案。
+- [x] 用户回复“就这吧”后补齐共享入口，源码提交 3ae410e。
+- [x] 在中间包安装期间，用户要求文件恢复旧形状加白底；已按反馈重做，源码提交 6417832。
+- [x] 最终正式包覆盖中间包、刷新关联、启动并保留发布证据，清掉 Rust 编译缓存。
 - [ ] 用户验收。
-- [x] 用户否定实心软件图标后，重新绘制三种白色书页/文档方案，提供实际小尺寸图标预览；尚未接入程序。
-- [x] 用户进一步否定粗糙设计及候选流程后，直接采用 Microsoft Fluent 完整书本图形并更新原生检查版；移除失败提案源文件。
-- [x] 用户接受 Fluent 软件图标，要求软件内部及所有文件图标同步；代码入口已核对，正在统一引用并准备正式安装更新。
-- [x] 用户在安装过程中要求文件恢复旧设计，仅纸张内部填白；PDF/MD 完整路径和原配色已恢复，共享入口保持，生成/六帧检查和 5 项浏览器测试通过。3ae410e 中间包已安装成功，将由本次最终包覆盖。
 
 ## Discoveries
 
-- 已安装正式版来自 de45f91；图标源码变更不会自动更新 Explorer 缓存或已安装程序。
-- 上轮已清空 Rust target，启动原生检查版需完整重编译。
-- 系统主体使用独立 shell SVG；应用内标记未变。PDF 工具改用和 Markdown 相同的遮罩组件；插页加号分别位于纸面上/下部，折角方向一致。
-- Tauri 开发子进程工作目录为 src-tauri，初次相对 PDF 参数找不到文件；改用绝对路径通过单实例转发补开，开发文档同步纠正。
-- 2026-10-07 用户反馈“这个软件图标太丑了”，否定当前实心书本；不据此推断其余图标已通过。新候选位于 reader/src/assets/icons/proposals，A 为展开书页、B 为文档与折角、C 为简洁书签；建议 A，尚待用户选择。应用内、当前 shell-reader.svg、生成资源及安装版本均未被候选替换。
-- 后续用户强烈否定上一轮交付。无需用户选方向：直接采用 Microsoft Fluent Emoji Open book / Color，来源固定为 e8a613a0baedbca8f144fa70950714f2583318a8，MIT 许可保存为 LICENSE-fluent-emoji。shell-reader.svg 保留上游完整路径、渐变和过滤器，以 x=4 放置到 40×40 画布，减少占比并使实际主体居中；输入原始 SHA256 与出处见图标 README。已删提案文件，历史保留 Git；应用内紧凑标记、文件 ICO 和两栏工具未再改动。
-- Tauri bundle 资源映射携带微软版权/许可至 licenses/fluent-emoji.txt；正式安装器尚未重建，发布时应核对该 notice。
-- 最新用户反馈“就这吧，但是很多地方都没更新，软件里的软件图标，以及所有地方的文件图标”：接受 Fluent 软件设计，要求同步所有位置。遗漏原因是 WindowTitleBar/NewTabPage 仍引用 journal-bookmark-fill.svg，DocumentTypeIcon 仍引用 filetype-pdf/md.svg；原生生成器只使用 shell SVG，已安装 ICO 也未覆盖。采用共享 brandIcons.ts 接入三个母版，覆盖标题栏、首页、标签、最近记录、前端拖拽预览和原生拖拽窗口；HTML favicon 同步。只调整图片画布显示尺寸以补偿母版留边，保留标题栏、标签与窗口按钮固定几何。
+旧引用在 WindowTitleBar、NewTabPage 和 DocumentTypeIcon；共享 brandIcons 现覆盖所有文件组件使用位置。Windows 已安装文件不随源码自动变更，必须重建覆盖。生成 MSI 将许可保留为 licenses/LICENSE 和 licenses/LICENSE-fluent-emoji；NSIS 使用配置映射的 .txt 名称，两者都包含完整 notice。用户 .pdf/.md 默认类分别为 PDF Document、Markdown Document，五项 DefaultIcon 均核对正确。
 
 ## Verification
 
-- `pnpm --dir reader generate:file-icons` — 通过；应用 PNG/ICO/ICNS 与两个文件 ICO 重新生成。
-- ICO 二进制/.NET 解码检查 — 三者各 6 帧，边界有效、应用 256px 首帧；中心 alpha=255、外角 alpha=0。256px 不透明边界：软件 40,40..204,215；两种文件 48,26..197,219。实际帧预览保存为系统临时目录的 reader-icon-preview.png、reader-file-pdf-preview.png、reader-file-markdown-preview.png。
-- `pnpm --dir reader test:browser -- markdown-tools.spec.ts pdf-selection.spec.ts` — 首轮 38/41；两项页面加载超过 30s，一项原 PDF 手势中间补全未及时出现。新图标/一致性用例通过。
-- `pnpm --dir reader test:browser -- --last-failed --workers=1` — 3/3 通过，无测试或选择代码改动；共 41 个不同用例有通过记录。
-- `pnpm --dir reader test src/documents/markdown/MilkdownCrepe.test.tsx` — 8/8 通过。
-- `pnpm --dir reader build` — TypeScript 与最终生产构建通过，1204 模块，既有大 chunk 提示。
-- Tauri dev（临时配置）— 3m49s 编译完成；identifier=com.earendil.reader.icons20261007，窗口 Reader · 图标调整验收，PID 17580，句柄 460768、Responding=True。样本：临时 Markdown 副本和绝对路径 text-3.pdf；首次相对路径错误已补开。
-- `scripts/check-docs.ps1` 与 `git diff --check` — 通过；最终提交前再检查。
-- 软件图标返工提案 — 三个 SVG 均使用现有 Tauri CLI 在系统临时目录生成成功；.NET 解码三个 ICO 的 24/32/48px 帧，并在对应像素大小绘制到 proposals/preview.png（720×400），无新增依赖。程序逻辑未改，不重复应用测试或编译。提交主题 `design: propose replacement Reader application icons`。
-- Fluent 软件标记替换 — 生成命令成功，应用 PNG/ICO/ICNS 更新；.NET 实际解码 256/64/48/32/24/16 全部六帧，尺寸/数据边界正确，中心 alpha=255、外角 alpha=0，256px 首帧保留。SVG 无 script、foreignObject 或外部图像引用。
-- 开发检查版自动重编译 — 10.66s 通过，PID 7588、Responding=True；枚举元数据确认 Reader · 图标调整验收 可见窗口句柄 395220，PDF 已补发绝对路径。未截图/自动化视觉验收；未重复浏览器测试或打包安装，因为本轮仅软件图标资产改变。
-- 加入许可资源后原生编译 — 13.65s 通过，最新 PID 24540 响应正常，绝对 PDF 参数再次补发；debug/licenses/fluent-emoji.txt 与许可源文件 SHA256 相同。固定提交原始 SVG 下载核对哈希并复原画布包装，确认未改上游图形内容。
-- 文件 ICO、组件、工具逻辑和浏览器测试源码 — 与前一提交无差异。本地提交主题 `style: adopt Fluent book artwork for the Reader app icon`。
-- 全位置同步 — `pnpm --dir reader test:browser -- new-tab.spec.ts` 最终 5/5 通过：标题栏/首页同源、PDF/MD 标签/最近列表同源、6 个图像实际解码、纸面/格式色、330/620/1100px 布局与近期滚动；标题栏 36px、原生按钮 46px 保留。首轮仅新测试对 SVG 引号形式的字符串断言失败，改用 XML 属性断言后通过，无显示问题。
-- 全位置同步源码提交主题 `fix: synchronize application and file icons across surfaces`；正式打包、安装及关联刷新待执行。
+- `pnpm --dir reader generate:file-icons` 通过；软件资产未改变，两个文件 ICO 已更新。文件原轮廓路径与 736aff1 中的 filetype-pdf/md 完全一致，颜色 #ba4f4f / #536b89 保留。
+- .NET 解码 PDF/MD 各 6 帧（16/24/32/48/64/256px），所有中心 RGBA 为 255/255/255/255、外角 alpha=0，尺寸和数据边界通过。应用 ICO 保留 256px 首帧；此前 Fluent 六帧已检查。
+- `pnpm --dir reader test:browser -- new-tab.spec.ts` 最终 5/5：6 个图像实际解码、同源和颜色/白底、无色块、330/620/1100px 无溢出及 40 条最近文件滚动；固定标题栏 36px、控制按钮 46px 保留。
+- 两栏此前 41 个不同浏览器用例有通过记录：首轮 38/41、只重跑失败 3 项后全部通过；8 项 Milkdown 组件测试通过。最初两项加载超时、一项手势失败，未改选择逻辑；本次文件母版修订没有工具逻辑改动。
+- `pnpm --dir reader tauri build` 最终退出 0：TypeScript、1206 模块 Vite、Rust release（1m17s）、WiX/NSIS 全部成功；仅既有大 chunk 提示。
+- 最终发布目录 releases/2026-10-07-0.1.0-6417832 保存两个安装包、构建/安装日志、packages.json、msi-audit.json、generated-main.wxs、generated-installer.nsi、installed-verification.json、startup.json 与清理记录。包大小/哈希见 STATUS。
+- MSI ProductCode={33FE60A1-7D97-4E5A-8E39-7DD3A2F6D166}，UpgradeCode 不变，升级属性 257；安装退出 0，新登记存在，中间 3ae410e 与旧 de45f91 产品登记已移除。历史 NSIS 登记保留，NSIS 和卸载未单独测试。
+- 安装 exe 17,496,576 字节，SHA256 C72719786D266A887C3C7AC4EBBD8088F5F03772E62535151C664BC27E53F86B；与 release 只差 UNK→MSI 三个标记字节，归一后一致。两个 ICO、PDFium 和两份许可哈希匹配；五项关联正确，桌面快捷方式指向正式 exe。SHChangeNotify 关联及相关资源/快捷方式更新通知已执行，无缓存强删或 Explorer 重启。
+- 安装后启动记录 PID 25940、Reader 句柄 1050566、响应正常；交付末次元数据 PID 25096、Reader 可见句柄 1902778、响应正常，另存 current-windows.json。开发进程/服务已退出；本轮没有截图或桌面视觉验收，不声称实际效果已通过。
+- `cargo clean` 移除 7,500 文件（工具报告 3.7 GiB）；同口径项目统计 4,463,309,902→504,928,728 字节，约 4.16→0.47 GiB。保留源码、Git、依赖、PDFium、所有发布目录和安装数据。
+- 文档和 diff 检查通过；最终证据提交以 Git 历史为准。未改 Rust 代码或重跑 Rust 测试。
 
 ## User acceptance
 
-waiting：
-
-- 最新反馈：用户回复“就这吧”，接受当前 Fluent 软件设计，并要求补齐应用内软件图标及所有文件图标；统一母版接入已完成，Windows 安装同步进行中。两栏与文件图标尚未单独声明验收。
-- 检查版的任务栏软件图标是否大小适中、实心主体清晰；文件系统图标先看上述 PNG 帧预览（正式关联尚未更新）。
-- 切换 PDF/Markdown，确认右栏笔画、尺寸与颜色协调；两者删除线是否清楚。
-- 如需试删除线，PDF 仅使用测试样本；Markdown 使用临时副本，选字点删除线后可撤销。
+waiting：软件 Fluent 设计已被用户接受；最新文件方向已实现，正式版已启动。只检查本次内容：标题栏/首页软件书本一致；PDF/MD 标签、最近记录、拖拽及 Windows 文件为旧轮廓加白底；两栏和删除线协调。若测试删除线，PDF 用测试样本、Markdown 用临时副本。
 
 ## Risks and remaining work
 
-Windows 可能缓存旧关联图标；正式版本更换需重新打包安装。本轮未重建安装器或 Rust 测试，未修改 Rust 源码。首轮三个浏览器失败均复跑通过，原手势在并发运行下的稳定性未在此图标任务扩展调查。视觉最终由用户验收；验收后清理开发缓存需先保留检查程序并正常关闭窗口。
+实际视觉/交互待用户；Windows 可能延迟刷新缓存，通知已发出。安装包仍未签名；NSIS 安装/卸载和 Rust 测试本轮未重跑。编译缓存已清理，首次再次开发需要重编译。
 
 ## Next action
 
-重新构建保留旧文件轮廓与白底的最终 MSI/NSIS，覆盖安装中间版本并核对所有图标资源与关联。
+用户检查正式版图标同步与旧文件轮廓白底效果；反馈在本会话继续。
 
 ## Outcome
 
-粗绘软件标记和三种候选均已被成熟 Fluent 书本图形替代；图标资源全部生成并验证，原生检查版已更新运行，等待实际视觉反馈。未发布或覆盖正式安装。无 Pi 调用，会话 ID 无。整体用户验收后归档本任务。
+软件内与 Windows 已统一；软件保留 Fluent 书本，文件按最新反馈恢复旧轮廓并加不透明白底。最终 MSI 已覆盖安装运行，验证与清理完成，无 Pi 调用、会话 ID 无。实际验收后归档任务；下一独立需求应新建会话。

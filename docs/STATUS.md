@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户接受 Fluent 软件图标并要求所有位置同步；最新反馈要求 PDF/MD 恢复旧轮廓、字母及颜色，仅增加内部不透明白底。共享母版和六帧检查、5 项浏览器测试通过，正在更新最终安装版本。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 软件内部与 Windows 同步 Fluent 书本；PDF/MD 按最新反馈恢复旧轮廓、字母及颜色，只加内部不透明白底。最终 6417832 包已覆盖安装并启动，资源、关联及清理验证完成，等待实际显示效果反馈。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
@@ -26,9 +26,13 @@
 
 ## Recorded automated verification
 
-2026-10-07 图标修订（未验收、未发布）：
+2026-10-07 图标最终修订（6417832，本机安装完成，视觉待验收）：
 
-- 用户接受 Fluent 软件图标设计，要求所有位置同步。共享 brandIcons 入口已覆盖标题栏、首页、标签、最近文件、两类拖拽预览和未知文件，favicon 同步；旧轮廓文件已移除。5 项真实浏览器测试通过，含 6 个图像解码、颜色和统一源、窄窗口布局。正式 Windows 打包安装进行中；此处不将软件设计认可扩大为全部交互验收。
+- 用户接受 Fluent 软件图标设计，要求所有位置同步；brandIcons 覆盖标题栏、首页、标签、最近文件、两类拖拽预览和未知文件，favicon 同步。最新文件反馈已实现：保留完整旧 Bootstrap 轮廓路径/字母/颜色，仅增加内部不透明白底，无格式色块。最终 5 项浏览器测试和两个 ICO 的全部 12 帧解码通过，中心为纯白且不透明、外角透明。
+- 最终 MSI/NSIS 构建退出 0，TypeScript、1206 模块前端与 Rust release（1m17s）通过。MSI 安装退出 0，程序、ICO/PDFium/许可和五项 DefaultIcon 核对一致，Windows 正常刷新通知已发出；正式版 PID 25940 响应正常。cargo clean 清掉 3.7 GiB，项目约 4.16→0.47 GiB。详细交付证据见下文；未重复 Rust 测试或 NSIS 安装/卸载，不将自动化和设计认可扩大为实际视觉验收。
+
+以下为同任务先前步骤的历史验证，旧进程与“未安装”描述不代表最终状态：
+
 - 最新修订：弃用本地粗绘软件标记和三种提案，采用 Microsoft Fluent Emoji Open book / Color（固定提交 e8a613a0baedbca8f144fa70950714f2583318a8，MIT 许可），保留原路径/渐变/过滤器，扩展画布调整占比。应用 PNG/ICO/ICNS 已重生成，全部六个 ICO 帧解码和尺寸检查通过，所有中心完全不透明、外角透明、首帧 256px；文件 ICO 与工具实现未再改变。
 - Tauri 开发自动重编译通过（10.66s），检查版 PID 7588 响应正常，实际标题 Reader · 图标调整验收 的可见窗口句柄 395220；绝对路径 PDF 参数已补发。这里只读取窗口元数据，不做截图或视觉验收。未重复无关应用测试或正式安装。
 - 许可资源映射加入后再次原生编译通过（13.65s），当前检查进程 PID 24540 响应正常，PDF 绝对路径参数再次补发；debug/licenses/fluent-emoji.txt 已复制且哈希与许可源文件一致。固定提交的原始 SVG 哈希核对通过，软件 SVG 除画布与定位外完整保留上游内容。
@@ -165,14 +169,23 @@
 
 ## Latest local release artifacts
 
-以下本地文件不纳入 Git。2026-10-07 从用户已验收的 `de45f91` 同时生成 MSI/NSIS，版本仍为 `0.1.0`、正式标识 `com.earendil.reader`；本机通过 MSI 覆盖安装。发布目录独立于已清理的 target，包含包校验、构建/安装日志与核对记录；未上传外部平台。
+以下本地文件不纳入 Git。2026-10-07 从图标最终修订 `6417832` 同时生成 MSI/NSIS，版本仍为 `0.1.0`、正式标识 `com.earendil.reader`；本机通过 MSI 覆盖安装。软件 Fluent 设计已认可，最新旧轮廓文件白底及全位置同步实际视觉待验收。发布目录独立于已清理的 target，包含包校验、构建/安装日志与核对记录；未上传外部平台。此前 de45f91 和 3ae410e 发布目录保留，正式版本已被此包替换。
 
 | Format | Build scope | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | --- | ---: | --- | --- |
-| NSIS | 2026-10-07 / `de45f91` | `releases/2026-10-07-0.1.0-de45f91/Reader_0.1.0_x64-setup.exe` | 16,026,633 | `01047AC97BD6EF334631A72A65DFC775765AE4216EF72CD96F049DA359CD748D` | `NotSigned` |
-| MSI | 2026-10-07 / `de45f91` | `releases/2026-10-07-0.1.0-de45f91/Reader_0.1.0_x64_en-US.msi` | 20,905,984 | `C2A104B0BCFAFC952B54DC7DAB53DE11E2961064E1E4840596EBE2E4C9B3D234` | `NotSigned` |
+| NSIS | 2026-10-07 / `6417832` | `releases/2026-10-07-0.1.0-6417832/Reader_0.1.0_x64-setup.exe` | 16,032,117 | `1A263F62056FE1EEB338BC1FEB981A22B0ED4F0E90C1D299F4EF5DBE29EA3127` | `NotSigned` |
+| MSI | 2026-10-07 / `6417832` | `releases/2026-10-07-0.1.0-6417832/Reader_0.1.0_x64_en-US.msi` | 20,922,368 | `3664FAA726708A0AF9AB1DB8D64068F090C970EC9FB1BEBD31CDF7BF32D83D29` | `NotSigned` |
 
 本次 MSI 构建与启动证据：
+
+- 最终构建与 MSI 安装退出码均为 0。ProductCode={33FE60A1-7D97-4E5A-8E39-7DD3A2F6D166}、UpgradeCode={8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}，同版本升级属性 257；新登记存在，3ae410e/de45f91 两个前版登记已移除。MSI/NSIS 包内均含 PDFium、两个 ICO 和两份许可；MSI 许可使用源文件名 LICENSE/ LICENSE-fluent-emoji，NSIS 使用映射 .txt 名称。NSIS 本轮未单独安装。
+- 安装目录 C:\Users\fanq1\AppData\Local\Reader。reader.exe 为 17,496,576 字节，SHA256 C72719786D266A887C3C7AC4EBBD8088F5F03772E62535151C664BC27E53F86B；除 UNK→MSI 三个标记字节外与 release 完全相同。两个 ICO、PDFium 与许可哈希相同，五项 DefaultIcon 正确；桌面快捷方式使用该正式 exe。已执行 SHChangeNotify 关联及资源/快捷方式更新通知，不改变默认应用选择或强删系统缓存。
+- 安装后启动记录 PID 25940、标题 Reader、非零句柄 1050566、响应正常；交付末次窗口元数据为正式版 PID 25096、Reader 可见句柄 1902778、响应正常。开发进程/服务已退出，cargo clean 移除 7,500 文件（3.7 GiB）；项目同口径 4,463,309,902→504,928,728 字节，约 4.16→0.47 GiB。源码、Git、依赖、PDFium、发布包和安装数据保留。
+- 证据保存为 build.log、install.log、packages.json、msi-audit.json、generated-main.wxs、generated-installer.nsi、installed-verification.json、startup.json、current-windows.json 和 cleanup.json；实际视觉仍由用户验收。
+
+### Previous release de45f91
+
+以下为此前已验收界面版本的历史安装/清理记录，程序已被上述图标修订包替换：
 
 - `pnpm --dir reader tauri build`：退出码 `0`；前端、Rust release、WiX candle/light 和 makensis 完成。发布目录中 `build.log` 保存完整日志。
 - MSI 数据库：`ProductVersion=0.1.0`、`ALLUSERS=1`、`ProductCode={01DCC369-8B30-46C6-8424-46E9E72B6279}`；UpgradeCode 保持 `{8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}`，升级表最小版本 `0`、无最大版本、属性 `257`，覆盖同版本 MSI。包内含 reader.exe、PDFium 和两种 ICO，五项 DefaultIcon 正确；NSIS 脚本含资源及图标 hook，NSIS 未单独安装。
