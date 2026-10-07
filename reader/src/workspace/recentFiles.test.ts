@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  MAX_RECENT_FILES,
   mergeRecentFilesFromSnapshot,
   parseRecentFiles,
+  loadRecentFiles,
+  persistRecentFiles,
+  RECENT_FILES_STORAGE_KEY,
   recentFileFromPath,
   rememberRecentFile,
   toUserFacingPath,
@@ -35,17 +37,24 @@ describe("recent files", () => {
     expect(parseRecentFiles('{"path":"note.md"}')).toEqual([]);
   });
 
-  it("deduplicates Windows path spellings and caps the list", () => {
+  it("deduplicates Windows path spellings without truncating older files", () => {
     let files = [recentFileFromPath("C:\\Notes\\Draft.md")!];
     files = rememberRecentFile(files, recentFileFromPath("c:/notes/draft.md")!);
     expect(files).toHaveLength(1);
     expect(files[0].path).toBe("c:/notes/draft.md");
 
-    for (let index = 0; index < MAX_RECENT_FILES + 3; index += 1) {
+    for (let index = 0; index < 100; index += 1) {
       files = rememberRecentFile(files, recentFileFromPath(`C:\\Notes\\${index}.pdf`)!);
     }
-    expect(files).toHaveLength(MAX_RECENT_FILES);
-    expect(files[0].file_name).toBe(`${MAX_RECENT_FILES + 2}.pdf`);
+    expect(files).toHaveLength(101);
+    expect(files[0].file_name).toBe("99.pdf");
+    expect(files[files.length - 1].file_name).toBe("draft.md");
+    const values = new Map<string, string>();
+    const storage = { getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); } };
+    persistRecentFiles(files, storage);
+    expect(values.has(RECENT_FILES_STORAGE_KEY)).toBe(true);
+    expect(loadRecentFiles(storage)).toEqual(files);
   });
 
   it("hides Windows extended-length prefixes and migrates duplicate records", () => {
@@ -64,6 +73,15 @@ describe("recent files", () => {
       "\\\\server\\share\\Draft.md",
     );
     expect(parseRecentFiles(JSON.stringify([regular, extended]))).toEqual([regular]);
+  });
+
+  it("keeps the newest duplicate position and fills missing metadata", () => {
+    const newest = recentFileFromPath("C:/Notes/first.md", 2000)!;
+    const other = recentFileFromPath("C:/Notes/other.pdf", 1500)!;
+    const older = { ...recentFileFromPath("c:/notes/FIRST.md", 1000)!, file_size: 4321 };
+    expect(parseRecentFiles(JSON.stringify([newest, other, older]))).toEqual([
+      { ...newest, file_size: 4321 }, other,
+    ]);
   });
 
   it("preserves legacy entries and validates optional metadata", () => {

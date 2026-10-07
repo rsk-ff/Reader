@@ -8,6 +8,6 @@ All SVG files come from [Bootstrap Icons 1.13.1](https://github.com/twbs/icons/t
 
 Run `pnpm --dir reader generate:file-icons` from the repository root to generate the application PNG/ICO/ICNS resources and Windows file association ICOs with the existing Tauri icon converter. No icon font or runtime dependency is required.
 
-The Markdown rail uses the same upstream collection: `type`, `type-bold`, `type-italic`, `type-strikethrough`, `code`, `superscript`, `link-45deg`, `blockquote-left`, `list-ul`, `list-ol`, `list-check`, `code-square`, `calculator`, `table`, `image` and `hr`. SVG masks inherit the control color without adding an icon font or dependency.
+The Markdown rail uses the same upstream collection: `type`, `type-bold`, `type-italic`, `type-strikethrough`, `code`, `superscript`, `link-45deg`, `blockquote-left`, `list-ul`, `list-ol`, `list-check`, `code-square`, `calculator`, `table`, `image` and `hr`. SVG masks inherit the control color without adding an icon font or dependency. Always quote the CSS `url("...")`: Vite may inline SVG as a data URL containing single quotes, which make an unquoted CSS URL invalid.
 
 The application ICO keeps every generated size and orders its 256px entry first: Tauri's Windows context decoder uses entry zero for the live window. The title bar uses the SVG directly for crisp display at different scale factors. File association ICO filenames and their size variants remain unchanged.

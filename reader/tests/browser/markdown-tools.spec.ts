@@ -157,3 +157,25 @@ test("compact Markdown layout keeps output actions and the right rail within the
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(330);
 });
+
+
+test("all Markdown toolbar SVG masks parse and their image resources decode", async ({ page }) => {
+  await page.goto("/tests/browser/markdown-editor.html");
+  await expect(page.locator(".markdown-tool-icon")).toHaveCount(16);
+  const resources = await page.locator(".markdown-tool-icon").evaluateAll(async (elements) => {
+    return Promise.all(elements.map(async (element) => {
+      const mask = getComputedStyle(element).maskImage;
+      if (!mask.startsWith('url("') || !mask.endsWith('")')) return { mask, loaded: false };
+      const image = new Image();
+      image.src = mask.slice(5, -2);
+      try {
+        await image.decode();
+        return { mask, loaded: image.naturalWidth === 16 && image.naturalHeight === 16 };
+      } catch { return { mask, loaded: false }; }
+    }));
+  });
+  for (const resource of resources) {
+    expect(resource.mask).not.toBe("none");
+    expect(resource.loaded).toBe(true);
+  }
+});

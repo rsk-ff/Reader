@@ -17,6 +17,6 @@ export function RailButton({ icon, iconUrl, title, active, disabled, onClick }: 
   return <button type="button" className="rail-button" title={title} aria-label={title}
     aria-pressed={active} disabled={disabled} onClick={onClick}
     onMouseDown={(event) => event.preventDefault()}>
-    {iconUrl ? <span className="markdown-tool-icon" style={{ maskImage: `url(${iconUrl})` }} aria-hidden="true" /> : icon ? <UiIcon name={icon} /> : null}
+    {iconUrl ? <span className="markdown-tool-icon" style={{ maskImage: `url("${iconUrl}")` }} aria-hidden="true" /> : icon ? <UiIcon name={icon} /> : null}
   </button>;
 }

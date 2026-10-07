@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 本轮继续落实四点反馈：窗口图标改为 256px 首帧/矢量标题栏、近期列表 48px 行高并显示打开时间与已知大小、MD 统一图标及常用块操作、引用/代码/公式间距。110 前端、65 不同浏览器用例及构建通过（完整浏览器 64 通过，修正转义断言后单项通过）；保存/模式切换捕获实时内容，本地图片内嵌持久化。检查窗口已运行，真实 DPI 图标清晰度、WebView2/打印与视觉仍待用户确认。
+- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 最新修订取消最近文件 8 条上限，并修复 MD 图标显示方块（内联 SVG 遮罩地址缺少引号）。111 前端、14 针对性浏览器与类型/生产构建通过，覆盖 101 条持久化/加载、40 条列表滚动和 16 个图标的实际资源解码。上一轮四点排版/图标反馈及 65 用例结果保留在活动任务中。检查窗口已热更新，WebView2 实际观感仍待用户确认；安装版尚未更新。
 - [`2026-10-05-msi-release-install.md`](tasks/active/2026-10-05-msi-release-install.md) — `waiting_user_acceptance`; 本地 MSI 构建及覆盖安装成功，升级登记、程序与资源核对通过，安装版已启动，待用户复验 PDF 选择及缩放。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-05-pdf-margin-selection.md`](tasks/archive/2026-10-05-pdf-margin-selection.md).
@@ -18,7 +18,7 @@
 - PDF 文字可从行侧空白开始选择，拖到末行下方补全该行，拖回文字恢复精确终点；已有选区在缩放和连续 Ctrl＋滚轮重绘期间保留。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
 - Markdown 所见即所得/源码模式、显式保存、等宽代码字体和左侧目录；渲染区域采用 Crepe 官方完整 Frame 浅色主题。
-- 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和最多 8 项的跨启动最近文件列表。
+- 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和跨启动最近文件列表；当前开发版不再限制为 8 项。
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
 - Windows 自定义标题栏、原生窗口按钮和 Snap Layout。

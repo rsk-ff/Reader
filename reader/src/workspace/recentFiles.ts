@@ -1,7 +1,6 @@
 import type { DocumentSession, DocumentType, WorkspaceSnapshot } from "./types";
 
 export const RECENT_FILES_STORAGE_KEY = "reader.recent-files.v1";
-export const MAX_RECENT_FILES = 8;
 
 export interface RecentFile {
   path: string;
@@ -77,7 +76,7 @@ export function rememberRecentFile(files: RecentFile[], file: RecentFile): Recen
   return [
     friendlyFile,
     ...friendlyFiles.filter((candidate) => normalizedPath(candidate.path) !== identity),
-  ].slice(0, MAX_RECENT_FILES);
+  ];
 }
 
 export function parseRecentFiles(serialized: string | null): RecentFile[] {
@@ -85,8 +84,10 @@ export function parseRecentFiles(serialized: string | null): RecentFile[] {
   try {
     const parsed: unknown = JSON.parse(serialized);
     if (!Array.isArray(parsed)) return [];
-    let files: RecentFile[] = [];
-    for (const candidate of parsed.filter(isRecentFile).reverse()) {
+    const files = new Map<string, RecentFile>();
+    // Stored order is newest first. Keep the first spelling and position,
+    // while allowing older duplicates to supply missing metadata.
+    for (const candidate of parsed.filter(isRecentFile)) {
       const file: RecentFile = { path: candidate.path, file_name: candidate.file_name, doc_type: candidate.doc_type };
       if (typeof candidate.opened_at === "number" && Number.isFinite(candidate.opened_at)
         && candidate.opened_at > 0 && candidate.opened_at <= 8.64e15) {
@@ -96,9 +97,12 @@ export function parseRecentFiles(serialized: string | null): RecentFile[] {
         && Number.isSafeInteger(candidate.file_size) && candidate.file_size >= 0)) {
         file.file_size = candidate.file_size;
       }
-      files = rememberRecentFile(files, file);
+      file.path = toUserFacingPath(file.path);
+      const identity = normalizedPath(file.path);
+      const previous = files.get(identity);
+      files.set(identity, previous ? { ...file, ...previous } : file);
     }
-    return files;
+    return [...files.values()];
   } catch {
     return [];
   }

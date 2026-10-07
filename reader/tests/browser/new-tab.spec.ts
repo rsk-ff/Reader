@@ -24,3 +24,14 @@ for (const width of [330, 620, 1100]) {
     expect(errors).toEqual([]);
   });
 }
+
+
+test("all recent files beyond eight remain reachable by scrolling", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html?many=1");
+  await expect(page.locator(".new-tab-recent-item")).toHaveCount(40);
+  const last = page.locator(".new-tab-recent-item").last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+  await last.click();
+  await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/old-38.pdf");
+});
