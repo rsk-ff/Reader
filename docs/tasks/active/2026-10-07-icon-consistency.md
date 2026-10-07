@@ -55,6 +55,7 @@
 - [x] 核对干净工作树、用户截图、当前图标和两套工具接入。
 - [x] 实现及验证。
 - [ ] 用户验收。
+- [x] 用户否定实心软件图标后，重新绘制三种白色书页/文档方案，提供实际小尺寸图标预览；尚未接入程序。
 
 ## Discoveries
 
@@ -62,6 +63,7 @@
 - 上轮已清空 Rust target，启动原生检查版需完整重编译。
 - 系统主体使用独立 shell SVG；应用内标记未变。PDF 工具改用和 Markdown 相同的遮罩组件；插页加号分别位于纸面上/下部，折角方向一致。
 - Tauri 开发子进程工作目录为 src-tauri，初次相对 PDF 参数找不到文件；改用绝对路径通过单实例转发补开，开发文档同步纠正。
+- 2026-10-07 用户反馈“这个软件图标太丑了”，否定当前实心书本；不据此推断其余图标已通过。新候选位于 reader/src/assets/icons/proposals，A 为展开书页、B 为文档与折角、C 为简洁书签；建议 A，尚待用户选择。应用内、当前 shell-reader.svg、生成资源及安装版本均未被候选替换。
 
 ## Verification
 
@@ -73,11 +75,13 @@
 - `pnpm --dir reader build` — TypeScript 与最终生产构建通过，1204 模块，既有大 chunk 提示。
 - Tauri dev（临时配置）— 3m49s 编译完成；identifier=com.earendil.reader.icons20261007，窗口 Reader · 图标调整验收，PID 17580，句柄 460768、Responding=True。样本：临时 Markdown 副本和绝对路径 text-3.pdf；首次相对路径错误已补开。
 - `scripts/check-docs.ps1` 与 `git diff --check` — 通过；最终提交前再检查。
+- 软件图标返工提案 — 三个 SVG 均使用现有 Tauri CLI 在系统临时目录生成成功；.NET 解码三个 ICO 的 24/32/48px 帧，并在对应像素大小绘制到 proposals/preview.png（720×400），无新增依赖。程序逻辑未改，不重复应用测试或编译。提交主题 `design: propose replacement Reader application icons`。
 
 ## User acceptance
 
 waiting：
 
+- 最新反馈：用户明确否定实心软件图标。当前先看 proposals/preview.png 的 A/B/C，确定新方向；候选未替换实际程序图标。
 - 检查版的任务栏软件图标是否大小适中、实心主体清晰；文件系统图标先看上述 PNG 帧预览（正式关联尚未更新）。
 - 切换 PDF/Markdown，确认右栏笔画、尺寸与颜色协调；两者删除线是否清楚。
 - 如需试删除线，PDF 仅使用测试样本；Markdown 使用临时副本，选字点删除线后可撤销。
@@ -88,8 +92,8 @@ Windows 可能缓存旧关联图标；正式版本更换需重新打包安装。
 
 ## Next action
 
-等待用户对系统图标预览/任务栏及两种右栏给出验收反馈；据反馈修订同一任务。
+等待用户选择软件图标候选或提出具体修订，再将选定 SVG 接入软件原生图标并启动复验。
 
 ## Outcome
 
-实现与自动化验证完成，独立检查版运行中；未发布或覆盖正式安装。无 Pi 调用，会话 ID 无。用户验收后归档本任务。
+首轮实现与自动化验证完成，但软件图标被用户否定；三种新候选已绘制并生成大小预览，等待方向反馈，尚未接入程序。未发布或覆盖正式安装。无 Pi 调用，会话 ID 无。整体用户验收后归档本任务。

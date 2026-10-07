@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; Windows 实心主体与留边图标、PDF/Markdown 竖栏图形及删除线统一，自动验证完成、独立检查版已启动。正式安装版本尚未更新。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户否定实心书本软件图标，现有三个白色书页/文档候选及大小预览待选择；候选尚未接入程序。文件图标、竖栏与删除线反馈仍未单独确认，正式安装版本尚未更新。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
@@ -28,6 +28,7 @@
 
 2026-10-07 图标修订（未验收、未发布）：
 
+- 软件图标被用户明确否定；新增本地矢量候选 A 展开书页（建议）、B 文档与折角、C 简洁书签。三者经 Tauri 转换成功，预览使用 ICO 原生 24/32/48px 帧及 128px PNG；候选未替换 shell-reader.svg 或已安装图标。本轮仅提案与文档，未重复应用测试、编译或重启检查程序。
 - 两栏共用 18px SVG 遮罩及删除线；Markdown 16、PDF 10 个图形全部实际解码，删除线图形、尺寸和未激活颜色一致。
 - 41 个相关浏览器用例有通过记录：首轮 38 通过，2 项页面加载超时、1 项 PDF 手势失败；仅重跑失败的 3 项后全部通过，未修改选择或编辑实现。Markdown 生命周期 8 项组件测试通过。
 - 图标生成成功，三套 ICO 均含 16/24/32/48/64/256px，应用首帧 256px；256px 中心完全不透明，外角透明，主体未顶满画布。TypeScript 与生产构建通过（1204 模块、既有大 chunk 提示）。

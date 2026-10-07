@@ -8,6 +8,8 @@ Base SVG artwork comes from [Bootstrap Icons 1.13.1](https://github.com/twbs/ico
 - `shell-reader.svg`: local solid book and bookmark drawing, based on the same application symbol, with intentional transparent outer margins.
 - `shell-pdf.svg`, `shell-markdown.svg`: local white paper, folded corner and colored format badge; format letter outlines come from the corresponding Bootstrap filetype SVG.
 
+The solid application mark was rejected by the user on 2026-10-07. Three replacement [vector proposals and a size proof](proposals/README.md) are awaiting direction selection; none has replaced the current generator input or installed application yet.
+
 Run `pnpm --dir reader generate:file-icons` from the repository root. The generator reads only the three `shell-*.svg` sources and uses the existing Tauri converter to generate application PNG/ICO/ICNS resources and Windows file association ICOs. Changing the system marks does not alter the compact in-app marks.
 
 The application ICO keeps every generated size and orders its 256px entry first: Tauri's Windows context decoder uses entry zero for the live window. All three ICOs retain 16/24/32/48/64/256px frames. File association ICO filenames remain unchanged.
