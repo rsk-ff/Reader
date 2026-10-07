@@ -33,7 +33,7 @@ export function MarkdownTools({ enabled, onFormat }: {
 }) {
   return <DocumentToolRail label="Markdown 格式操作">
     <label className="rail-heading" title="正文与标题">
-      <span className="markdown-tool-icon" style={{ maskImage: `url("${headingIcon}")` }} aria-hidden="true" />
+      <span className="document-tool-icon" style={{ maskImage: `url("${headingIcon}")` }} aria-hidden="true" />
       <select aria-label="正文与标题" value="" disabled={!enabled} onChange={(event) => {
         onFormat(event.target.value as MarkdownFormat);
       }}>

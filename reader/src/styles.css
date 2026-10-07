@@ -1799,7 +1799,7 @@ body.pdf-sidebar-resizing * {
   .new-tab-recent-item { grid-template-columns: 18px minmax(0, 1fr) 80px 48px; gap: 8px; padding: 7px 8px; }
 }
 
-.markdown-tool-icon { display: block; width: 18px; height: 18px; background: currentColor; mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
+.document-tool-icon { display: block; width: 18px; height: 18px; background: currentColor; mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
 .rail-heading { display: flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; margin-bottom: 6px; position: relative; color: var(--text-dim); border-radius: 2px; }
 .rail-heading select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .rail-heading:has(select:disabled) { opacity: .35; }

@@ -44,7 +44,7 @@ function generate(source, files) {
 }
 
 fs.mkdirSync(output, { recursive: true });
-generate("journal-bookmark-fill.svg", applicationFiles.map((file) => [file, file]));
-generate("filetype-pdf.svg", [["icon.ico", "file-pdf.ico"]]);
-generate("filetype-md.svg", [["icon.ico", "file-markdown.ico"]]);
-console.log("Generated application and file association icons from the canonical SVG sources.");
+generate("shell-reader.svg", applicationFiles.map((file) => [file, file]));
+generate("shell-pdf.svg", [["icon.ico", "file-pdf.ico"]]);
+generate("shell-markdown.svg", [["icon.ico", "file-markdown.ico"]]);
+console.log("Generated native application and file association icons from the shell SVG sources.");

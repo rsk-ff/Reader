@@ -4,6 +4,16 @@ import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { UiIcon } from "../../components/UiIcon";
 import { DocumentActions } from "../../components/DocumentActions";
 import { DocumentToolRail, RailButton } from "../../components/DocumentToolRail";
+import selectIcon from "../../assets/icons/cursor.svg";
+import highlightIcon from "../../assets/icons/highlighter.svg";
+import underlineIcon from "../../assets/icons/type-underline.svg";
+import strikeoutIcon from "../../assets/icons/type-strikethrough.svg";
+import noteIcon from "../../assets/icons/sticky.svg";
+import textIcon from "../../assets/icons/type.svg";
+import penIcon from "../../assets/icons/pen.svg";
+import pageBeforeIcon from "../../assets/icons/file-earmark-plus-before.svg";
+import pageAfterIcon from "../../assets/icons/file-earmark-plus-after.svg";
+import pageDeleteIcon from "../../assets/icons/file-earmark-minus.svg";
 
 interface PdfToolbarProps {
   currentPage: number;
@@ -188,23 +198,23 @@ interface PdfToolsProps {
 
 export function PdfTools(props: PdfToolsProps) {
   const tools = [
-    ["select", "select", "Select"],
-    ["highlight", "highlight", "Highlight (select text)"],
-    ["underline", "underline", "Underline (select text)"],
-    ["strikeout", "strikeout", "Strikeout (select text)"],
-    ["note", "note", "Note (click to place)"],
-    ["freetext", "text", "Free text (click to place)"],
-    ["ink", "pen", "Ink (draw)"],
+    ["select", selectIcon, "Select"],
+    ["highlight", highlightIcon, "Highlight (select text)"],
+    ["underline", underlineIcon, "Underline (select text)"],
+    ["strikeout", strikeoutIcon, "Strikeout (select text)"],
+    ["note", noteIcon, "Note (click to place)"],
+    ["freetext", textIcon, "Free text (click to place)"],
+    ["ink", penIcon, "Ink (draw)"],
   ] as const;
   return <DocumentToolRail label="PDF 标注与页面操作">
     <div className="rail-group">
-      {tools.map(([tool, icon, title]) => <RailButton key={tool} icon={icon} title={title}
+      {tools.map(([tool, iconUrl, title]) => <RailButton key={tool} iconUrl={iconUrl} title={title}
         active={props.annotTool === tool} onClick={() => props.onAnnotTool(tool)} />)}
     </div>
     <div className="rail-group">
-      <RailButton icon="pageBefore" title="Insert blank page before current" onClick={props.onInsertBlankBefore} />
-      <RailButton icon="pageAfter" title="Insert blank page after current" onClick={props.onInsertBlankAfter} />
-      <RailButton icon="pageDelete" title="Delete current page" disabled={!props.canDelete} onClick={props.onDeletePage} />
+      <RailButton iconUrl={pageBeforeIcon} title="Insert blank page before current" onClick={props.onInsertBlankBefore} />
+      <RailButton iconUrl={pageAfterIcon} title="Insert blank page after current" onClick={props.onInsertBlankAfter} />
+      <RailButton iconUrl={pageDeleteIcon} title="Delete current page" disabled={!props.canDelete} onClick={props.onDeletePage} />
     </div>
   </DocumentToolRail>;
 }

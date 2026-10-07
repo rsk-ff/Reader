@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import path from "node:path";
 
 declare global {
   interface Window {
@@ -161,8 +162,8 @@ test("compact Markdown layout keeps output actions and the right rail within the
 
 test("all Markdown toolbar SVG masks parse and their image resources decode", async ({ page }) => {
   await page.goto("/tests/browser/markdown-editor.html");
-  await expect(page.locator(".markdown-tool-icon")).toHaveCount(16);
-  const resources = await page.locator(".markdown-tool-icon").evaluateAll(async (elements) => {
+  await expect(page.locator(".document-tool-icon")).toHaveCount(16);
+  const resources = await page.locator(".document-tool-icon").evaluateAll(async (elements) => {
     return Promise.all(elements.map(async (element) => {
       const mask = getComputedStyle(element).maskImage;
       if (!mask.startsWith('url("') || !mask.endsWith('")')) return { mask, loaded: false };
@@ -178,4 +179,39 @@ test("all Markdown toolbar SVG masks parse and their image resources decode", as
     expect(resource.mask).not.toBe("none");
     expect(resource.loaded).toBe(true);
   }
+});
+
+test("PDF and Markdown rails share icon geometry and the strikeout image; every PDF icon decodes", async ({ page, context }) => {
+  await page.goto("/tests/browser/markdown-editor.html");
+  await expect(page.locator(".document-tool-icon")).toHaveCount(16);
+  const pdf = await context.newPage();
+  await pdf.route("http://reader-file.localhost/**", (route) => route.fulfill({
+    path: path.resolve("tests/fixtures/text-3.pdf"), contentType: "application/pdf",
+    headers: { "Access-Control-Allow-Origin": "*" },
+  }));
+  await pdf.goto("/tests/browser/pdf-viewer.html");
+  await expect(pdf.locator('.page[data-page-number="1"] .textLayer')).toBeVisible();
+  await expect(pdf.locator(".document-tool-icon")).toHaveCount(10);
+  const mdStrike = page.getByRole("button", { name: "删除线", exact: true });
+  const pdfStrike = pdf.getByRole("button", { name: "Strikeout (select text)", exact: true });
+  const metrics = (element: Element) => {
+    const button = getComputedStyle(element);
+    const icon = getComputedStyle(element.querySelector(".document-tool-icon")!);
+    return { width: button.width, height: button.height, color: icon.color,
+      iconWidth: icon.width, iconHeight: icon.height, mask: icon.maskImage };
+  };
+  expect(await pdfStrike.evaluate(metrics)).toEqual(await mdStrike.evaluate(metrics));
+  const loaded = await pdf.locator(".document-tool-icon").evaluateAll(async (elements) =>
+    Promise.all(elements.map(async (element) => {
+      const mask = getComputedStyle(element).maskImage;
+      if (!mask.startsWith('url("') || !mask.endsWith('")')) return false;
+      const image = new Image();
+      image.src = mask.slice(5, -2);
+      try { await image.decode(); return image.naturalWidth === 16 && image.naturalHeight === 16; }
+      catch { return false; }
+    })));
+  expect(loaded).toEqual(Array(10).fill(true));
+  await pdfStrike.click();
+  await expect(pdfStrike).toHaveAttribute("aria-pressed", "true");
+  await pdf.close();
 });

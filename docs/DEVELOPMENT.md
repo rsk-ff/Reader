@@ -21,10 +21,12 @@ pnpm --dir reader tauri dev
 打开测试文件：
 
 ```powershell
-pnpm --dir reader tauri dev -- -- -- tests/fixtures/text-3.pdf tests/fixtures/gfm.md
+$pdfFixture = (Resolve-Path reader/tests/fixtures/text-3.pdf).Path
+$markdownFixture = (Resolve-Path reader/tests/fixtures/gfm.md).Path
+pnpm --dir reader tauri dev -- -- -- $pdfFixture $markdownFixture
 ```
 
-当前 pnpm 脚本调用会消费一个 `--`；余下两个分别分隔 Tauri CLI/Cargo runner 与 Reader 文件参数，因此这里需要三个。已核对本机 CLI 输出确实收到两个分隔符。直接在 `reader/` 中调用 `node node_modules/@tauri-apps/cli/tauri.js dev -- -- tests/fixtures/text-3.pdf` 则只需两个；本次开发窗口启动已验证这一方式，Cargo 选项不会混入应用参数。
+当前 pnpm 脚本调用会消费一个 `--`；余下两个分别分隔 Tauri CLI/Cargo runner 与 Reader 文件参数，因此这里需要三个。直接在 `reader/` 中调用 `node node_modules/@tauri-apps/cli/tauri.js dev -- -- <PDF绝对路径>` 则只需两个。样本必须先解析为绝对路径：本机开发进程从 `src-tauri` 运行，直接传入 `tests/fixtures/...` 会找不到文件。Markdown 检查使用临时副本，避免保存操作修改 Git 样本。
 
 ## Automated verification
 
@@ -59,13 +61,15 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Release build
 
-软件与文件图标的 统一 SVG 源文件在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)，采用 Bootstrap Icons 1.13.1 并保留 MIT 许可。需要修改设计时编辑 SVG 后重新生成：
+软件与文件图标的 SVG 源文件在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)，基础图形采用 Bootstrap Icons 1.13.1 并保留 MIT 许可。应用内透明图标与原生图标分开：生成器只读取 `shell-reader.svg`、`shell-pdf.svg`、`shell-markdown.svg`，使原生图标具有实心主体与留边，不影响标题栏、标签和首页的小图标。需要修改系统图标时编辑这三个 SVG 后重新生成：
 
 ```powershell
 pnpm --dir reader generate:file-icons
 ```
 
 该命令使用项目已有的 Tauri 图标转换器生成应用 PNG/ICO/ICNS 与两种文件 ICO，不新增依赖；在系统临时目录转换，仅将受管理的资源复制到 `src-tauri/icons`。虽然保留原命令名称，它现在覆盖软件和文件两类图标。应用 ICO 的 256px 帧排在首位，避免 Tauri 解码第一帧时选中 32px 后放大；其余多尺寸帧保留。标题栏直接使用 SVG。
+
+缓存清理后的临时开发验收可在启动前设置 `$env:CARGO_PROFILE_DEV_DEBUG='0'`、`$env:CARGO_INCREMENTAL='0'`，减少调试符号和增量缓存；变量仅作用于该终端启动的进程，不改全局配置或 release profile。临时独立标识和验收标题通过 Tauri `--config <临时 JSON>` 传入，以免干扰正式安装版的单实例和存储。
 
 正式更换 PDF/Markdown 文件关联图标时，保持 `file-pdf.ico` 和 `file-markdown.ico` 文件名不变即可；如果使用外部设计工具制作 ICO，则直接替换这两个生成文件，再重新构建安装包。仅替换已安装目录中的 ICO 只能用于本机临时测试，正式交付仍需重新打包并安装，因为安装器会把资源复制到安装目录，Explorer 也可能缓存旧图标。
 
