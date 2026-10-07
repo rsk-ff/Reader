@@ -2,25 +2,25 @@
 
 本文件保存 Pi 的详细执行协议，避免每个 Codex 会话都在 `AGENTS.md` 中加载全部操作细节。Codex 负责调用和监督，用户不需要运行任何命令。
 
-## When Pi is useful
+## When Pi is allowed
 
-优先交给 Pi：
+默认由 Codex 直接完成实现和验证。只有用户明确要求使用 Pi 时才调用；GLM 活动已结束，不再按时段自动调用，也不指定固定 GLM 模型。
+
+用户明确要求后，可委派以下边界明确的任务：
 
 - 边界明确的多文件实现。
 - 批量、重复或机械性重构。
 - 按既定接口补充测试。
 - 已由 Codex 完成设计、验收标准清楚的中型任务。
 
-Codex 直接完成：
+以下职责始终由 Codex 负责：
 
 - 产品和架构决策、文档治理、最终验收。
-- 只读诊断、发布打包和很小的机械修改。
-- 已定位到具体函数且委派成本高于实现成本的修复。
-- Pi 首轮没有有效 diff 后的小范围接管。
+- 最终自动化验证、文档更新、提交和用户验收交付。
 
 ## Preconditions
 
-1. Codex 记录当前分支、HEAD、`git status` 和用户已有 diff。
+1. 确认用户在当前目标中明确要求调用 Pi，并确定当次认可的模型；Codex 记录当前分支、HEAD、`git status` 和用户已有 diff。
 2. Codex 检查或创建活动任务文件，并确定允许修改的文件范围。
 3. Pi 与 Codex 串行编辑。Pi 运行时 Codex 只观察，不修改同一工作树。
 4. 只有需要隔离、并行或风险较高时才创建 worktree；普通串行任务不为形式创建 worktree。
@@ -40,19 +40,16 @@ Codex 直接完成：
 
 ## Invocation
 
-免费窗口按用户本地时间 `09:00 <= time < 21:00` 直接判断。固定模型：
-
-```text
-paratera/GLM-5.2:high
-```
+仅在用户明确要求后调用，`$piModel` 必须为当次用户指定或认可的模型。不得根据本地时间自动调用、沿用已结束活动的模型或静默降级。
 
 推荐调用：
 
 ```powershell
 $piTask = "docs/tasks/active/<task-file>.md"
+$piModel = "<user-approved-model>"
 
 pi.cmd `
-  --model "paratera/GLM-5.2:high" `
+  --model "$piModel" `
   --session-id "<repo>-<task-id>" `
   --name "<repo>-<task-id>" `
   --print `
@@ -64,7 +61,7 @@ pi.cmd `
 ```
 
 - 会话 ID 必须唯一且稳定；有具体补丁的返工才续用同一 ID。
-- 当前 `paratera` 配置为 `supportsDeveloperRole=false`。执行协议通过 system prompt，任务通过 user prompt；不得在未验证兼容性时改为 `true`。
+- 执行协议通过 system prompt，任务通过 user prompt；使用提供方已验证的消息角色配置，不为调用修改全局配置。
 - 只向 Pi 开放任务所需的最小工具，通常不超过 `read,grep,find,ls,bash,edit,write`。
 - 完整 JSON 输出保存在本地临时日志，不提交仓库；只向 Codex 上下文提取最终摘要、错误和必要证据。
 

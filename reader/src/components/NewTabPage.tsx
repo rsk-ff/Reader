@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 import { useWorkspace } from "../workspace/store";
 import { DocumentTypeIcon } from "./DocumentTypeIcon";
+import { UiIcon } from "./UiIcon";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -65,63 +66,50 @@ export function NewTabPage() {
   return (
     <main className="new-tab-page">
       <div className="new-tab-content">
-        <section className="new-tab-hero" aria-labelledby="new-tab-title">
-          <div className="new-tab-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path d="M12 6v12M6 12h12" />
-            </svg>
+        <aside className="new-tab-start">
+          <section className="new-tab-hero" aria-labelledby="new-tab-title">
+            <span className="new-tab-eyebrow">文档工作台</span>
+            <h1 id="new-tab-title">Reader<span aria-hidden="true">.</span></h1>
+            <p>阅读 PDF，编辑 Markdown。<br />从一份文档开始。</p>
+          </section>
+
+          <div className="new-tab-actions" aria-label="文件操作">
+            <button
+              type="button"
+              className="new-tab-action new-tab-action-primary"
+              onClick={() => void chooseFile()}
+              disabled={pending !== null}
+            >
+              <UiIcon name="folder" />
+              <span>{pending === "open" ? "正在打开…" : "打开文件"}</span>
+            </button>
+
+            <button
+              type="button"
+              className="new-tab-action"
+              onClick={() => void createMarkdown()}
+              disabled={pending !== null}
+            >
+              <UiIcon name="plus" />
+              <span>{pending === "new-markdown" ? "正在创建…" : "新建 Markdown"}</span>
+            </button>
           </div>
-          <div>
-            <h2 id="new-tab-title">新标签页</h2>
-            <p>打开已有文档，或从一份空白 Markdown 开始。</p>
-          </div>
-        </section>
 
-        <div className="new-tab-actions" aria-label="文件操作">
-          <button
-            type="button"
-            className="new-tab-action"
-            onClick={() => void chooseFile()}
-            disabled={pending !== null}
-          >
-            <span className="new-tab-action-icon new-tab-action-icon-open" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M3.5 7.5h6l1.8 2H20a1 1 0 0 1 .96 1.28l-2.3 7.5a1 1 0 0 1-.96.72H5.2a1 1 0 0 1-.98-.8L2.5 9.7V6a1 1 0 0 1 1-1h5l1.7 2h7.3" />
-              </svg>
-            </span>
-            <span className="new-tab-action-copy">
-              <strong>{pending === "open" ? "正在打开…" : "打开文件"}</strong>
-              <small>PDF、MD 或 Markdown</small>
-            </span>
-            <span className="new-tab-action-arrow" aria-hidden="true">→</span>
-          </button>
+          {error ? <p className="new-tab-error" role="alert">{error}</p> : null}
 
-          <button
-            type="button"
-            className="new-tab-action"
-            onClick={() => void createMarkdown()}
-            disabled={pending !== null}
-          >
-            <span className="new-tab-action-icon new-tab-action-icon-markdown" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M6 3.5h8l4 4V20a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 20zM14 3.8V8h4.2M9 15.5v-4l2 2 2-2v4" />
-              </svg>
-            </span>
-            <span className="new-tab-action-copy">
-              <strong>{pending === "new-markdown" ? "正在创建…" : "新建 md"}</strong>
-              <small>保存时再选择位置</small>
-            </span>
-            <span className="new-tab-action-arrow" aria-hidden="true">→</span>
-          </button>
-        </div>
-
-        {error ? <p className="new-tab-error" role="alert">{error}</p> : null}
+          <dl className="new-tab-formats">
+            <div><dt>PDF</dt><dd>阅读、搜索与批注</dd></div>
+            <div><dt>Markdown</dt><dd>编辑、预览与保存</dd></div>
+          </dl>
+          <p className="new-tab-drop-hint">或将文档直接拖入窗口</p>
+        </aside>
 
         <section className="new-tab-recent" aria-labelledby="recent-files-title">
           <header>
-            <h3 id="recent-files-title">最近文件</h3>
-            {recentFiles.length > 0 ? <span>{recentFiles.length} 个</span> : null}
+            <div><h2 id="recent-files-title">最近打开</h2><p>继续阅读与编辑</p></div>
+            <span>{String(recentFiles.length).padStart(2, "0")}</span>
           </header>
+          <div className="new-tab-list-heading" aria-hidden="true"><span>文档</span><span>格式</span></div>
           {recentFiles.length > 0 ? (
             <div className="new-tab-recent-list">
               {recentFiles.map((file) => (
@@ -140,23 +128,20 @@ export function NewTabPage() {
                     <strong>{file.file_name}</strong>
                     <small>{file.path}</small>
                   </span>
-                  <span className="new-tab-recent-arrow" aria-hidden="true">
-                    {pending === file.path ? "…" : "›"}
+                  <span className="new-tab-recent-type">
+                    {pending === file.path ? "打开中…" : file.doc_type === "pdf" ? "PDF" : file.doc_type === "markdown" ? "MD" : "FILE"}
                   </span>
                 </button>
               ))}
             </div>
           ) : (
             <div className="new-tab-recent-empty">
-              <span aria-hidden="true">⌁</span>
-              <p>打开过的文件会出现在这里</p>
+              <UiIcon name="file" />
+              <p>暂无最近文件<small>打开一份文档后，它会出现在这里。</small></p>
             </div>
           )}
         </section>
 
-        <p className="new-tab-drop-hint">
-          也可以将 <code>PDF</code> 或 <code>Markdown</code> 文件拖到窗口中
-        </p>
       </div>
     </main>
   );

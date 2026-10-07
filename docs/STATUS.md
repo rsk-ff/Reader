@@ -1,11 +1,12 @@
 # Current status
 
-- Last updated: 2026-10-05
+- Last updated: 2026-10-07
 - Application version: `0.1.0`
 - Latest user-accepted application source baseline: `c267f35 — PDF text selection from whitespace, zoom preservation and drag endpoints accepted`
 
 ## Active task
 
+- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 按用户反馈重做中性灰白的现代桌面界面，首页双区布局、PDF 两行工具栏与统一侧栏已实现；最终 108 项前端测试、37 项浏览器回归、构建及三种窗口宽度检查通过，运行版本已更新，视觉/交互待用户验收。
 - [`2026-10-05-msi-release-install.md`](tasks/active/2026-10-05-msi-release-install.md) — `waiting_user_acceptance`; 本地 MSI 构建及覆盖安装成功，升级登记、程序与资源核对通过，安装版已启动，待用户复验 PDF 选择及缩放。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-05-pdf-margin-selection.md`](tasks/archive/2026-10-05-pdf-margin-selection.md).
@@ -25,6 +26,14 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-07 针对全面界面重做记录（用户否定首轮后重新验证）：
+
+- `pnpm --dir reader test`：16 个文件、108 项通过；`pnpm --dir reader test:browser`：37 项通过，包含 PDF 28 项与 Markdown 9 项既有行为回归。
+- `pnpm --dir reader build`：TypeScript 和生产构建通过，1173 个模块，仅既有大 chunk 警告。
+- 临时真实 Edge 布局检查：在 330、620、1100px 宽度下首页与 Markdown 工具栏未溢出；PDF 20 个工具按钮均有名称，上下两行可分别滚动访问打印/删除页，合计高度稳定为 85px。长最近文件名/路径、空状态和减少动画适配通过，无页面运行错误。不截图，不据此声称视觉已验收。
+- Tauri 开发编译完成，以临时独立应用标识 `com.earendil.reader.polish20261007` 启动检查窗口，最终重做的模块/CSS 已热更新。未改 Rust 源码，未重跑 Rust 测试或安装包构建；已安装版本仍为先前产物。
+- 用户要求停止 Pi 并删除自动调用/免费时段/固定 GLM 规则；已停止会话 `reader-interface-polish-20261007-1100`，当时无代码 diff，全部界面改动由 Codex 实现。当前规则以 `AGENTS.md` 为准。
 
 2026-10-05 针对 PDF 空白起点选字记录：
 

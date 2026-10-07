@@ -41,6 +41,7 @@ export function PdfSidebar(props: PdfSidebarProps) {
 
   return (
     <aside className="pdf-sidebar-shell" style={{ width: props.width }}>
+      <header className="pdf-sidebar-title">{props.mode === "outline" ? "文档目录" : "页面缩略图"}<span>{props.mode === "outline" ? props.outline.length : props.totalPages}</span></header>
       {content}
       <div
         className="pdf-sidebar-resizer"
@@ -174,7 +175,7 @@ function OutlineList({ outline, onClick }: {
   return (
     <div className="pdf-sidebar pdf-outline" aria-label="Document outline">
       {outline.length === 0 ? (
-        <div className="pdf-sidebar-empty">No outline</div>
+        <div className="pdf-sidebar-empty">此文档没有目录</div>
       ) : outline.map(({ node, depth }, index) => (
         <button
           type="button"

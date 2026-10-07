@@ -1,5 +1,5 @@
 /* Keep Crepe's common + Frame styles as the baseline. Reader adapts fonts,
-   document spacing, compact headings and the code-fold marker alignment. */
+   document spacing, compact headings, UI surfaces and code-fold alignment. */
 .milkdown-root {
   display: flex;
   justify-content: center;
@@ -9,6 +9,23 @@
 }
 
 .milkdown-root > .milkdown {
+  --crepe-color-background: #fff;
+  --crepe-color-on-background: var(--text);
+  --crepe-color-surface: var(--bg);
+  --crepe-color-surface-low: #ededed;
+  --crepe-color-on-surface: var(--text);
+  --crepe-color-on-surface-variant: var(--text-dim);
+  --crepe-color-outline: var(--text-faint);
+  --crepe-color-primary: var(--accent);
+  --crepe-color-secondary: var(--bg-active);
+  --crepe-color-on-secondary: var(--accent);
+  --crepe-color-inverse: #f0f0f0;
+  --crepe-color-on-inverse: var(--text);
+  --crepe-color-hover: #eeeeee;
+  --crepe-color-selected: #dde5f3;
+  --crepe-color-inline-area: #dddddd;
+  --crepe-shadow-1: none;
+  --crepe-shadow-2: none;
   --crepe-font-title: -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
   --crepe-font-default: -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -19,6 +36,20 @@
   width: 100%;
   max-width: 980px;
   min-width: 0;
+}
+
+/* Floating editor controls use the same precise edges as the desktop shell.
+   Outlines do not change popup or document geometry. */
+.milkdown-root :is(.milkdown-toolbar, .link-preview, .link-edit),
+.milkdown-root .milkdown-table-block .cell-handle .button-group {
+  border-radius: 2px;
+  outline: 1px solid var(--border);
+}
+
+.milkdown-root .milkdown-toolbar .toolbar-item,
+.milkdown-root .milkdown-table-block .cell-handle .button-group button,
+.milkdown-root .milkdown-table-block .cell-handle .button-group button:hover {
+  border-radius: 2px;
 }
 
 .milkdown-root > .milkdown > .ProseMirror {
