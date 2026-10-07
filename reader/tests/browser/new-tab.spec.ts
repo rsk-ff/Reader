@@ -51,10 +51,12 @@ test("title bar, home and file entries decode the shared native SVG masters", as
     const fills = await page.evaluate(async (src) => {
       const svg = new DOMParser().parseFromString(await (await fetch(src)).text(), "image/svg+xml");
       return { paper: svg.querySelector("path")?.getAttribute("fill"),
-        badge: svg.querySelector("rect")?.getAttribute("fill") };
+        outline: svg.querySelectorAll("path")[1]?.getAttribute("fill"),
+        badges: svg.querySelectorAll("rect").length };
     }, sources[0]);
     expect(fills.paper).toBe("#fff");
-    expect(fills.badge).toBe(type === "pdf" ? "#ad4545" : "#536b89");
+    expect(fills.outline).toBe(type === "pdf" ? "#ba4f4f" : "#536b89");
+    expect(fills.badges).toBe(0);
   }
   const decoded = await page.locator(".titlebar-icon img, .new-tab-hero img, .tab-icon img")
     .evaluateAll(async (images) => Promise.all(images.map(async (element) => {

@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户接受 Fluent 软件图标，要求软件内部及所有文件图标同步；共享母版已接入所有应用入口，正在核对并更新 Windows 安装版本。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户接受 Fluent 软件图标并要求所有位置同步；最新反馈要求 PDF/MD 恢复旧轮廓、字母及颜色，仅增加内部不透明白底。共享母版和六帧检查、5 项浏览器测试通过，正在更新最终安装版本。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
