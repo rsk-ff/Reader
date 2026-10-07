@@ -35,7 +35,8 @@
       "lib/bin/pdfium.dll": "pdfium.dll",
       "icons/file-pdf.ico": "file-pdf.ico",
       "icons/file-markdown.ico": "file-markdown.ico",
-      "../src/assets/icons/LICENSE-fluent-emoji": "licenses/fluent-emoji.txt"
+      "../src/assets/icons/LICENSE-fluent-emoji": "licenses/fluent-emoji.txt",
+      "../src/assets/icons/LICENSE": "licenses/bootstrap-icons.txt"
     },
     "icon": [
       "icons/32x32.png",

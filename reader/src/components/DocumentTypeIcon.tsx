@@ -1,15 +1,11 @@
 import type { DocumentType } from "../workspace/types";
 
-import pdfIcon from "../assets/icons/filetype-pdf.svg";
-import markdownIcon from "../assets/icons/filetype-md.svg";
-import { UiIcon } from "./UiIcon";
+import { brandIcons } from "./brandIcons";
 
 /** Canonical file glyphs are also used to generate Windows association icons. */
 export function DocumentTypeIcon({ type }: { type: DocumentType }) {
   return <span className={`tab-icon tab-icon-${type}`} aria-hidden="true">
-    {type === "pdf" || type === "markdown"
-      ? <img src={type === "pdf" ? pdfIcon : markdownIcon} alt="" draggable={false} />
-      : <UiIcon name="file" />}
+    <img src={brandIcons[type]} alt="" draggable={false} />
   </span>;
 }
 

@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useWorkspace } from "../workspace/store";
 import { DocumentTypeIcon } from "./DocumentTypeIcon";
 import { UiIcon } from "./UiIcon";
-import appIcon from "../assets/icons/journal-bookmark-fill.svg";
+import { brandIcons } from "./brandIcons";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -82,7 +82,7 @@ export function NewTabPage() {
       <div className="new-tab-content">
         <aside className="new-tab-start">
           <section className="new-tab-hero" aria-labelledby="new-tab-title">
-            <img src={appIcon} alt="" width="28" height="28" />
+            <img src={brandIcons.reader} alt="" width="36" height="36" />
             <h1 id="new-tab-title">Reader</h1>
           </section>
 

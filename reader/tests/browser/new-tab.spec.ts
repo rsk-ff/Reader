@@ -35,3 +35,34 @@ test("all recent files beyond eight remain reachable by scrolling", async ({ pag
   await last.click();
   await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/old-38.pdf");
 });
+
+test("title bar, home and file entries decode the shared native SVG masters", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await expect(page.locator(".titlebar-icon img")).toBeVisible();
+  const appSources = await page.locator(".titlebar-icon img, .new-tab-hero img").evaluateAll((images) =>
+    images.map((image) => (image as HTMLImageElement).src));
+  expect(appSources).toHaveLength(2);
+  expect(appSources[0]).toBe(appSources[1]);
+  for (const type of ["pdf", "markdown"]) {
+    const sources = await page.locator(`.tab-icon-${type} img`).evaluateAll((images) =>
+      images.map((image) => (image as HTMLImageElement).src));
+    expect(sources).toHaveLength(2); // Document tab and recent-file entry.
+    expect(sources[0]).toBe(sources[1]);
+    const fills = await page.evaluate(async (src) => {
+      const svg = new DOMParser().parseFromString(await (await fetch(src)).text(), "image/svg+xml");
+      return { paper: svg.querySelector("path")?.getAttribute("fill"),
+        badge: svg.querySelector("rect")?.getAttribute("fill") };
+    }, sources[0]);
+    expect(fills.paper).toBe("#fff");
+    expect(fills.badge).toBe(type === "pdf" ? "#ad4545" : "#536b89");
+  }
+  const decoded = await page.locator(".titlebar-icon img, .new-tab-hero img, .tab-icon img")
+    .evaluateAll(async (images) => Promise.all(images.map(async (element) => {
+      const image = element as HTMLImageElement;
+      try { await image.decode(); return image.naturalWidth === 128 && image.naturalHeight === 128; }
+      catch { return false; }
+    })));
+  expect(decoded).toEqual(Array(6).fill(true));
+  expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(36);
+  expect((await page.locator(".winctl").first().boundingBox())!.width).toBe(46);
+});

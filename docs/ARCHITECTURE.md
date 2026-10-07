@@ -81,8 +81,10 @@ Windows / Tauri
 
 ## Windows file associations and bundle
 
+- [`brandIcons.ts`](../reader/src/components/brandIcons.ts) 将软件/PDF/Markdown/通用文件 SVG 母版映射到应用组件；标题栏、首页、标签、最近记录及两种拖拽预览共用此入口。原生图标生成器读取同一软件/PDF/Markdown 母版，HTML favicon 读取软件母版，避免维护第二套设计。
 - `reader/src-tauri/tauri.conf.json` 声明 `.pdf`、`.md` 和 `.markdown` 的打开关联；通用关联定义继续由 Tauri 生成。
 - `bundle.resources` 将 `file-pdf.ico` 与 `file-markdown.ico` 放入安装目录，使注册表中的 `DefaultIcon` 在安装后保持有效。
+- `bundle.resources` 同时携带 Fluent Emoji 和 Bootstrap Icons 的版权/许可文本至 licenses 目录。
 - NSIS 通过 [`installer-hooks.nsh`](../reader/src-tauri/windows/installer-hooks.nsh) 在 Tauri 关联创建后为 `PDF Document`、`Markdown Document` 以及 WiX 使用的 `Reader.*` ProgID 覆写 `DefaultIcon`，卸载后通知 Windows 刷新关联。
 - WiX 通过 [`file-association-icons.wxs`](../reader/src-tauri/windows/file-association-icons.wxs) 为 `Reader.pdf`、`Reader.md`、`Reader.markdown` 及 NSIS 使用的 `PDF Document`、`Markdown Document` 添加注册表组件；组件随 MSI 卸载而移除。双集合是为了让 MSI/NSIS 交叉升级时，当前生效的关联类仍能找到专用图标。
 

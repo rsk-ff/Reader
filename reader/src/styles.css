@@ -133,8 +133,8 @@ html.tab-drag-preview-document #root {
 }
 
 .titlebar-icon img {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   pointer-events: none;
   -webkit-user-drag: none;
   user-select: none;
@@ -264,11 +264,18 @@ html.tab-drag-preview-document #root {
   height: 16px;
 }
 
-.tab-icon svg,
-.tab-icon img {
+.tab-icon svg {
   display: block;
   width: 16px;
   height: 16px;
+}
+
+.tab-icon img {
+  display: block;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
 }
 
 .tab-icon-pdf {
