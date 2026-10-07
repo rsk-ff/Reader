@@ -10,6 +10,19 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function openedTime(timestamp?: number): string {
+  if (!timestamp) return "—";
+  const date = new Date(timestamp);
+  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function fileSize(bytes?: number | null): string {
+  if (bytes == null) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  const unit = bytes < 1024 ** 2 ? 1024 : bytes < 1024 ** 3 ? 1024 ** 2 : 1024 ** 3;
+  return `${(bytes / unit).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${unit === 1024 ? "KB" : unit === 1024 ** 2 ? "MB" : "GB"}`;
+}
+
 export function NewTabPage() {
   const openDocument = useWorkspace((state) => state.openDocument);
   const createMarkdownDocument = useWorkspace(
@@ -102,7 +115,7 @@ export function NewTabPage() {
           <header>
             <h2 id="recent-files-title">最近打开</h2>
           </header>
-          <div className="new-tab-list-heading" aria-hidden="true"><span>文档</span><span>格式</span></div>
+          <div className="new-tab-list-heading" aria-hidden="true"><span>文档</span><span>打开时间</span><span>大小</span></div>
           {recentFiles.length > 0 ? (
             <div className="new-tab-recent-list">
               {recentFiles.map((file) => (
@@ -121,9 +134,10 @@ export function NewTabPage() {
                     <strong>{file.file_name}</strong>
                     <small>{file.path}</small>
                   </span>
-                  <span className="new-tab-recent-type">
-                    {pending === file.path ? "打开中…" : file.doc_type === "pdf" ? "PDF" : file.doc_type === "markdown" ? "MD" : "FILE"}
+                  <span className="new-tab-recent-time" title={file.opened_at ? new Date(file.opened_at).toLocaleString() : "打开时间未记录"}>
+                    {pending === file.path ? "打开中…" : openedTime(file.opened_at)}
                   </span>
+                  <span className="new-tab-recent-size" title="最近读取的文件大小">{fileSize(file.file_size)}</span>
                 </button>
               ))}
             </div>

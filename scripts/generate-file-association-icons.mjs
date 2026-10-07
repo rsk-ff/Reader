@@ -21,7 +21,16 @@ function generate(source, files) {
     execFileSync(process.execPath, [cli, "icon", path.join(assets, source), "--output", scratch],
       { cwd: path.join(root, "reader"), stdio: "pipe" });
     for (const [generated, target] of files) {
-      fs.copyFileSync(path.join(scratch, generated), path.join(output, target));
+      const data = fs.readFileSync(path.join(scratch, generated));
+      if (target === "icon.ico") {
+        // Tauri decodes the first ICO entry for the live Windows window icon.
+        // Keep all size variants but put the 256px source first for high DPI.
+        const count = data.readUInt16LE(4);
+        const entries = Array.from({ length: count }, (_, index) => Buffer.from(data.subarray(6 + index * 16, 22 + index * 16)));
+        entries.sort((left, right) => (right[0] || 256) - (left[0] || 256));
+        entries.forEach((entry, index) => entry.copy(data, 6 + index * 16));
+      }
+      fs.writeFileSync(path.join(output, target), data);
     }
   } finally {
     // Only delete the exact temporary directory allocated by mkdtemp above.

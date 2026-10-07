@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 已落实本轮八点界面反馈：新软件/文件图标、无标签底线、PDF/MD 右侧工具、共享打印/保存和精简首页；Markdown 两模式打印与应用内删页确认完成，108 前端/48 浏览器回归及构建通过。检查窗口已打开，真实 WebView2/打印与视觉待用户确认。
+- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 本轮继续落实四点反馈：窗口图标改为 256px 首帧/矢量标题栏、近期列表 48px 行高并显示打开时间与已知大小、MD 统一图标及常用块操作、引用/代码/公式间距。110 前端、65 不同浏览器用例及构建通过（完整浏览器 64 通过，修正转义断言后单项通过）；保存/模式切换捕获实时内容，本地图片内嵌持久化。检查窗口已运行，真实 DPI 图标清晰度、WebView2/打印与视觉仍待用户确认。
 - [`2026-10-05-msi-release-install.md`](tasks/active/2026-10-05-msi-release-install.md) — `waiting_user_acceptance`; 本地 MSI 构建及覆盖安装成功，升级登记、程序与资源核对通过，安装版已启动，待用户复验 PDF 选择及缩放。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-05-pdf-margin-selection.md`](tasks/archive/2026-10-05-pdf-margin-selection.md).

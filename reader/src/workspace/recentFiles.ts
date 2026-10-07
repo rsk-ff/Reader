@@ -7,6 +7,8 @@ export interface RecentFile {
   path: string;
   file_name: string;
   doc_type: Exclude<DocumentType, "unknown">;
+  opened_at?: number;
+  file_size?: number | null;
 }
 
 interface StorageLike {
@@ -65,8 +67,9 @@ function isRecentFile(value: unknown): value is RecentFile {
 }
 
 export function rememberRecentFile(files: RecentFile[], file: RecentFile): RecentFile[] {
-  const friendlyFile = { ...file, path: toUserFacingPath(file.path) };
-  const identity = normalizedPath(friendlyFile.path);
+  const identity = normalizedPath(file.path);
+  const previous = files.find((candidate) => normalizedPath(candidate.path) === identity);
+  const friendlyFile = { ...previous, ...file, path: toUserFacingPath(file.path) };
   const friendlyFiles = files.map((candidate) => ({
     ...candidate,
     path: toUserFacingPath(candidate.path),
@@ -84,7 +87,16 @@ export function parseRecentFiles(serialized: string | null): RecentFile[] {
     if (!Array.isArray(parsed)) return [];
     let files: RecentFile[] = [];
     for (const candidate of parsed.filter(isRecentFile).reverse()) {
-      files = rememberRecentFile(files, candidate);
+      const file: RecentFile = { path: candidate.path, file_name: candidate.file_name, doc_type: candidate.doc_type };
+      if (typeof candidate.opened_at === "number" && Number.isFinite(candidate.opened_at)
+        && candidate.opened_at > 0 && candidate.opened_at <= 8.64e15) {
+        file.opened_at = candidate.opened_at;
+      }
+      if (candidate.file_size === null || (typeof candidate.file_size === "number"
+        && Number.isSafeInteger(candidate.file_size) && candidate.file_size >= 0)) {
+        file.file_size = candidate.file_size;
+      }
+      files = rememberRecentFile(files, file);
     }
     return files;
   } catch {
@@ -113,7 +125,7 @@ export function persistRecentFiles(
   }
 }
 
-export function recentFileFromPath(path: string): RecentFile | null {
+export function recentFileFromPath(path: string, openedAt?: number): RecentFile | null {
   const friendlyPath = toUserFacingPath(path);
   const doc_type = fileTypeFromPath(friendlyPath);
   if (!doc_type) return null;
@@ -121,6 +133,7 @@ export function recentFileFromPath(path: string): RecentFile | null {
     path: friendlyPath,
     file_name: fileNameFromPath(friendlyPath),
     doc_type,
+    ...(openedAt === undefined ? {} : { opened_at: openedAt }),
   };
 }
 
@@ -130,10 +143,11 @@ export function recentFileFromDocument(document: DocumentSession): RecentFile | 
     path: toUserFacingPath(document.path),
     file_name: document.file_name,
     doc_type: document.doc_type,
+    file_size: document.file_size,
   };
 }
 
-/** Add only documents that appeared or gained a path since the prior snapshot. */
+/** Update known sizes; reorder only newly opened or first-saved documents. */
 export function mergeRecentFilesFromSnapshot(
   files: RecentFile[],
   previousDocuments: DocumentSession[],
@@ -150,7 +164,12 @@ export function mergeRecentFilesFromSnapshot(
   )?.path;
   const additions = snapshot.documents
     .filter((document) => previousPaths.get(document.id) !== document.path)
-    .map(recentFileFromDocument)
+    .map((document): RecentFile | null => {
+      const file = recentFileFromDocument(document);
+      if (!file) return null;
+      const previous = files.find((item) => normalizedPath(item.path) === normalizedPath(file.path));
+      return { ...file, opened_at: previous?.opened_at ?? Date.now() };
+    })
     .filter((file): file is RecentFile => file !== null)
     .sort((left, right) => {
       const leftActive = activeDocumentPath
@@ -162,5 +181,9 @@ export function mergeRecentFilesFromSnapshot(
       return Number(leftActive) - Number(rightActive);
     });
 
-  return additions.reduce(rememberRecentFile, files);
+  const sizes = new Map(snapshot.documents.filter((document) => !document.untitled && document.path)
+    .map((document) => [normalizedPath(document.path), document.file_size]));
+  const refreshed = files.map((file) => sizes.has(normalizedPath(file.path))
+    ? { ...file, file_size: sizes.get(normalizedPath(file.path)) } : file);
+  return additions.reduce(rememberRecentFile, refreshed);
 }

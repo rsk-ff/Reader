@@ -113,6 +113,7 @@ export function MarkdownEditor({
   const switchMode = useCallback(
     (m: Mode) => {
       if (m === mode) return;
+      if (mode === "wysiwyg") commandsRef.current?.flush();
       setMode(m);
       if (m === "wysiwyg") {
         setCrepeVersion((v) => v + 1);
@@ -125,9 +126,10 @@ export function MarkdownEditor({
   const doSave = useCallback((): Promise<boolean> => {
     if (saveInFlightRef.current) return saveInFlightRef.current;
     if (workingText == null) return Promise.reject(new Error("Markdown text is still loading."));
+    const textToSave = mode === "wysiwyg" && commandsRef.current
+      ? commandsRef.current.flush() : workingText;
     if (!dirtyRef.current) return dirtySyncRef.current.then(() => true);
     const savedRevision = editRevisionRef.current;
-    const textToSave = workingText;
     setSaving(true);
     const operation = (async () => {
       try {
@@ -180,6 +182,7 @@ export function MarkdownEditor({
     );
     return operation;
   }, [
+    mode,
     workingText,
     path,
     untitled,

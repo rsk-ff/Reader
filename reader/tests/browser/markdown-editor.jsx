@@ -6,7 +6,7 @@ import "../../src/styles.css";
 const params = new URLSearchParams(location.search);
 const level = Number(params.get("level") || 1);
 const prefix = params.has("intro") ? "An opening paragraph.\n\n" : "";
-const markdown = `${prefix}${"#".repeat(level)} Selection stability\n\n` +
+const markdown = params.has("blocks") ? "# Block spacing\n\n> Quoted text.\n\n```js\nconst value = 1;\nconst second = 2;\n```\n\n$$\nx^2 + y^2\n$$\n\nFinal paragraph." : `${prefix}${"#".repeat(level)} Selection stability\n\n` +
   Array.from({ length: 40 }, (_, index) =>
     `Paragraph ${index + 1}: Select these words without shifting the page. 中文内容用于编辑验证。`,
   ).join("\n\n");

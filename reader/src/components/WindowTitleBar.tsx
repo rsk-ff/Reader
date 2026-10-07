@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import appIconUrl from "../../src-tauri/icons/32x32.png";
+import appIconUrl from "../assets/icons/journal-bookmark-fill.svg";
 import { TabStrip } from "./TabStrip";
 import { useWindowDragRegion } from "./windowDrag";
 import {
@@ -17,7 +17,7 @@ import {
  *
  * - The native title bar is disabled (`decorations: false` in tauri.conf.json
  *   and `.decorations(false)` on every dynamically created window).
- * - The far-left icon is the existing `icons/32x32.png`, shown at ~16px with no
+ * - The far-left icon is the canonical vector application mark, shown at ~16px with no
  *   visible product-name text beside it.
  * - The flexible middle holds the existing `TabStrip` (reorder/detach/close
  *   logic untouched); its blank spacer is a window drag region.

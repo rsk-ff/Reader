@@ -40,8 +40,12 @@ vi.mock("@milkdown/crepe", () => ({
     }
 
     on(register: (listener: { markdownUpdated: (fn: MarkdownListener) => void }) => void) {
-      register({ markdownUpdated: (fn) => { this.publish = fn; } });
+      register({ markdownUpdated: (fn) => {
+        this.publish = (ctx, markdown, previous) => { this.element.textContent = markdown; fn(ctx, markdown, previous); };
+      } });
     }
+
+    getMarkdown() { return this.element.textContent ?? this.defaultValue; }
 
     async create() {
       await engine.create();

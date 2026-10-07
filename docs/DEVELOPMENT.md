@@ -44,7 +44,7 @@ Markdown 编辑器生命周期回归测试使用开发依赖 `jsdom` 挂载真�
 
 浏览器功能回归测试运行 `pnpm --dir reader test:browser`，使用开发依赖 `@playwright/test` 和已安装的 Microsoft Edge，无需另行下载浏览器。测试启动独立的 `127.0.0.1:1422` 服务，不生成截图、视频或 trace。入口为 `reader/playwright.config.ts` 和 `reader/tests/browser/`。Vitest 仅发现 `src/**/*.test.{ts,tsx}`，避免混跑 Playwright 用例。此测试仍不替代用户在真实 Reader 中的中文输入法和交互验收。
 
-- Markdown：加载真实 React/Crepe/CSS，仅模拟原生文件接口；以坐标和内容断言验证选区稳定、连续输入及撤销。
+- Markdown：加载真实 React/Crepe/CSS，仅模拟原生文件接口；以坐标和内容断言验证选区稳定、连续输入及撤销。`markdown-blocks.spec.ts` 覆盖新增结构工具的保存/撤销、上传图片的持久化、立即保存/模式切换、引用/代码/公式间距；`new-tab.spec.ts` 检查近期元数据与 330/620/1100px 紧凑布局。
 - PDF：加载真实 `PdfViewer`、PDF.js、文字层和应用 CSS，仅把原生文件协议映射到 `tests/fixtures/text-3.pdf` 并模拟批注写入；通过真实鼠标拖动检查空白起点、文字内部、反向、跨行、缩放/滚动及文字高亮的选区几何。终点回归检查向下拖过末行、反向拖过首行、右侧空白、拖回文字恢复精确终点、释放后稳定及完整末行批注几何。另检查已有选区经按钮/快捷键/Ctrl＋滚轮/适合模式缩放后的内容、方向和几何，以及搜索高亮重绘和取消选区时的行为。连续滚轮回归在重绘期间立即断言文字内容、选区绘制层与文字范围重叠，并检查跨页文字层；复制回归用独立事件剪贴板触发真实 PDF.js copy 处理器，不读写 Windows 剪贴板。单独运行：`pnpm --dir reader test:browser -- pdf-selection.spec.ts`。模拟批注写入不证明 PDFium 文件写入结果，事件剪贴板测试不替代桌面 Ctrl+C 验收。
 
 文档结构与内部链接检查：
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 pnpm --dir reader generate:file-icons
 ```
 
-该命令使用项目已有的 Tauri 图标转换器生成应用 PNG/ICO/ICNS 与两种文件 ICO，不新增依赖；在系统临时目录转换，仅将受管理的资源复制到 `src-tauri/icons`。虽然保留原命令名称，它现在覆盖软件和文件两类图标。
+该命令使用项目已有的 Tauri 图标转换器生成应用 PNG/ICO/ICNS 与两种文件 ICO，不新增依赖；在系统临时目录转换，仅将受管理的资源复制到 `src-tauri/icons`。虽然保留原命令名称，它现在覆盖软件和文件两类图标。应用 ICO 的 256px 帧排在首位，避免 Tauri 解码第一帧时选中 32px 后放大；其余多尺寸帧保留。标题栏直接使用 SVG。
 
 正式更换 PDF/Markdown 文件关联图标时，保持 `file-pdf.ico` 和 `file-markdown.ico` 文件名不变即可；如果使用外部设计工具制作 ICO，则直接替换这两个生成文件，再重新构建安装包。仅替换已安装目录中的 ICO 只能用于本机临时测试，正式交付仍需重新打包并安装，因为安装器会把资源复制到安装目录，Explorer 也可能缓存旧图标。
 

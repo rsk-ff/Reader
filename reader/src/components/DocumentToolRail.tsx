@@ -6,8 +6,9 @@ export function DocumentToolRail({ label, children }: { label: string; children:
     aria-orientation="vertical">{children}</aside>;
 }
 
-export function RailButton({ icon, title, active, disabled, onClick }: {
-  icon: UiIconName;
+export function RailButton({ icon, iconUrl, title, active, disabled, onClick }: {
+  icon?: UiIconName;
+  iconUrl?: string;
   title: string;
   active?: boolean;
   disabled?: boolean;
@@ -16,6 +17,6 @@ export function RailButton({ icon, title, active, disabled, onClick }: {
   return <button type="button" className="rail-button" title={title} aria-label={title}
     aria-pressed={active} disabled={disabled} onClick={onClick}
     onMouseDown={(event) => event.preventDefault()}>
-    <UiIcon name={icon} />
+    {iconUrl ? <span className="markdown-tool-icon" style={{ maskImage: `url(${iconUrl})` }} aria-hidden="true" /> : icon ? <UiIcon name={icon} /> : null}
   </button>;
 }

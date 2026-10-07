@@ -570,7 +570,8 @@ html.tab-drag-preview-document #root {
 
 .new-tab-list-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(0, 1fr) 94px 62px;
+  gap: 12px;
   padding: 10px 12px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -579,18 +580,18 @@ html.tab-drag-preview-document #root {
   font-size: 11px;
 }
 
-.new-tab-list-heading > span:last-child {
+.new-tab-list-heading > span:not(:first-child) {
   text-align: right;
 }
 
 .new-tab-recent-item {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 48px;
+  grid-template-columns: 18px minmax(0, 1fr) 94px 62px;
   align-items: center;
   gap: 12px;
   width: 100%;
   min-width: 0;
-  padding: 16px 12px;
+  padding: 7px 12px;
   border: 0;
   border-bottom: 1px solid #ededed;
   border-radius: 0;
@@ -617,7 +618,7 @@ html.tab-drag-preview-document #root {
 .new-tab-recent-copy {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -629,19 +630,21 @@ html.tab-drag-preview-document #root {
 }
 
 .new-tab-recent-copy strong {
+  line-height: 18px;
   font-size: 13px;
   font-weight: 500;
 }
 
 .new-tab-recent-copy small {
+  line-height: 14px;
   color: var(--text-faint);
   font-size: 11px;
 }
 
-.new-tab-recent-type {
+.new-tab-recent-time, .new-tab-recent-size {
   color: var(--text-faint);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
@@ -1790,3 +1793,15 @@ body.pdf-sidebar-resizing * {
     transition: none;
   }
 }
+
+@media (max-width: 600px) {
+  .new-tab-list-heading { grid-template-columns: minmax(0, 1fr) 80px 48px; gap: 8px; padding: 8px; }
+  .new-tab-recent-item { grid-template-columns: 18px minmax(0, 1fr) 80px 48px; gap: 8px; padding: 7px 8px; }
+}
+
+.markdown-tool-icon { display: block; width: 18px; height: 18px; background: currentColor; mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
+.rail-heading { display: flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; margin-bottom: 6px; position: relative; color: var(--text-dim); border-radius: 2px; }
+.rail-heading select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.rail-heading:has(select:disabled) { opacity: .35; }
+.rail-heading:hover:has(select:enabled) { background: var(--bg); color: var(--text); }
+.rail-heading:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }

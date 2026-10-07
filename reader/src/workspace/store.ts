@@ -137,7 +137,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   openDocument: async (path) => {
     const myWindowId = get().myWindowId;
     await invoke<string>("open_document_command", { path, windowId: myWindowId });
-    const file = recentFileFromPath(path);
+    const file = recentFileFromPath(path, Date.now());
     if (file) {
       const recentFiles = rememberRecentFile(get().recentFiles, file);
       persistRecentFiles(recentFiles);

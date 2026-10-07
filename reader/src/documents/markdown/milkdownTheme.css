@@ -112,3 +112,23 @@
     padding: 24px 40px 72px;
   }
 }
+
+/* Compact quote inset; the rule is a straight 3px edge. */
+.milkdown-root .ProseMirror blockquote { padding-left: 15px; }
+.milkdown-root .ProseMirror blockquote::before { width: 3px; border-radius: 0; background: #c7cbd1; }
+
+/* Give the controls a visible compact header instead of invisible occupied
+   space. Code content then has the same inset above and below. */
+.milkdown-root .milkdown-code-block { padding: 0; margin: 8px 0; }
+.milkdown-root .milkdown-code-block .tools { min-height: 28px; padding: 2px 8px; border-bottom: 1px solid #e3e3e3; background: #f0f0f0; }
+.milkdown-root .milkdown-code-block .tools .language-button { margin-bottom: 0; padding: 2px 4px; opacity: 1; background: transparent; border-radius: 2px; }
+.milkdown-root .milkdown-code-block .tools .tools-button-group button { padding: 2px 6px; opacity: 1; border-radius: 2px; background: transparent; font-weight: 400; }
+.milkdown-root .milkdown-code-block .tools .tools-button-group button:hover { background: #e4e4e4; }
+.milkdown-root .milkdown-code-block .cm-editor, .milkdown-root .milkdown-code-block .milkdown-code-block-placeholder { padding: 12px; }
+.milkdown-root .milkdown-code-block .cm-content { padding: 0; }
+.milkdown-root .milkdown-code-block .cm-line { padding-top: 0; padding-bottom: 0; }
+.milkdown-root .milkdown-code-block .preview-panel { padding: 12px; }
+.milkdown-root .milkdown-code-block .preview-panel .preview-divider { margin: 0 0 8px; }
+.milkdown-root .milkdown-code-block .preview-panel .preview-label { margin: 0 0 8px; }
+.milkdown-root .milkdown-code-block .katex-display { margin: 0; }
+.milkdown-root .milkdown-code-block .list-wrapper, .milkdown-root .milkdown-code-block .search-box { border-radius: 2px; }

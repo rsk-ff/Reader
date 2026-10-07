@@ -66,6 +66,26 @@ describe("recent files", () => {
     expect(parseRecentFiles(JSON.stringify([regular, extended]))).toEqual([regular]);
   });
 
+  it("preserves legacy entries and validates optional metadata", () => {
+    const old = recentFileFromPath("C:/Notes/old.md")!;
+    expect(parseRecentFiles(JSON.stringify([old]))).toEqual([old]);
+    expect(parseRecentFiles(JSON.stringify([{ ...old, opened_at: "yesterday", file_size: -2 }]))).toEqual([old]);
+    const complete = { ...old, opened_at: 1791370800000, file_size: 0 };
+    expect(parseRecentFiles(JSON.stringify([complete]))).toEqual([complete]);
+    const reopened = rememberRecentFile([complete], recentFileFromPath(old.path, 1791370801000)!);
+    expect(reopened[0]).toMatchObject({ opened_at: 1791370801000, file_size: 0 });
+  });
+
+  it("refreshes changed snapshot sizes without changing opening time or order", () => {
+    const first = { ...recentFileFromPath("C:/Notes/first.md", 1000)!, file_size: 20 };
+    const second = { ...recentFileFromPath("C:/Notes/second.md", 2000)!, file_size: 30 };
+    const opened = { ...document("doc-1", first.path), file_size: 1234 };
+    const snapshot: WorkspaceSnapshot = { window_id: "main", tabs: [], active_tab_id: null, documents: [opened] };
+    const files = mergeRecentFilesFromSnapshot([second, first], [opened], snapshot);
+    expect(files).toEqual([second, { ...first, file_size: 1234 }]);
+    expect(mergeRecentFilesFromSnapshot([first], [], snapshot)[0]).toMatchObject({ opened_at: 1000, file_size: 1234 });
+  });
+
   it("adds saved or newly opened documents and ignores untitled ones", () => {
     const untitled = document("doc-1", "", true);
     const opened = document("doc-2", "C:\\Notes\\opened.md");
@@ -93,7 +113,7 @@ describe("recent files", () => {
       active_tab_id: "tab-2",
     };
 
-    expect(mergeRecentFilesFromSnapshot([], [], snapshot)).toEqual([
+    expect(mergeRecentFilesFromSnapshot([], [], snapshot)).toMatchObject([
       {
         path: opened.path,
         file_name: opened.file_name,
