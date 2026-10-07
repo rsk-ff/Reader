@@ -14,6 +14,9 @@ for (const width of [330, 620, 1100]) {
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-time")).toHaveText("—");
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-size")).toHaveText("—");
     expect((await row.boundingBox())!.height).toBeLessThanOrEqual(49);
+    const recentIcon = (await row.locator(".new-tab-recent-icon img").boundingBox())!;
+    expect(recentIcon.width).toBe(32);
+    expect(recentIcon.height).toBe(32);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     const columns = await row.evaluate((element) => Array.from(element.children).map((child) => {
@@ -50,13 +53,27 @@ test("title bar, home and file entries decode the shared native SVG masters", as
     expect(sources[0]).toBe(sources[1]);
     const fills = await page.evaluate(async (src) => {
       const svg = new DOMParser().parseFromString(await (await fetch(src)).text(), "image/svg+xml");
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = image.naturalWidth;
+      const context = canvas.getContext("2d")!;
+      context.drawImage(image, 0, 0);
+      // The overhanging letters must have a white backing to the left of the paper.
+      const letterBackground = Array.from(context.getImageData(
+        Math.round(3.75 * canvas.width / 22), Math.round(16 * canvas.height / 22), 1, 1).data);
       return { paper: svg.querySelector("path")?.getAttribute("fill"),
         outline: svg.querySelectorAll("path")[1]?.getAttribute("fill"),
-        badges: svg.querySelectorAll("rect").length };
+        badges: svg.querySelectorAll("rect").length, letterBackground };
     }, sources[0]);
     expect(fills.paper).toBe("#fff");
     expect(fills.outline).toBe(type === "pdf" ? "#ba4f4f" : "#536b89");
     expect(fills.badges).toBe(0);
+    expect(fills.letterBackground).toEqual([255, 255, 255, 255]);
+    const tabIcon = (await page.locator(`.tab .tab-icon-${type} img`).boundingBox())!;
+    expect(tabIcon.width).toBe(24);
+    expect(tabIcon.height).toBe(24);
   }
   const decoded = await page.locator(".titlebar-icon img, .new-tab-hero img, .tab-icon img")
     .evaluateAll(async (images) => Promise.all(images.map(async (element) => {

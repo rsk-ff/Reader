@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 软件内部与 Windows 同步 Fluent 书本；PDF/MD 按最新反馈恢复旧轮廓、字母及颜色，只加内部不透明白底。最终 6417832 包已覆盖安装并启动，资源、关联及清理验证完成，等待实际显示效果反馈。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户截图反馈最近列表和系统文件图标偏小，标签大小可接受，左下角白底不协调；正在单独放大列表、减少 ICO 留边并补齐文字背后白底，保留软件图标、标签尺寸和原配色。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 

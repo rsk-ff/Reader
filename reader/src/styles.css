@@ -593,7 +593,7 @@ html.tab-drag-preview-document #root {
 
 .new-tab-recent-item {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 94px 62px;
+  grid-template-columns: 32px minmax(0, 1fr) 94px 62px;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -618,8 +618,8 @@ html.tab-drag-preview-document #root {
 .new-tab-recent-icon svg,
 .new-tab-recent-icon img {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 32px;
+  height: 32px;
 }
 
 .new-tab-recent-copy {
@@ -1803,7 +1803,7 @@ body.pdf-sidebar-resizing * {
 
 @media (max-width: 600px) {
   .new-tab-list-heading { grid-template-columns: minmax(0, 1fr) 80px 48px; gap: 8px; padding: 8px; }
-  .new-tab-recent-item { grid-template-columns: 18px minmax(0, 1fr) 80px 48px; gap: 8px; padding: 7px 8px; }
+  .new-tab-recent-item { grid-template-columns: 32px minmax(0, 1fr) 80px 48px; gap: 8px; padding: 7px 8px; }
 }
 
 .document-tool-icon { display: block; width: 18px; height: 18px; background: currentColor; mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
