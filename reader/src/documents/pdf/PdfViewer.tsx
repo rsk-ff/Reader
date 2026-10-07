@@ -32,7 +32,8 @@ import { installPdfMarginSelection } from "./pdfMarginSelection";
 import { SelectionPreservingPdfViewer as PdfJsViewer } from "./SelectionPreservingPdfViewer";
 import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
-import { PdfToolbar } from "./PdfToolbar";
+import { PdfToolbar, PdfTools } from "./PdfToolbar";
+import { PdfDeleteDialog } from "./PdfDeleteDialog";
 import type { OutlineNode, PageInfo, ZoomMode } from "./types";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -152,6 +153,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageToDelete, setPageToDelete] = useState<number | null>(null);
   const [scale, setScale] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const [sidebarMode, setSidebarMode] = useState<"thumbnails" | "outline" | null>(null);
@@ -703,7 +705,6 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
         searchHits={searchHits}
         searchIdx={searchIdx}
         searching={searching}
-        annotTool={annotTool}
         dirty={dirty}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
@@ -713,19 +714,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
         onSearchNav={navigateSearch}
         onPrint={printDocument}
         onJumpPage={scrollToPage}
-        onAnnotTool={setAnnotTool}
         onSave={saveFromViewer}
-        onInsertBlankBefore={() => {
-          void mutatePages("insert_blank_page", blankPageInsertArgs(currentPage, "before"));
-        }}
-        onInsertBlankAfter={() => {
-          void mutatePages("insert_blank_page", blankPageInsertArgs(currentPage, "after"));
-        }}
-        onDeletePage={() => {
-          if (totalPages > 1 && window.confirm(`Delete page ${currentPage}?`)) {
-            void mutatePages("delete_page", { index: currentPage - 1 });
-          }
-        }}
       />
       <div className="pdf-body">
         {sidebarMode && (
@@ -755,7 +744,25 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
             </div>
           )}
         </div>
+        <PdfTools annotTool={annotTool} canDelete={totalPages > 1}
+          onAnnotTool={setAnnotTool}
+          onInsertBlankBefore={() => {
+            void mutatePages("insert_blank_page", blankPageInsertArgs(currentPage, "before"));
+          }}
+          onInsertBlankAfter={() => {
+            void mutatePages("insert_blank_page", blankPageInsertArgs(currentPage, "after"));
+          }}
+          onDeletePage={() => { if (totalPages > 1) setPageToDelete(currentPage); }}
+        />
       </div>
+      {pageToDelete !== null && <PdfDeleteDialog pageNumber={pageToDelete}
+        onCancel={() => setPageToDelete(null)}
+        onConfirm={() => {
+          setPageToDelete(null);
+          if (totalPages > 1 && pageToDelete <= totalPages) {
+            void mutatePages("delete_page", { index: pageToDelete - 1 });
+          }
+        }} />}
       <PdfJsAnnotationPortals
         viewerElement={viewerElement}
         epoch={overlayEpoch}

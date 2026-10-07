@@ -16,6 +16,41 @@ function firstLine(page: Page, pageNumber = 1) {
     .filter({ hasText: /\S.{10}/ }).first();
 }
 
+test("PDF uses a single reading row and a right rail with output actions always visible", async ({ page }) => {
+  expect((await page.locator(".pdf-toolbar").boundingBox())!.height).toBe(44);
+  expect((await page.locator(".document-tool-rail").boundingBox())!.x).toBe(1054);
+  await expect(page.locator(".pdf-markup-toolbar, .pdf-toolbar-caption")).toHaveCount(0);
+  await expect(page.locator(".document-tool-rail button")).toHaveCount(10);
+  await page.setViewportSize({ width: 330, height: 480 });
+  for (const name of ["打印", "已保存"]) {
+    const bounds = await page.getByRole("button", { name, exact: true }).boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(330);
+  }
+  await page.getByRole("button", { name: "Delete current page", exact: true }).scrollIntoViewIfNeeded();
+  const last = await page.getByRole("button", { name: "Delete current page", exact: true }).boundingBox();
+  expect(last!.y + last!.height).toBeLessThanOrEqual(480);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(330);
+});
+
+test("right rail deletion requires an app confirmation and Escape leaves the file unchanged", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.evaluate(() => { window.confirm = () => { throw new Error("Native confirm must not be called"); }; });
+  const deletion = page.getByRole("button", { name: "Delete current page", exact: true });
+  await deletion.click();
+  await expect(page.getByRole("dialog", { name: "删除第 1 页？", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => window.__readerInvocations.some((item) => item.command === "delete_page"))).toBe(false);
+  await deletion.click();
+  await page.getByRole("button", { name: "删除", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__readerInvocations.filter((item) => item.command === "delete_page").length)).toBe(1);
+  expect(await page.evaluate(() => window.__readerInvocations.find((item) => item.command === "delete_page")?.args?.index)).toBe(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 async function linePoints(line: Locator, start = 0, end = 8) {
   await expect(line).toBeVisible();
   return line.evaluate((element, offsets) => {

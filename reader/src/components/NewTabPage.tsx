@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useWorkspace } from "../workspace/store";
 import { DocumentTypeIcon } from "./DocumentTypeIcon";
 import { UiIcon } from "./UiIcon";
+import appIcon from "../assets/icons/journal-bookmark-fill.svg";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -68,9 +69,8 @@ export function NewTabPage() {
       <div className="new-tab-content">
         <aside className="new-tab-start">
           <section className="new-tab-hero" aria-labelledby="new-tab-title">
-            <span className="new-tab-eyebrow">文档工作台</span>
-            <h1 id="new-tab-title">Reader<span aria-hidden="true">.</span></h1>
-            <p>阅读 PDF，编辑 Markdown。<br />从一份文档开始。</p>
+            <img src={appIcon} alt="" width="28" height="28" />
+            <h1 id="new-tab-title">Reader</h1>
           </section>
 
           <div className="new-tab-actions" aria-label="文件操作">
@@ -96,18 +96,11 @@ export function NewTabPage() {
           </div>
 
           {error ? <p className="new-tab-error" role="alert">{error}</p> : null}
-
-          <dl className="new-tab-formats">
-            <div><dt>PDF</dt><dd>阅读、搜索与批注</dd></div>
-            <div><dt>Markdown</dt><dd>编辑、预览与保存</dd></div>
-          </dl>
-          <p className="new-tab-drop-hint">或将文档直接拖入窗口</p>
         </aside>
 
         <section className="new-tab-recent" aria-labelledby="recent-files-title">
           <header>
-            <div><h2 id="recent-files-title">最近打开</h2><p>继续阅读与编辑</p></div>
-            <span>{String(recentFiles.length).padStart(2, "0")}</span>
+            <h2 id="recent-files-title">最近打开</h2>
           </header>
           <div className="new-tab-list-heading" aria-hidden="true"><span>文档</span><span>格式</span></div>
           {recentFiles.length > 0 ? (
@@ -137,11 +130,10 @@ export function NewTabPage() {
           ) : (
             <div className="new-tab-recent-empty">
               <UiIcon name="file" />
-              <p>暂无最近文件<small>打开一份文档后，它会出现在这里。</small></p>
+              <p>暂无最近文件</p>
             </div>
           )}
         </section>
-
       </div>
     </main>
   );

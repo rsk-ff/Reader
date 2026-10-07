@@ -59,11 +59,13 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Release build
 
-专用文件类型图标已经作为生成资源提交。需要修改图标设计时，编辑生成器后重新生成：
+软件与文件图标的 统一 SVG 源文件在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)，采用 Bootstrap Icons 1.13.1 并保留 MIT 许可。需要修改设计时编辑 SVG 后重新生成：
 
 ```powershell
 pnpm --dir reader generate:file-icons
 ```
+
+该命令使用项目已有的 Tauri 图标转换器生成应用 PNG/ICO/ICNS 与两种文件 ICO，不新增依赖；在系统临时目录转换，仅将受管理的资源复制到 `src-tauri/icons`。虽然保留原命令名称，它现在覆盖软件和文件两类图标。
 
 正式更换 PDF/Markdown 文件关联图标时，保持 `file-pdf.ico` 和 `file-markdown.ico` 文件名不变即可；如果使用外部设计工具制作 ICO，则直接替换这两个生成文件，再重新构建安装包。仅替换已安装目录中的 ICO 只能用于本机临时测试，正式交付仍需重新打包并安装，因为安装器会把资源复制到安装目录，Explorer 也可能缓存旧图标。
 

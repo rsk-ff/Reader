@@ -3,8 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { save as showSaveDialog } from "@tauri-apps/plugin-dialog";
 
 import { useMarkdownText, useMarkdownSave } from "./useMarkdownText";
-import { MilkdownCrepe } from "./MilkdownCrepe";
+import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
 import { MarkdownToolbar } from "./MarkdownToolbar";
+import { MarkdownTools } from "./MarkdownTools";
+import { printMarkdown } from "./printMarkdown";
 import { MarkdownScrollbar } from "./MarkdownScrollbar";
 import { MarkdownOutline } from "./MarkdownOutline";
 import { extractMarkdownHeadings, type MarkdownHeading } from "./markdownHeadingModel";
@@ -42,6 +44,14 @@ export function MarkdownEditor({
   const [crepeVersion, setCrepeVersion] = useState(0);
   const [dirty, setDirty] = useState(untitled);
   const [saving, setSaving] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [commandsReady, setCommandsReady] = useState(false);
+  const commandsRef = useRef<MarkdownCommands | null>(null);
+  const printingRef = useRef(false);
+  const onCommands = useCallback((commands: MarkdownCommands | null) => {
+    commandsRef.current = commands;
+    setCommandsReady(commands !== null);
+  }, []);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editRevisionRef = useRef(0);
@@ -208,9 +218,26 @@ export function MarkdownEditor({
     });
   }, [doSave]);
 
+  const printFromEditor = useCallback(() => {
+    if (workingText == null || printingRef.current) return;
+    printingRef.current = true;
+    setPrinting(true);
+    const snapshot = mode === "wysiwyg" ? commandsRef.current?.getMarkdown() ?? workingText : workingText;
+    void printMarkdown(snapshot, fileName).catch((error: unknown) => {
+      window.alert(`Markdown 打印失败：${String(error)}`);
+    }).finally(() => {
+      printingRef.current = false;
+      setPrinting(false);
+    });
+  }, [workingText, fileName, mode]);
+
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        printFromEditor();
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
         e.preventDefault();
         saveFromEditor();
@@ -222,7 +249,7 @@ export function MarkdownEditor({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, saveFromEditor, switchMode, mode]);
+  }, [active, saveFromEditor, printFromEditor, switchMode, mode]);
 
   const headings = useMemo(
     () => extractMarkdownHeadings(workingText ?? ""),
@@ -261,8 +288,10 @@ export function MarkdownEditor({
         mode={mode}
         dirty={dirty}
         saving={saving}
+        printing={printing}
         onSwitch={switchMode}
         onSave={saveFromEditor}
+        onPrint={printFromEditor}
       />
       <div className="md-workspace">
         <MarkdownOutline headings={headings} onNavigate={navigateToHeading} />
@@ -273,6 +302,7 @@ export function MarkdownEditor({
                 key={crepeVersion}
                 value={workingText}
                 onChange={onChange}
+                onCommands={onCommands}
               />
             ) : (
               <textarea
@@ -292,6 +322,8 @@ export function MarkdownEditor({
             contentVersion={crepeVersion + workingText.length}
           />
         </div>
+        <MarkdownTools enabled={mode === "wysiwyg" && commandsReady}
+          onFormat={(format) => commandsRef.current?.format(format)} />
       </div>
     </div>
   );

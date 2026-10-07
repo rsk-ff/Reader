@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 按用户反馈重做中性灰白的现代桌面界面，首页双区布局、PDF 两行工具栏与统一侧栏已实现；最终 108 项前端测试、37 项浏览器回归、构建及三种窗口宽度检查通过，运行版本已更新，视觉/交互待用户验收。
+- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 已落实本轮八点界面反馈：新软件/文件图标、无标签底线、PDF/MD 右侧工具、共享打印/保存和精简首页；Markdown 两模式打印与应用内删页确认完成，108 前端/48 浏览器回归及构建通过。检查窗口已打开，真实 WebView2/打印与视觉待用户确认。
 - [`2026-10-05-msi-release-install.md`](tasks/active/2026-10-05-msi-release-install.md) — `waiting_user_acceptance`; 本地 MSI 构建及覆盖安装成功，升级登记、程序与资源核对通过，安装版已启动，待用户复验 PDF 选择及缩放。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-05-pdf-margin-selection.md`](tasks/archive/2026-10-05-pdf-margin-selection.md).
@@ -27,13 +27,16 @@
 
 ## Recorded automated verification
 
-2026-10-07 针对全面界面重做记录（用户否定首轮后重新验证）：
+2026-10-07 针对全面界面重做及八点验收反馈修订记录：
 
-- `pnpm --dir reader test`：16 个文件、108 项通过；`pnpm --dir reader test:browser`：37 项通过，包含 PDF 28 项与 Markdown 9 项既有行为回归。
-- `pnpm --dir reader build`：TypeScript 和生产构建通过，1173 个模块，仅既有大 chunk 警告。
-- 临时真实 Edge 布局检查：在 330、620、1100px 宽度下首页与 Markdown 工具栏未溢出；PDF 20 个工具按钮均有名称，上下两行可分别滚动访问打印/删除页，合计高度稳定为 85px。长最近文件名/路径、空状态和减少动画适配通过，无页面运行错误。不截图，不据此声称视觉已验收。
-- Tauri 开发编译完成，以临时独立应用标识 `com.earendil.reader.polish20261007` 启动检查窗口，最终重做的模块/CSS 已热更新。未改 Rust 源码，未重跑 Rust 测试或安装包构建；已安装版本仍为先前产物。
-- 用户要求停止 Pi 并删除自动调用/免费时段/固定 GLM 规则；已停止会话 `reader-interface-polish-20261007-1100`，当时无代码 diff，全部界面改动由 Codex 实现。当前规则以 `AGENTS.md` 为准。
+- 整体重做基线 `f470e84` 曾通过 108 前端/37 浏览器测试；用户随后提出图标、标签底线、工具位置、输出一致性、多余标签、选字浮层、首页文案及 Markdown 模式八点反馈，本轮已修订同一目标。
+- `pnpm --dir reader test`：16 文件、108 项通过；`pnpm --dir reader test:browser`：48 项通过（PDF 30、Markdown 18）。新增回归覆盖外置格式/保存/快速撤销、公式/链接、打印快照与两模式隔离、状态/焦点、窄窗口和应用内删页确认，原选择与缩放回归仍通过。
+- `pnpm --dir reader build`：TypeScript 和生产构建通过，仅既有大 chunk 警告。
+- 首页 330/620/1100px 无横向溢出，长文件/路径、空状态、减少动画与运行错误检查通过。软件/文件 ICO 结构有效，包含 16/24/32/48/64/256px 帧；SVG 采用 Bootstrap Icons 1.13.1 并保留许可。无截图或桌面视觉验收。
+- 启动日志发现原删页系统确认的 `dialog.confirm` 权限错误；改为应用内模态，取消不调用删除，确认保留页码和原命令，不增加权限。
+- 图标变更后 Tauri 开发重编译成功，检查窗口 `Reader · 界面美化验收`（独立标识 `com.earendil.reader.polish20261007`，PID 10044）运行并打开临时 PDF/MD 样本，前端已热更新。Rust 源码未改，Rust 测试和安装包未重跑；安装版与 Explorer 图标仍为此前产物。
+- 文档和完整 diff 检查通过。Markdown 原生打印对话框/纸张、WebView2 交互与视觉仍由用户确认。
+- 用户此前要求停止 Pi 并删除自动调用/免费时段/固定 GLM 规则，已停止会话 `reader-interface-polish-20261007-1100`，当时无代码 diff。全部实现由 Codex 完成，本轮未调用 Pi。
 
 2026-10-05 针对 PDF 空白起点选字记录：
 

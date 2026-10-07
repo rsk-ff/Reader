@@ -37,13 +37,16 @@ Windows / Tauri
 ## Markdown path
 
 - Milkdown/Crepe 提供所见即所得编辑，源码模式通过 `Ctrl+/` 切换。
-- `MilkdownCrepe.tsx` 按顺序导入官方 common 样式、Frame 浅色主题和局部 `milkdownTheme.css`。官方样式是正文、列表、表格和编辑控件的基线；局部适配负责字体、文档宽度/边距、紧凑标题和代码折叠标记对齐，不混用 GitHub Markdown CSS。`Crepe.Feature.BlockEdit` 被禁用，块加号、拖动柄及附属斜杠菜单不挂载；文本格式工具与 CodeMirror 折叠保留。源码与应用工具栏/目录样式仍在 `styles.css`。
+- `MilkdownCrepe.tsx` 按顺序导入官方 common 样式、Frame 浅色主题和局部 `milkdownTheme.css`。官方样式是正文、列表、表格和编辑控件的基线；局部适配负责字体、文档宽度/边距、紧凑标题和代码折叠标记对齐，不混用 GitHub Markdown CSS。`Crepe.Feature.BlockEdit` 与 `Toolbar` 被禁用，块控件及选字格式浮层不挂载；`MarkdownTools` 通过挂载后注册的命令桥操作当前编辑器，保留选区、格式命令、撤销与 CodeMirror 折叠。外置命令的内容即时回传，监听器按最后已发布文本去重，避免快速格式修改/保存/撤销被异步监听漏掉。
 - 两种模式共享同一个内存 Markdown 字符串。
 - Crepe 实例只随组件挂载/卸载创建与销毁；编辑内容回传不替换实例，以保留焦点、选区和撤销历史。源码返回及放弃修改通过父组件的显式重挂载加载内容，重复选择当前模式不重置编辑器。异步创建和销毁串行化，旧实例不再向当前文档发布修改。
 - 首个标题的顶部间距按首个文档内容元素判断，排除 ProseMirror widget 和虚拟光标；选区变化会增删这些装饰节点，不能直接使用 `:first-child` 判断首个标题。
 - 保存使用临时文件、刷新和原子替换；保存过程使用修订号，避免并发编辑被错误标记为已保存。
 - 新建 Markdown 先由 Rust 工作区创建 `untitled` 内存文档（空路径、稳定文档 ID），首次保存时前端才调用原生保存对话框；Rust 在原子写入成功后为同一文档和标签绑定规范化路径。
 - Markdown 目录从标题模型生成，并驱动源码或渲染视图导航。
+- `printMarkdown.ts` 用独立临时 Crepe 解析打印快照，通过 `getHTML` 生成静态正文，再在隔离 iframe 中打印；保留 CodeMirror 以满足 LaTeX 依赖，打印 HTML 不含编辑控件。渲染模式直接读取活动编辑器避免监听延迟，源码模式读取工作文本；临时解析器销毁，打印后移除 iframe 并恢复焦点，不替换活动编辑器或调用保存。
+- `DocumentActions` 统一 PDF/Markdown 输出入口；`DocumentToolRail` 统一右侧竖栏。`PdfTools` 只调用既有批注与页面操作回调。
+- PDF 删页使用原生 HTML `dialog` 模态与页码快照，避免 `window.confirm` 经 Tauri 注入后要求未授予的 `dialog.confirm` 权限；取消不调用变更命令，确认后仍使用既有 PDFium 删页路径。
 
 主要代码：
 

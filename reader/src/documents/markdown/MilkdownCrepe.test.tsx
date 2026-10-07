@@ -25,7 +25,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: engine.invoke }));
 vi.mock("./MarkdownScrollbar", () => ({ MarkdownScrollbar: () => null }));
 vi.mock("@milkdown/crepe", () => ({
   Crepe: class {
-    static Feature = { TopBar: "top", AI: "ai", BlockEdit: "block", CodeMirror: "code" };
+    static Feature = { TopBar: "top", Toolbar: "toolbar", AI: "ai", BlockEdit: "block", CodeMirror: "code" };
     root: HTMLElement;
     defaultValue: string;
     element = document.createElement("div");
@@ -207,7 +207,7 @@ describe("Milkdown editor lifecycle", () => {
     expect(engine.instances).toHaveLength(1);
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
     expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "first edit\n\n第二段" });
-    expect(host.textContent).toContain("saved");
+    expect(host.textContent).toContain("已保存");
   });
 
   it("reloads the last saved text when changes are explicitly discarded", async () => {

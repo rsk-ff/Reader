@@ -25,6 +25,10 @@ const paths = {
   save: "M4 3h13l4 4v14H3V3h1ZM7 3v6h10V3M7 21v-8h10v8",
   check: "m5 12 4 4L19 6",
   code: "m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18",
+  bold: "M6 3h7a4.5 4.5 0 0 1 0 9H6V3Zm0 9h8a4.5 4.5 0 0 1 0 9H6V12Z",
+  italic: "M11 3h9M4 21h9M16 3 8 21",
+  link: "m10 14 4-4M9 16l-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0M15 8l2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0",
+  math: "M18 3H6l8 9-8 9h12",
 } as const;
 
 export type UiIconName = keyof typeof paths;

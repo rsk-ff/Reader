@@ -1,9 +1,29 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Crepe } from "@milkdown/crepe";
+import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
+import { toggleStrongCommand, toggleEmphasisCommand, toggleInlineCodeCommand } from "@milkdown/kit/preset/commonmark";
+import { toggleStrikethroughCommand } from "@milkdown/kit/preset/gfm";
+import { toggleLinkCommand } from "@milkdown/kit/component/link-tooltip";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import "./milkdownTheme.css";
+
+export type MarkdownFormat = "bold" | "italic" | "strikeout" | "code" | "link" | "math";
+export interface MarkdownCommands {
+  format: (format: MarkdownFormat) => void;
+  getMarkdown: () => string;
+}
+
+const formattingCommands = {
+  bold: toggleStrongCommand,
+  italic: toggleEmphasisCommand,
+  strikeout: toggleStrikethroughCommand,
+  code: toggleInlineCodeCommand,
+  link: toggleLinkCommand,
+  // Crepe's public command registry exposes its inline LaTeX command by name.
+  math: "ToggleLatex",
+};
 
 interface MilkdownCrepeProps {
   /** Initial markdown for this mount. Use a React key to load another value. */
@@ -12,6 +32,7 @@ interface MilkdownCrepeProps {
   onChange: (markdown: string) => void;
   /** Fired once the editor is mounted and ready. */
   onReady?: () => void;
+  onCommands?: (commands: MarkdownCommands | null) => void;
 }
 
 /**
@@ -22,15 +43,15 @@ interface MilkdownCrepeProps {
  * React without replacing the live editor, its selection or undo history.
  * The parent explicitly re-mounts when loading source edits or discarding edits.
  */
-export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) {
+export function MilkdownCrepe({ value, onChange, onReady, onCommands }: MilkdownCrepeProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const initialValueRef = useRef(value);
-  const callbacksRef = useRef({ onChange, onReady });
+  const callbacksRef = useRef({ onChange, onReady, onCommands });
   const lifecycleRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
-    callbacksRef.current = { onChange, onReady };
-  }, [onChange, onReady]);
+    callbacksRef.current = { onChange, onReady, onCommands };
+  }, [onChange, onReady, onCommands]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -38,6 +59,12 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
     let destroyed = false;
     let hasEditIntent = false;
     let crepe: Crepe | null = null;
+    let lastPublished = initialValueRef.current;
+    const publish = (markdown: string) => {
+      if (destroyed || !hasEditIntent || markdown === lastPublished) return;
+      lastPublished = markdown;
+      callbacksRef.current.onChange(markdown);
+    };
 
     const reportError = (phase: string, error: unknown) => {
       void invoke("log_frontend", {
@@ -102,6 +129,7 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
             // Reader keeps inline editing without Notion-style block handles.
             // Its own toolbar supplies document actions; AI stays disabled.
             [Crepe.Feature.TopBar]: false,
+            [Crepe.Feature.Toolbar]: false,
             [Crepe.Feature.AI]: false,
             [Crepe.Feature.BlockEdit]: false,
           },
@@ -114,21 +142,40 @@ export function MilkdownCrepe({ value, onChange, onReady }: MilkdownCrepeProps) 
         });
 
         crepe.on((listener) => {
-          listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
+          listener.markdownUpdated((_ctx, markdown) => {
             // Async table/task-list setup can normalize GFM without an edit.
             // Ignore those changes, and ignore events from an obsolete mount.
             if (destroyed || !hasEditIntent) return;
-            if (markdown !== prevMarkdown) callbacksRef.current.onChange(markdown);
+            publish(markdown);
           });
         });
 
         await crepe.create();
-        if (!destroyed) callbacksRef.current.onReady?.();
+        if (!destroyed) {
+          callbacksRef.current.onCommands?.({
+            getMarkdown: () => crepe!.getMarkdown(),
+            format: (format) => {
+              if (destroyed || !crepe) return;
+              hasEditIntent = true;
+              const before = crepe.getMarkdown();
+              crepe.editor.action((ctx) => {
+                const view = ctx.get(editorViewCtx);
+                view.focus();
+                const command = formattingCommands[format];
+                ctx.get(commandsCtx).call(typeof command === "string" ? command : command.key);
+              });
+              const markdown = crepe.getMarkdown();
+              if (markdown !== before) publish(markdown);
+            },
+          });
+          callbacksRef.current.onReady?.();
+        }
       })
       .catch((error: unknown) => reportError("init", error));
 
     return () => {
       destroyed = true;
+      callbacksRef.current.onCommands?.(null);
       root.removeEventListener("beforeinput", markEditIntent, true);
       root.removeEventListener("compositionstart", markEditIntent, true);
       root.removeEventListener("paste", markEditIntent, true);

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ZoomMode } from "./types";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { UiIcon } from "../../components/UiIcon";
+import { DocumentActions } from "../../components/DocumentActions";
+import { DocumentToolRail, RailButton } from "../../components/DocumentToolRail";
 
 interface PdfToolbarProps {
   currentPage: number;
@@ -13,7 +15,6 @@ interface PdfToolbarProps {
   searchHits: number;
   searchIdx: number;
   searching: boolean;
-  annotTool: AnnotationTool;
   dirty: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -23,11 +24,7 @@ interface PdfToolbarProps {
   onSearchNav: (dir: 1 | -1) => void;
   onPrint: () => void;
   onJumpPage: (n: number) => void;
-  onAnnotTool: (t: AnnotationTool) => void;
   onSave: () => void;
-  onInsertBlankBefore: () => void;
-  onInsertBlankAfter: () => void;
-  onDeletePage: () => void;
 }
 
 export function PdfToolbar(props: PdfToolbarProps) {
@@ -49,13 +46,8 @@ export function PdfToolbar(props: PdfToolbarProps) {
     onSearchNav,
     onPrint,
     onJumpPage,
-    annotTool,
     dirty,
-    onAnnotTool,
     onSave,
-    onInsertBlankBefore,
-    onInsertBlankAfter,
-    onDeletePage,
   } = props;
 
   const [searchInput, setSearchInput] = useState("");
@@ -179,97 +171,42 @@ export function PdfToolbar(props: PdfToolbarProps) {
           </ToolbarButton>
         </div>
 
-        <div className="pdf-toolbar-spacer" />
-        <div className="pdf-toolbar-group pdf-output-group">
-          <ToolbarButton onClick={onPrint} title="Print (Ctrl+P)">
-            <UiIcon name="print" /><span>打印</span>
-          </ToolbarButton>
-          <ToolbarButton onClick={onSave} disabled={!dirty} title="Save (persist annotations)">
-            <UiIcon name={dirty ? "save" : "check"} /><span>{dirty ? "保存 ●" : "已保存"}</span>
-          </ToolbarButton>
-        </div>
       </div>
-
-      <div className="pdf-toolbar-row pdf-markup-toolbar">
-        <span className="pdf-toolbar-caption">标注</span>
-        <div className="pdf-toolbar-group pdf-annot-group">
-          <ToolbarButton
-            active={annotTool === "select"}
-            onClick={() => onAnnotTool("select")}
-            title="Select"
-          >
-            <UiIcon name="select" />
-            <span>选择</span>
-          </ToolbarButton>
-          <ToolbarButton
-            active={annotTool === "highlight"}
-            onClick={() => onAnnotTool("highlight")}
-            title="Highlight (select text)"
-          >
-            <UiIcon name="highlight" />
-            <span>高亮</span>
-          </ToolbarButton>
-          <ToolbarButton
-            active={annotTool === "underline"}
-            onClick={() => onAnnotTool("underline")}
-            title="Underline (select text)"
-          >
-            <UiIcon name="underline" />
-            <span>下划线</span>
-          </ToolbarButton>
-          <ToolbarButton
-            active={annotTool === "strikeout"}
-            onClick={() => onAnnotTool("strikeout")}
-            title="Strikeout (select text)"
-          >
-            <UiIcon name="strikeout" />
-            <span>删除线</span>
-          </ToolbarButton>
-          <ToolbarButton
-            active={annotTool === "note"}
-            onClick={() => onAnnotTool("note")}
-            title="Note (click to place)"
-          >
-            <UiIcon name="note" />
-            <span>便笺</span>
-          </ToolbarButton>
-          <ToolbarButton
-            active={annotTool === "freetext"}
-            onClick={() => onAnnotTool("freetext")}
-            title="Free text (click to place)"
-          >
-            <UiIcon name="text" />
-            <span>文本</span>
-          </ToolbarButton>
-          <ToolbarButton
-            active={annotTool === "ink"}
-            onClick={() => onAnnotTool("ink")}
-            title="Ink (draw)"
-          >
-            <UiIcon name="pen" />
-            <span>画笔</span>
-          </ToolbarButton>
-        </div>
-
-        <div className="pdf-toolbar-spacer" />
-        <div className="pdf-toolbar-group pdf-page-group">
-          <ToolbarButton onClick={onInsertBlankBefore} title="Insert blank page before current">
-            <UiIcon name="pageBefore" />
-            <span>前插空白页</span>
-          </ToolbarButton>
-          <ToolbarButton onClick={onInsertBlankAfter} title="Insert blank page after current">
-            <UiIcon name="pageAfter" />
-            <span>后插空白页</span>
-          </ToolbarButton>
-          <ToolbarButton onClick={onDeletePage} title="Delete current page">
-            <UiIcon name="pageDelete" />
-            <span>删除当前页</span>
-          </ToolbarButton>
-        </div>
-
-      </div>
+      <DocumentActions dirty={dirty} onPrint={onPrint} onSave={onSave} />
     </div>
   );
+}
+
+interface PdfToolsProps {
+  annotTool: AnnotationTool;
+  onAnnotTool: (tool: AnnotationTool) => void;
+  onInsertBlankBefore: () => void;
+  onInsertBlankAfter: () => void;
+  onDeletePage: () => void;
+  canDelete: boolean;
+}
+
+export function PdfTools(props: PdfToolsProps) {
+  const tools = [
+    ["select", "select", "Select"],
+    ["highlight", "highlight", "Highlight (select text)"],
+    ["underline", "underline", "Underline (select text)"],
+    ["strikeout", "strikeout", "Strikeout (select text)"],
+    ["note", "note", "Note (click to place)"],
+    ["freetext", "text", "Free text (click to place)"],
+    ["ink", "pen", "Ink (draw)"],
+  ] as const;
+  return <DocumentToolRail label="PDF 标注与页面操作">
+    <div className="rail-group">
+      {tools.map(([tool, icon, title]) => <RailButton key={tool} icon={icon} title={title}
+        active={props.annotTool === tool} onClick={() => props.onAnnotTool(tool)} />)}
+    </div>
+    <div className="rail-group">
+      <RailButton icon="pageBefore" title="Insert blank page before current" onClick={props.onInsertBlankBefore} />
+      <RailButton icon="pageAfter" title="Insert blank page after current" onClick={props.onInsertBlankAfter} />
+      <RailButton icon="pageDelete" title="Delete current page" disabled={!props.canDelete} onClick={props.onDeletePage} />
+    </div>
+  </DocumentToolRail>;
 }
 
 function ToolbarButton({

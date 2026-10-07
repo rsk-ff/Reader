@@ -7,8 +7,10 @@ import "../../src/styles.css";
 // Only native file/mutation boundaries are mocked. PDF.js, React, the text
 // layer, selection handlers, annotation overlays and application CSS are real.
 window.createdAnnotations = [];
+window.__readerInvocations = [];
 window.__TAURI_INTERNALS__ = {
   invoke: async (command, args) => {
+    window.__readerInvocations.push({ command, args });
     if (command === "create_annotation") {
       window.createdAnnotations.push(args.annotation);
       return args.annotation;

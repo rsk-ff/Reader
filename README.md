@@ -24,4 +24,4 @@ Reader 是一个面向 Windows 的轻量 PDF 阅读与批注、Markdown 阅读�
 
 应用代码位于 [`reader/`](reader/)。开始开发或构建前，请先阅读 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
 
-Windows 安装器扩展位于 [`reader/src-tauri/windows/`](reader/src-tauri/windows/)，文件关联专用图标位于 [`reader/src-tauri/icons/`](reader/src-tauri/icons/)。
+Windows 安装器扩展位于 [`reader/src-tauri/windows/`](reader/src-tauri/windows/)，软件与文件图标的 SVG 源文件和许可位于 [`reader/src/assets/icons/`](reader/src/assets/icons/README.md)，生成的原生图标位于 [`reader/src-tauri/icons/`](reader/src-tauri/icons/)。

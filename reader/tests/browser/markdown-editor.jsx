@@ -12,9 +12,13 @@ const markdown = `${prefix}${"#".repeat(level)} Selection stability\n\n` +
   ).join("\n\n");
 
 // Only the native file boundary is mocked: the real React container, Crepe,
-// ProseMirror, floating toolbar, virtual cursor and application CSS all run.
+// ProseMirror, fixed tool rail, virtual cursor and application CSS all run.
+window.__readerInvocations = [];
 window.__TAURI_INTERNALS__ = {
-  invoke: async (command) => command === "read_file_text" ? markdown : null,
+  invoke: async (command, args) => {
+    window.__readerInvocations.push({ command, args });
+    return command === "read_file_text" ? markdown : null;
+  },
 };
 
 createRoot(document.getElementById("root")).render(

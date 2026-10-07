@@ -20,7 +20,7 @@ for (const level of [1, 2, 3, 4, 5, 6]) {
     await page.mouse.down();
     await page.mouse.move(selectionPoints.endX, selectionPoints.y, { steps: 8 });
     await page.mouse.up();
-    await expect(page.locator(".milkdown-toolbar")).toHaveAttribute("data-show", "true");
+    await expect(page.locator(".milkdown-toolbar")).toHaveCount(0);
     const after = await paragraph.boundingBox();
     expect(after!.y).toBeCloseTo(before!.y, 1);
     expect(await page.locator(".md-content").evaluate((element) => element.scrollTop)).toBe(0);
@@ -59,7 +59,7 @@ test("selecting text midway through a scrolled document keeps the viewport stabl
   await page.mouse.down();
   await page.mouse.move(points.endX, points.y, { steps: 8 });
   await page.mouse.up();
-  await expect(page.locator(".milkdown-toolbar")).toHaveAttribute("data-show", "true");
+  await expect(page.locator(".milkdown-toolbar")).toHaveCount(0);
   expect((await paragraph.boundingBox())!.y).toBeCloseTo(before!.y, 1);
   expect(await page.locator(".md-content").evaluate((element) => element.scrollTop)).toBe(scrollBefore);
 });
@@ -73,7 +73,7 @@ test("continuous edits preserve the real editor and its undo history", async ({ 
   const original = await paragraph.textContent();
   await page.keyboard.type(" stable typing", { delay: 25 });
   await expect(paragraph).toHaveText(`${original} stable typing`);
-  await expect(page.getByRole("button", { name: "Save ●", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "保存 ●", exact: true })).toBeEnabled();
   expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
   await page.keyboard.press("Control+z");
   await expect(paragraph).toHaveText(original!);

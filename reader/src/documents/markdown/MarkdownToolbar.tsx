@@ -1,17 +1,19 @@
 import { UiIcon } from "../../components/UiIcon";
+import { DocumentActions } from "../../components/DocumentActions";
 
 interface MarkdownToolbarProps {
   mode: "wysiwyg" | "source";
   dirty: boolean;
   saving: boolean;
+  printing: boolean;
   onSwitch: (m: "wysiwyg" | "source") => void;
   onSave: () => void;
+  onPrint: () => void;
 }
 
-export function MarkdownToolbar({ mode, dirty, saving, onSwitch, onSave }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ mode, dirty, saving, printing, onSwitch, onSave, onPrint }: MarkdownToolbarProps) {
   return (
     <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
-      <span className="md-document-label">Markdown</span>
       <div className="md-toolbar-group md-mode-switch" role="group" aria-label="Editor mode">
         <button
           type="button"
@@ -35,18 +37,7 @@ export function MarkdownToolbar({ mode, dirty, saving, onSwitch, onSave }: Markd
         </button>
       </div>
       <div className="md-toolbar-spacer" />
-      <div className="md-toolbar-group">
-        <button
-          type="button"
-          className={"md-tbtn md-save" + (dirty ? " md-save-dirty" : "")}
-          onClick={onSave}
-          disabled={!dirty || saving}
-          title="Save (Ctrl+S)"
-        >
-          <UiIcon name={dirty || saving ? "save" : "check"} />
-          {saving ? "saving…" : dirty ? "Save ●" : "saved"}
-        </button>
-      </div>
+      <DocumentActions dirty={dirty} saving={saving} printing={printing} onPrint={onPrint} onSave={onSave} />
     </div>
   );
 }
