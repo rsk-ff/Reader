@@ -3,6 +3,7 @@ reader/node_modules/
 reader/dist/
 reader/src-tauri/target/
 reader/src-tauri/gen/schemas/
+/releases/
 
 # logs
 *.log

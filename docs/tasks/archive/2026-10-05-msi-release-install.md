@@ -1,9 +1,9 @@
 # MSI 构建与覆盖安装
 
-- Status: `waiting_user_acceptance`
+- Status: `cancelled`
 - Owner: Codex
 - Created: `2026-10-05`
-- Last updated: `2026-10-05`
+- Last updated: `2026-10-07`
 - Base branch: `master`
 - Base commit: `7273983`
 - Implementation: `Codex`
@@ -80,17 +80,17 @@
 
 ## User acceptance
 
-waiting：当前安装版中检查 PDF 左侧空白起点、末行下方补全与拖回文字的终点，以及已有选区经 Ctrl＋滚轮后的保留。源码已在前一任务验收，本次安装版尚未独立验收。
+原安装版没有单独复验记录。2026-10-07 用户验收新的应用基线 de45f91 并授权重新发布/安装，本任务的旧包与等待项被新发布替代；不补写旧包视觉验收结论。
 
 ## Risks and remaining work
 
-- 构建、覆盖安装及文件核对已完成，安装版视觉/交互仍待用户确认；沿用项目现有未签名安装包方式。
+- 原构建、覆盖安装及文件核对已完成，旧安装版没有单独视觉/交互确认；该版本现已被新发布替代，不再等待旧包复验。沿用项目现有未签名安装包方式。
 - 本次不测试卸载、不重建 NSIS、不重复前端/浏览器和 Rust 测试套件，不进行外部上传。
 
 ## Next action
 
-等待用户复验安装版 PDF 选择及缩放；通过后归档本任务。
+无；由 [2026-10-07 发布/安装/清理任务](2026-10-07-release-install-cleanup.md) 记录替代版本并归档。
 
 ## Outcome
 
-已从 `7273983`（应用源码 `c267f35`）构建 `0.1.0` MSI，并成功覆盖安装及启动；发布收尾文档提交主题为 `docs: record MSI build and upgrade installation`，实际哈希以 Git 历史为准。当前保留 active 等待安装版交互复验；Pi 未调用，无会话 ID。
+已从 `7273983`（应用源码 `c267f35`）构建 `0.1.0` MSI，并成功覆盖安装及启动；当时发布文档提交主题为 `docs: record MSI build and upgrade installation`。2026-10-07 旧 ProductCode 已被 de45f91 发布的新 MSI 替换，本任务取消归档；上文构建/安装证据为历史记录。Pi 未调用，无会话 ID。

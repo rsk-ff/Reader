@@ -2,14 +2,12 @@
 
 - Last updated: 2026-10-07
 - Application version: `0.1.0`
-- Latest user-accepted application source baseline: `c267f35 — PDF text selection from whitespace, zoom preservation and drag endpoints accepted`
+- Latest user-accepted application source baseline: `de45f91 — Reader interface, recent history and Markdown icons accepted`
 
 ## Active task
 
-- [`2026-10-07-interface-polish.md`](tasks/active/2026-10-07-interface-polish.md) — `waiting_user_acceptance`; 最新修订取消最近文件 8 条上限，并修复 MD 图标显示方块（内联 SVG 遮罩地址缺少引号）。111 前端、14 针对性浏览器与类型/生产构建通过，覆盖 101 条持久化/加载、40 条列表滚动和 16 个图标的实际资源解码。上一轮四点排版/图标反馈及 65 用例结果保留在活动任务中。检查窗口已热更新，WebView2 实际观感仍待用户确认；安装版尚未更新。
-- [`2026-10-05-msi-release-install.md`](tasks/active/2026-10-05-msi-release-install.md) — `waiting_user_acceptance`; 本地 MSI 构建及覆盖安装成功，升级登记、程序与资源核对通过，安装版已启动，待用户复验 PDF 选择及缩放。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
-- Latest completed task: [`2026-10-05-pdf-margin-selection.md`](tasks/archive/2026-10-05-pdf-margin-selection.md).
+- Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
 ## Implemented at the application baseline
 
@@ -18,7 +16,7 @@
 - PDF 文字可从行侧空白开始选择，拖到末行下方补全该行，拖回文字恢复精确终点；已有选区在缩放和连续 Ctrl＋滚轮重绘期间保留。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
 - Markdown 所见即所得/源码模式、显式保存、等宽代码字体和左侧目录；渲染区域采用 Crepe 官方完整 Frame 浅色主题。
-- 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和跨启动最近文件列表；当前开发版不再限制为 8 项。
+- 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和跨启动最近文件列表；当前版本不再限制为 8 项。
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
 - Windows 自定义标题栏、原生窗口按钮和 Snap Layout。
@@ -26,6 +24,12 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-07 最新验收/发布基线 de45f91：
+
+- 16 文件、111 项前端测试通过；最近文件与 Markdown 工具针对性浏览器测试 14 项通过，含 101 条存储/重载、40 条列表滚动/点击及全部 16 个 SVG 遮罩的 CSS/解码检查。此前 PDF/Markdown/Home 共 65 个不同浏览器用例已通过，未因纯打包重复运行。
+- 正式 Tauri 构建退出码 0，重新通过 TypeScript、1196 模块前端构建、Rust release 编译及 MSI/NSIS 打包。Rust 源码未改，未重复 Rust 测试套件；仍有既有大 chunk 提示。
+- 用户已验收界面、最近文件及 MD 图标修复；正式标识 com.earendil.reader 的 MSI 已覆盖安装并启动，安装文件与打包源码匹配。具体发布与清理证据见下文和归档任务。
 
 2026-10-07 针对全面界面重做及八点验收反馈修订记录：
 
@@ -147,23 +151,25 @@
 
 ## Latest local release artifacts
 
-以下本地文件不纳入 Git。MSI 已于 2026-10-05 从 `7273983`（已验收应用源码 `c267f35`）重新构建并覆盖安装，版本仍为 `0.1.0`；NSIS 为历史产物，本轮未重建。此前源码验收不替代本次安装版交互复验。
+以下本地文件不纳入 Git。2026-10-07 从用户已验收的 `de45f91` 同时生成 MSI/NSIS，版本仍为 `0.1.0`、正式标识 `com.earendil.reader`；本机通过 MSI 覆盖安装。发布目录独立于已清理的 target，包含包校验、构建/安装日志与核对记录；未上传外部平台。
 
 | Format | Build scope | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | --- | ---: | --- | --- |
-| NSIS | 历史产物，未重建 | `reader/src-tauri/target/release/bundle/nsis/Reader_0.1.0_x64-setup.exe` | 15,899,628 | `4561FBAF911094F8B9C2FC754D23EC8EBD0DF95B732732B84C215CE4BB0FB10B` | `NotSigned` |
-| MSI | 2026-10-05 / `7273983` | `reader/src-tauri/target/release/bundle/msi/Reader_0.1.0_x64_en-US.msi` | 20,983,808 | `A7AF5384F30ACFC9884533787AD3DFFE8549C06CD21A4EB300D08DD888C72AE6` | `NotSigned` |
+| NSIS | 2026-10-07 / `de45f91` | `releases/2026-10-07-0.1.0-de45f91/Reader_0.1.0_x64-setup.exe` | 16,026,633 | `01047AC97BD6EF334631A72A65DFC775765AE4216EF72CD96F049DA359CD748D` | `NotSigned` |
+| MSI | 2026-10-07 / `de45f91` | `releases/2026-10-07-0.1.0-de45f91/Reader_0.1.0_x64_en-US.msi` | 20,905,984 | `C2A104B0BCFAFC952B54DC7DAB53DE11E2961064E1E4840596EBE2E4C9B3D234` | `NotSigned` |
 
 本次 MSI 构建与启动证据：
 
-- `pnpm --dir reader tauri build --bundles msi`：退出码 `0`；前端 1172 个模块、Rust release 与 WiX candle/light 均完成，仅保留既有前端大 chunk 警告。构建日志为 `reader/msi-build-20261005.log`。
-- MSI 数据库：`ProductVersion=0.1.0`、`ALLUSERS=1`、`ProductCode={0BCEC9F0-9CE3-4EF1-8CE3-CBA1F61806AD}`；UpgradeCode 保持 `{8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}`，升级表最小版本 `0`、无最大版本、属性 `257`，覆盖现有同版本 MSI。
-- 包内含 `reader.exe`、`pdfium.dll`、PDF/Markdown ICO；注册表表中五项 `DefaultIcon` 均指向相应 ICO。
-- 已通过 `msiexec /i` 运行安装，日志确认 `Installation completed successfully`、退出码 `0`；新 ProductCode 已注册，旧 MSI ProductCode `{F234FE2F-E737-45B3-8DB4-D7EDEC3B0A62}` 的卸载记录已移除。日志位于 `C:\Users\fanq1\AppData\Local\Temp\Reader-MSI-Install-20261005.log`；未主动卸载原 NSIS 安装，本轮未测试卸载。
-- 安装目录为 `C:\Users\fanq1\AppData\Local\Reader`。安装后的 `reader.exe` 为 17,300,480 字节，与本次 release 二进制逐字节比较仅 `__TAURI_BUNDLE_TYPE_VAR_UNK` → `__TAURI_BUNDLE_TYPE_VAR_MSI` 的三字节不同，归一后完全一致；PDFium 和两种 ICO 均与源资源哈希匹配，安装后的五项 DefaultIcon 指向正确资源。已确认安装版 PID `82732` 及非零窗口句柄，安装版视觉/交互待用户复验。
-- 本轮仅重新打包、安装和更新文档，未改应用源码；复用先前通过的 108 项前端、37 项浏览器测试，不重复 Rust 测试套件，release 编译已重新完成。
+- `pnpm --dir reader tauri build`：退出码 `0`；前端、Rust release、WiX candle/light 和 makensis 完成。发布目录中 `build.log` 保存完整日志。
+- MSI 数据库：`ProductVersion=0.1.0`、`ALLUSERS=1`、`ProductCode={01DCC369-8B30-46C6-8424-46E9E72B6279}`；UpgradeCode 保持 `{8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}`，升级表最小版本 `0`、无最大版本、属性 `257`，覆盖同版本 MSI。包内含 reader.exe、PDFium 和两种 ICO，五项 DefaultIcon 正确；NSIS 脚本含资源及图标 hook，NSIS 未单独安装。
+- MSI 安装退出码 `0`，日志确认成功，新产品已注册，旧 `{0BCEC9F0-9CE3-4EF1-8CE3-CBA1F61806AD}` 登记已移除。历史 NSIS 登记保留；本轮未测试卸载。
+- 安装目录 `C:\Users\fanq1\AppData\Local\Reader`。reader.exe 为 17,491,456 字节，SHA-256 `BBF7D34AA3821A427CBB47DA83B4DDE1DE6AD25C2965D74F95572F6A5E0B5BF6`；与 release 仅 UNK → MSI 的三个标记字节不同，归一后完全一致。PDFium/ICO 哈希匹配，五项实际 DefaultIcon 正确。安装版 PID `17188`、非零窗口句柄并响应正常；这些是启动证据，不替代新的交互结论或纸张打印。
+- 正常关闭开发检查窗口，开发服务已退出；`cargo clean` 成功移除 23,618 个文件（构建工具报告 20.7 GiB）。清理前后同口径统计为 22,570,065,503 → 429,813,631 字节，约 21.02 → 0.40 GiB，减少 98.1%；发布记录和最终 Git 提交会增加少量字节。
+- 源码、Git 历史、开发依赖、PDFium、发布包及用户安装数据保留。自动审批阻止直接递归删除，因此使用 Cargo 自带清理；较小的 dist/测试/Vite 缓存保留。下次原生构建需要重新编译。
 
 ## Latest user acceptance
+
+- 2026-10-07：用户确认全面界面重做、最近文件不限条数及 MD 图标修复验收通过（de45f91），并授权发布、安装与清理。界面任务已归档。
 
 - 2026-10-05：用户确认 PDF 文字选择起点、缩放选区保留及末行空白终点修复验收通过，源码基线为 `c267f35`；任务已归档，未生成新安装包。PDF 目录任务仍独立等待验收。
 - 2026-10-03：用户确认 Markdown 编辑稳定性与选区跳动修复验收通过，源码基线为 `87f488e`；任务已归档，未生成新安装包。
