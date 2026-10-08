@@ -1,0 +1,3 @@
+# Preserve downloaded upstream bytes for SHA256 provenance across checkouts.
+*.svg -text
+*.txt -text whitespace=cr-at-eol

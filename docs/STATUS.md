@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户认可 cb72c45 尺寸，否定填充并明确选择 Word 风格：PDF 红底白字、MD 蓝底白字，窄白边与纸面分开。已实现并通过 12 帧/5 项浏览器检查，正在更新正式包；认可尺寸保持，尚未视觉验收。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户最新要求先挑现成图标；[四套 PDF/MD 对照图及许可](../design/icon-options/2026-10-07/README.md)已准备，八个 SVG 渲染/来源哈希检查通过。软件图标与 cb72c45 尺寸保持认可；Word 风格源码 84a5a26 已构建 MSI/NSIS，但未安装，正式安装仍 cb72c45。下一步由用户选择候选，继续本任务。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
@@ -25,6 +25,8 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-07 最新选型阶段：四套固定上游提交、八个 SVG 及原始许可已保存，全部清单哈希和 Tauri 原生渲染通过；对照图展示 96/32/24px、浅/深背景，无桌面截图或自动化视觉验收。仅准备候选，无应用改动或重复应用测试，Pi 未调用。84a5a26 的 TypeScript/Vite（1206 模块）、Rust release（4m48s）、MSI/NSIS 构建退出 0，包已另存 `releases/2026-10-07-0.1.0-84a5a26/` 并核对哈希/安装器关联；没有安装。其 MSI 20,922,368 字节、NSIS 16,028,591 字节，未签名；具体 SHA256 见该目录 packages.json。正式程序仍 cb72c45，PID 21688。为选定图标后增量构建暂留 release 编译缓存，最终验收后按既有授权清理。
 
 2026-10-07 上一轮截图反馈修订（cb72c45，已安装，尺寸已认可、填充待改）：
 

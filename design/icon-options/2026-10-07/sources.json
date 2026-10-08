@@ -1,0 +1,116 @@
+[
+  {
+    "ID": "A",
+    "Name": "VSCode Icons",
+    "Repository": "vscode-icons/vscode-icons",
+    "Commit": "b1521d9aa87102610e1a5e7aa1604af6c48726a1",
+    "PreviewColorize": false,
+    "Files": [
+      {
+        "Type": "Pdf",
+        "Path": "sources/A-pdf.svg",
+        "Url": "https://raw.githubusercontent.com/vscode-icons/vscode-icons/b1521d9aa87102610e1a5e7aa1604af6c48726a1/icons/file_type_pdf.svg",
+        "SHA256": "F323533915B2665DA2E3413AD53FF30E058DD3D8BBE2EBE6D6A6D8D2DB91F86C"
+      },
+      {
+        "Type": "Markdown",
+        "Path": "sources/A-markdown.svg",
+        "Url": "https://raw.githubusercontent.com/vscode-icons/vscode-icons/b1521d9aa87102610e1a5e7aa1604af6c48726a1/icons/file_type_markdown.svg",
+        "SHA256": "FA10B34B3C72CC10AC1C6F7013C366E76B310FA3EFAB1635B1E382BC6D6F9530"
+      },
+      {
+        "Type": "License",
+        "Path": "sources/A-license.txt",
+        "Url": "https://raw.githubusercontent.com/vscode-icons/vscode-icons/b1521d9aa87102610e1a5e7aa1604af6c48726a1/LICENSE",
+        "SHA256": "C0878418702A1C58790FFBE6B0A4663E62DFD76B693FACE439A516C80B7514E8"
+      },
+      {
+        "Type": "LicenseContext",
+        "Path": "sources/A-upstream-readme.txt",
+        "Url": "https://raw.githubusercontent.com/vscode-icons/vscode-icons/b1521d9aa87102610e1a5e7aa1604af6c48726a1/README.md",
+        "SHA256": "072B057BB0D3188409C0FB54B3D360E6EB6CBBA19AFA391827892F30D8E41C8F"
+      }
+    ]
+  },
+  {
+    "ID": "B",
+    "Name": "Material Icon Theme",
+    "Repository": "material-extensions/vscode-material-icon-theme",
+    "Commit": "9d513c781fb5bd0619ca21bd519fd1df5f19f84a",
+    "PreviewColorize": false,
+    "Files": [
+      {
+        "Type": "Pdf",
+        "Path": "sources/B-pdf.svg",
+        "Url": "https://raw.githubusercontent.com/material-extensions/vscode-material-icon-theme/9d513c781fb5bd0619ca21bd519fd1df5f19f84a/icons/pdf.svg",
+        "SHA256": "C14C66A3914B894DA40778A6DCD00F0DAA134426521AADDBD8CCEA86BA4F5FFC"
+      },
+      {
+        "Type": "Markdown",
+        "Path": "sources/B-markdown.svg",
+        "Url": "https://raw.githubusercontent.com/material-extensions/vscode-material-icon-theme/9d513c781fb5bd0619ca21bd519fd1df5f19f84a/icons/markdown.svg",
+        "SHA256": "42F95867350ED1F349AB29B3F254405F84AE65E6D42972D74B01442027EDDFCD"
+      },
+      {
+        "Type": "License",
+        "Path": "sources/B-license.txt",
+        "Url": "https://raw.githubusercontent.com/material-extensions/vscode-material-icon-theme/9d513c781fb5bd0619ca21bd519fd1df5f19f84a/LICENSE",
+        "SHA256": "CDAB3014D4F69B49DDE2B85E81792208C72DE613AA6AED7F7A9B5C6609B89670"
+      }
+    ]
+  },
+  {
+    "ID": "C",
+    "Name": "Font Awesome Free",
+    "Repository": "FortAwesome/Font-Awesome",
+    "Commit": "af620534bfc3c2d4cbefcfeec29603bbe7809e64",
+    "PreviewColorize": true,
+    "Files": [
+      {
+        "Type": "Pdf",
+        "Path": "sources/C-pdf.svg",
+        "Url": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/af620534bfc3c2d4cbefcfeec29603bbe7809e64/svgs/solid/file-pdf.svg",
+        "SHA256": "0F8C9B2B5FD22E5C623142872546E3B5D33EACBF522FFBD74715D7924A9AD57E"
+      },
+      {
+        "Type": "Markdown",
+        "Path": "sources/C-markdown.svg",
+        "Url": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/af620534bfc3c2d4cbefcfeec29603bbe7809e64/svgs/brands/markdown.svg",
+        "SHA256": "EBC3BFF046B3B929771D88953482608D233AB590A9FB50EC3BE669A44CB53892"
+      },
+      {
+        "Type": "License",
+        "Path": "sources/C-license.txt",
+        "Url": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/af620534bfc3c2d4cbefcfeec29603bbe7809e64/LICENSE.txt",
+        "SHA256": "9B914EAE88817D63B576EAB5AAFDE7068C7A1ABAE125D7CDFB034F1DA43A9AFC"
+      }
+    ]
+  },
+  {
+    "ID": "D",
+    "Name": "Material Design Icons",
+    "Repository": "Templarian/MaterialDesign-SVG",
+    "Commit": "9e04201d4557e729822fb57f62a316c3dea1d4a8",
+    "PreviewColorize": true,
+    "Files": [
+      {
+        "Type": "Pdf",
+        "Path": "sources/D-pdf.svg",
+        "Url": "https://raw.githubusercontent.com/Templarian/MaterialDesign-SVG/9e04201d4557e729822fb57f62a316c3dea1d4a8/svg/file-pdf-box.svg",
+        "SHA256": "8E8AE77F6CE9AF54E87AE8B8EBAE16336397554FA6D8EC285218CD35F0E5FDAA"
+      },
+      {
+        "Type": "Markdown",
+        "Path": "sources/D-markdown.svg",
+        "Url": "https://raw.githubusercontent.com/Templarian/MaterialDesign-SVG/9e04201d4557e729822fb57f62a316c3dea1d4a8/svg/language-markdown.svg",
+        "SHA256": "FFC6F767016DC701CC19806B94354930E405819BD22EE024E3C2897FF47E05D1"
+      },
+      {
+        "Type": "License",
+        "Path": "sources/D-license.txt",
+        "Url": "https://raw.githubusercontent.com/Templarian/MaterialDesign-SVG/9e04201d4557e729822fb57f62a316c3dea1d4a8/LICENSE",
+        "SHA256": "F3BC8715BAD84B26396BB42D2ABD11F919CF58163BE158EAB79ECBAABF84CDF2"
+      }
+    ]
+  }
+]

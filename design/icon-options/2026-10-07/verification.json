@@ -1,0 +1,58 @@
+[
+  {
+    "ID": "A",
+    "Type": "Pdf",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "F323533915B2665DA2E3413AD53FF30E058DD3D8BBE2EBE6D6A6D8D2DB91F86C"
+  },
+  {
+    "ID": "A",
+    "Type": "Markdown",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "FA10B34B3C72CC10AC1C6F7013C366E76B310FA3EFAB1635B1E382BC6D6F9530"
+  },
+  {
+    "ID": "B",
+    "Type": "Pdf",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "C14C66A3914B894DA40778A6DCD00F0DAA134426521AADDBD8CCEA86BA4F5FFC"
+  },
+  {
+    "ID": "B",
+    "Type": "Markdown",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "42F95867350ED1F349AB29B3F254405F84AE65E6D42972D74B01442027EDDFCD"
+  },
+  {
+    "ID": "C",
+    "Type": "Pdf",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "0F8C9B2B5FD22E5C623142872546E3B5D33EACBF522FFBD74715D7924A9AD57E"
+  },
+  {
+    "ID": "C",
+    "Type": "Markdown",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "EBC3BFF046B3B929771D88953482608D233AB590A9FB50EC3BE669A44CB53892"
+  },
+  {
+    "ID": "D",
+    "Type": "Pdf",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "8E8AE77F6CE9AF54E87AE8B8EBAE16336397554FA6D8EC285218CD35F0E5FDAA"
+  },
+  {
+    "ID": "D",
+    "Type": "Markdown",
+    "Width": 128,
+    "Height": 128,
+    "SHA256": "FFC6F767016DC701CC19806B94354930E405819BD22EE024E3C2897FF47E05D1"
+  }
+]
