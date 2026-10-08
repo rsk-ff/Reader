@@ -98,6 +98,8 @@ reader/src-tauri/target/release/bundle/msi/Reader_<version>_x64_en-US.msi
 
 核对安装后的可执行文件时，注意 Tauri 会向 MSI 内的二进制写入 `__TAURI_BUNDLE_TYPE_VAR_MSI`，而构建目录的标记可在打包结束后恢复为 `UNK`；这会导致 SHA-256 不同。应检查包内文件或逐字节确认差异仅限包类型标记，不能仅据这两个哈希不同判定安装保留了旧程序。
 
+已安装 MSI 若属于需要管理员权限的上下文，普通终端的 `/qn` 覆盖升级可能退出 1603，详细日志显示卸载旧版错误 1730。保留失败日志；按已授权安装范围通过 Windows `Start-Process msiexec.exe -Verb RunAs -WindowStyle Hidden` 发起系统 UAC 提示，由用户在 Windows 中允许后继续。不能因静默安装禁止提权提示而反复重试，也不修改机器权限策略或绕过旧版卸载。
+
 ## Local publication and cleanup
 
 发布完成后，把 MSI/NSIS、SHA-256、包结构核对、构建及安装日志保存到仓库根目录的 `releases/<日期>-<版本>-<源码提交>/`。该目录忽略 Git；当前目录与校验值记录在 `docs/STATUS.md`，任务保存安装登记及核对结果。发布包不会因清理 `target` 丢失。需要分发时使用这里保留的包；本地发布不等于已上传外部平台。

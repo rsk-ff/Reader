@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户已选 PDF B / MD D 并要求饱和度统一；原路径保留、不透明白色背衬、同饱和度/明度红蓝已接入，软件图标和认可尺寸保持。5 项浏览器/12 帧解码通过；正式构建安装待完成，目前安装仍 cb72c45。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户选定 PDF B / MD D 与同饱和度配色，源码 d7c2aab 已正式构建/安装/刷新/清理。5 项浏览器、12 帧、安装程序/九项资源/五项关联核对通过；软件图标与认可尺寸保持，实际视觉待用户。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
@@ -26,7 +26,9 @@
 
 ## Recorded automated verification
 
-2026-10-07 最新选型阶段：四套固定上游提交、八个 SVG 及原始许可已保存，全部清单哈希和 Tauri 原生渲染通过；对照图展示 96/32/24px、浅/深背景，无桌面截图或自动化视觉验收。仅准备候选，无应用改动或重复应用测试，Pi 未调用。84a5a26 的 TypeScript/Vite（1206 模块）、Rust release（4m48s）、MSI/NSIS 构建退出 0，包已另存 `releases/2026-10-07-0.1.0-84a5a26/` 并核对哈希/安装器关联；没有安装。其 MSI 20,922,368 字节、NSIS 16,028,591 字节，未签名；具体 SHA256 见该目录 packages.json。正式程序仍 cb72c45，PID 21688。为选定图标后增量构建暂留 release 编译缓存，最终验收后按既有授权清理。
+2026-10-07 最新选定图标 d7c2aab：PDF B / MD D 原路径保留，内部镂空不透明白色、同 HSL 饱和度 36.97% / 明度 53.33%，保留 24px 标签/32px 列表与 Windows 最长维度 228/256px。5 项浏览器及 12 ICO 帧通过，软件资产逐字节未改；TypeScript/Vite 1206 模块、Rust release 1m12s、MSI/NSIS 退出 0。本机 MSI 首次因旧版卸载需管理员权限失败（1603 / 1730），Windows UAC 授权后退出 0；安装程序、九项资源和五项关联匹配，正式 PID 29008、Reader 可见句柄 395576、响应正常。cargo clean 移除 4,240 文件（1.7 GiB），项目约 2.29→0.57 GiB。实际视觉待用户；无桌面截图/视觉自动化，Pi 未调用，Rust 测试与 NSIS 安装/卸载未重跑。详见最新发布记录。
+
+此前 2026-10-07 选型阶段（尚未选定时的历史记录）：四套固定上游提交、八个 SVG 及原始许可已保存，全部清单哈希和 Tauri 原生渲染通过；对照图展示 96/32/24px、浅/深背景，无桌面截图或自动化视觉验收。仅准备候选，无应用改动或重复应用测试，Pi 未调用。84a5a26 的 TypeScript/Vite（1206 模块）、Rust release（4m48s）、MSI/NSIS 构建退出 0，包已另存 `releases/2026-10-07-0.1.0-84a5a26/` 并核对哈希/安装器关联；没有安装。其 MSI 20,922,368 字节、NSIS 16,028,591 字节，未签名；具体 SHA256 见该目录 packages.json。正式程序仍 cb72c45，PID 21688。为选定图标后增量构建暂留 release 编译缓存，最终验收后按既有授权清理。
 
 2026-10-07 上一轮截图反馈修订（cb72c45，已安装，尺寸已认可、填充待改）：
 
@@ -177,17 +179,23 @@
 
 ## Latest local release artifacts
 
-以下本地文件不纳入 Git。2026-10-07 从尺寸修订 `cb72c45` 同时生成 MSI/NSIS，版本仍为 `0.1.0`、正式标识 `com.earendil.reader`；本机通过 MSI 覆盖安装。软件 Fluent 设计与大小已认可；该版填充被用户否定，Word 风格填充下一版正在构建。发布目录包含包校验、构建/安装日志与核对记录，独立于已清理的 target；未上传外部平台。前版目录保留。
+以下本地文件不纳入 Git。2026-10-07 从选定图标源码 `d7c2aab` 生成 MSI/NSIS，版本仍 `0.1.0`、正式标识 `com.earendil.reader`；本机 MSI 已覆盖安装，PDF B / MD D 同饱和度配色与不透明白色内部填充已交付，实际视觉待用户。包与证据独立于已清理的 target，未上传外部平台；前版目录保留，84a5a26 Word 稿未安装。
 
 | Format | Build scope | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | --- | ---: | --- | --- |
-| NSIS | 2026-10-07 / `cb72c45` | `releases/2026-10-07-0.1.0-cb72c45/Reader_0.1.0_x64-setup.exe` | 16,031,505 | `EFC54900B5593A8170149348B845D72C6CE89C35B32600575D25A72FBC5259EA` | `NotSigned` |
-| MSI | 2026-10-07 / `cb72c45` | `releases/2026-10-07-0.1.0-cb72c45/Reader_0.1.0_x64_en-US.msi` | 20,922,368 | `5351405C4514CC9D271DEC8737B411E673E54E3E4A3775EECB54400A265C6984` | `NotSigned` |
+| NSIS | 2026-10-07 / `d7c2aab` | `releases/2026-10-07-0.1.0-d7c2aab/Reader_0.1.0_x64-setup.exe` | 16,039,891 | `CF3125F2290D5A7FE712BEE5F7E1B84B95F8DE656D180DD0F4CDF9314759933F` | `NotSigned` |
+| MSI | 2026-10-07 / `d7c2aab` | `releases/2026-10-07-0.1.0-d7c2aab/Reader_0.1.0_x64_en-US.msi` | 20,926,464 | `9846E2100E29A070CABAA11E107E64F9CD88DFA31262F7487B3A1551F0E59E95` | `NotSigned` |
 
 本次 MSI 构建与启动证据：
 
-- cb72c45 构建/安装退出 0，ProductCode={79DDEC28-0B6B-424F-97A8-1F7CC587E8AC} 登记存在，旧 {33FE60A1-7D97-4E5A-8E39-7DD3A2F6D166} 已移除；升级属性 257。exe SHA256 E18249214C287B7598481D15236321C526590BFA5131FCAB2C63F97FD1139709，仅 UNK→MSI 标记差异，资源/许可及五项关联匹配并刷新。PID 1692、Reader 可见句柄 263718、响应正常。
-- 发布目录含 packages.json、build.log、install.log、msi-audit.json、installed-verification.json、upgrade-registration.json、startup.json、file-icon-frames.json、generated-main.wxs、generated-installer.nsi 和 cleanup.json；清理 4,209 文件/1.7 GiB，项目约 2.22→0.51 GiB。用户认可尺寸、否定填充，Word 风格实现正在更新此安装版。
+- 构建退出 0；首次安装 1603 / 1730（旧版卸载需管理员权限），UAC 授权后退出 0。ProductCode={10802324-E9D6-443D-942B-117D518E76D0} 已登记，旧 cb72c45 {79DDEC28-0B6B-424F-97A8-1F7CC587E8AC} 登记移除，升级属性 257。
+- 安装 exe SHA256 `9A76AE5BCC6848A824D431DBC0E48A200EB74E9F8AC35EF69DEAFBC5E3314F0F`，仅 UNK→MSI 三字节标记差异；两 ICO、PDFium、六份许可/notice 共九项资源匹配，五项关联正确并刷新。正式 PID 29008、Reader 句柄 395576、响应正常。
+- 发布目录保留 packages.json、build.log、两次安装日志、msi-audit.json、installed-verification.json、upgrade-registration.json、startup.json、file-icon-frames.json、generated-main.wxs、generated-installer.nsi、cleanup.log 与清理前后统计；清理 4,240 文件 / 1.7 GiB，项目 2,464,145,478→617,218,785 字节，约 2.29→0.57 GiB。
+- Windows 默认应用选择未改；不强删系统缓存或重启 Explorer。Rust 测试、NSIS 安装/卸载未重复；包未签名，实际视觉仍待用户。
+
+### Previous release cb72c45
+
+原列表/系统尺寸版已由 d7c2aab 替换；该版尺寸获用户认可、填充被否定。包与安装/清理证据保存在 `releases/2026-10-07-0.1.0-cb72c45/`，旧产品登记已经移除。
 
 ### Previous release 6417832
 
