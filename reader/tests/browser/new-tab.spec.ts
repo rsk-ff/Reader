@@ -46,13 +46,13 @@ test("title bar, home and file entries decode the shared native SVG masters", as
     images.map((image) => (image as HTMLImageElement).src));
   expect(appSources).toHaveLength(2);
   expect(appSources[0]).toBe(appSources[1]);
+  const colors: number[][] = [];
   for (const type of ["pdf", "markdown"]) {
     const sources = await page.locator(`.tab-icon-${type} img`).evaluateAll((images) =>
       images.map((image) => (image as HTMLImageElement).src));
     expect(sources).toHaveLength(2); // Document tab and recent-file entry.
     expect(sources[0]).toBe(sources[1]);
     const fills = await page.evaluate(async (src) => {
-      const svg = new DOMParser().parseFromString(await (await fetch(src)).text(), "image/svg+xml");
       const image = new Image();
       image.src = src;
       await image.decode();
@@ -60,28 +60,44 @@ test("title bar, home and file entries decode the shared native SVG masters", as
       canvas.width = canvas.height = image.naturalWidth;
       const context = canvas.getContext("2d")!;
       context.drawImage(image, 0, 0);
-      // Sample the middle of the narrow border, away from its antialiased edge.
-      const whiteBorderPixel = Array.from(context.getImageData(
-        Math.floor(3.7 * canvas.width / 22), Math.round(16 * canvas.height / 22), 1, 1).data);
-      const badgePixel = Array.from(context.getImageData(
-        Math.round(4.2 * canvas.width / 22), Math.round(16.5 * canvas.height / 22), 1, 1).data);
-      return { paper: svg.querySelector("path")?.getAttribute("fill"),
-        outline: svg.querySelectorAll("path")[1]?.getAttribute("fill"),
-        badge: svg.querySelectorAll("rect")[1]?.getAttribute("fill"),
-        lettering: svg.querySelectorAll("path")[2]?.getAttribute("fill"),
-        whiteBorder: svg.querySelector("rect")?.getAttribute("fill"), whiteBorderPixel, badgePixel };
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const counts = new Map<string, number>();
+      let white = 0;
+      let clipped = 0;
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const i = (y * canvas.width + x) * 4;
+          if (pixels[i + 3] !== 0 && (x < 2 || y < 2 || x >= canvas.width - 2 || y >= canvas.height - 2)) clipped++;
+          if (pixels[i + 3] !== 255) continue;
+          const rgb = Array.from(pixels.slice(i, i + 3));
+          if (rgb.every((value) => value === 255)) white++;
+          else {
+            const key = rgb.join(",");
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+          }
+        }
+      }
+      const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+      return { white, clipped, color: dominant[0].split(",").map(Number), colored: dominant[1] };
     }, sources[0]);
-    expect(fills.paper).toBe("#fff");
-    expect(fills.outline).toBe(type === "pdf" ? "#ba4f4f" : "#536b89");
-    expect(fills.badge).toBe(fills.outline);
-    expect(fills.lettering).toBe("#fff");
-    expect(fills.whiteBorder).toBe("#fff");
-    expect(fills.whiteBorderPixel).toEqual([255, 255, 255, 255]);
-    expect(fills.badgePixel).toEqual(type === "pdf" ? [186, 79, 79, 255] : [83, 107, 137, 255]);
+    // Actual rendered cutouts must be opaque white, including on a dark desktop.
+    expect(fills.white).toBeGreaterThan(50);
+    expect(fills.colored).toBeGreaterThan(1000);
+    expect(fills.clipped).toBe(0);
+    expect(fills.color).toEqual(type === "pdf" ? [180, 92, 92] : [92, 131, 180]);
+    colors.push(fills.color);
     const tabIcon = (await page.locator(`.tab .tab-icon-${type} img`).boundingBox())!;
     expect(tabIcon.width).toBe(24);
     expect(tabIcon.height).toBe(24);
   }
+  const hsl = colors.map((rgb) => {
+    const max = Math.max(...rgb) / 255;
+    const min = Math.min(...rgb) / 255;
+    const lightness = (max + min) / 2;
+    return { lightness, saturation: (max - min) / (1 - Math.abs(2 * lightness - 1)) };
+  });
+  expect(hsl[0].saturation).toBeCloseTo(hsl[1].saturation, 8);
+  expect(hsl[0].lightness).toBeCloseTo(hsl[1].lightness, 8);
   const decoded = await page.locator(".titlebar-icon img, .new-tab-hero img, .tab-icon img")
     .evaluateAll(async (images) => Promise.all(images.map(async (element) => {
       const image = element as HTMLImageElement;

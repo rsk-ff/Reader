@@ -36,7 +36,11 @@
       "icons/file-pdf.ico": "file-pdf.ico",
       "icons/file-markdown.ico": "file-markdown.ico",
       "../src/assets/icons/LICENSE-fluent-emoji": "licenses/fluent-emoji.txt",
-      "../src/assets/icons/LICENSE": "licenses/bootstrap-icons.txt"
+      "../src/assets/icons/LICENSE": "licenses/bootstrap-icons.txt",
+      "../src/assets/icons/LICENSE-material-icon-theme": "licenses/material-icon-theme.txt",
+      "../src/assets/icons/LICENSE-material-design-icons": "licenses/material-design-icons.txt",
+      "../src/assets/icons/LICENSE-apache-2.0": "licenses/apache-2.0.txt",
+      "../src/assets/icons/NOTICE-file-icons": "licenses/file-icons-notice.txt"
     },
     "icon": [
       "icons/32x32.png",

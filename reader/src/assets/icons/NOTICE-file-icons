@@ -1,0 +1,18 @@
+Reader file icon artwork
+
+PDF: Material Icon Theme, Copyright (c) 2025 Material Extensions.
+Source: https://github.com/material-extensions/vscode-material-icon-theme/blob/9d513c781fb5bd0619ca21bd519fd1df5f19f84a/icons/pdf.svg
+License: MIT; see LICENSE-material-icon-theme.
+Original SVG SHA256: C14C66A3914B894DA40778A6DCD00F0DAA134426521AADDBD8CCEA86BA4F5FFC
+
+Markdown: Material Design Icons, Pictogrammers and contributors.
+Source: https://github.com/Templarian/MaterialDesign-SVG/blob/9e04201d4557e729822fb57f62a316c3dea1d4a8/svg/language-markdown.svg
+License: Pictogrammers Free License (icon terms Apache 2.0); see
+LICENSE-material-design-icons and LICENSE-apache-2.0.
+Original SVG SHA256: FFC6F767016DC701CC19806B94354930E405819BD22EE024E3C2897FF47E05D1
+
+Reader modifications, 2026-10-07: original artwork paths are retained.
+Opaque white backing fills internal cutouts; SVG canvas/placement is normalized
+for application and Windows display. PDF red #b45c5c and Markdown blue #5c83b4
+use the same HSL saturation and lightness. These colors and white backing
+are adaptations and do not indicate endorsement by the upstream authors.

@@ -27,6 +27,6 @@ Reader 是一个面向 Windows 的轻量 PDF 阅读与批注、Markdown 阅读�
 Windows 安装器扩展位于 [`reader/src-tauri/windows/`](reader/src-tauri/windows/)，软件与文件图标的 SVG 源文件和许可位于 [`reader/src/assets/icons/`](reader/src/assets/icons/README.md)，生成的原生图标位于 [`reader/src-tauri/icons/`](reader/src-tauri/icons/)。
 应用内图标通过 [`brandIcons.ts`](reader/src/components/brandIcons.ts) 共用原生生成器的 SVG 母版，覆盖标题栏、首页、标签、最近记录和拖拽预览。
 
-当前待用户选择的现成 PDF/Markdown 图标、对照图和来源许可见 [`design/icon-options/2026-10-07/`](design/icon-options/2026-10-07/README.md)；候选尚未接入应用。
+现成 PDF/Markdown 图标选型资料、对照图和来源许可见 [`design/icon-options/2026-10-07/`](design/icon-options/2026-10-07/README.md)；用户选定 PDF B、MD D，应用母版已接入，安装与实际验收状态见 STATUS。
 
 本地发布包与构建/安装证据保存在 `releases/<日期>-<版本>-<源码提交>/`，不纳入 Git；最新包的位置与校验值见 [`docs/STATUS.md`](docs/STATUS.md#latest-local-release-artifacts)。构建缓存可以清理，发布包需先另存，操作边界见开发文档。

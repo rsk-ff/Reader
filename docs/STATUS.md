@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户最新要求先挑现成图标；[四套 PDF/MD 对照图及许可](../design/icon-options/2026-10-07/README.md)已准备，八个 SVG 渲染/来源哈希检查通过。软件图标与 cb72c45 尺寸保持认可；Word 风格源码 84a5a26 已构建 MSI/NSIS，但未安装，正式安装仍 cb72c45。下一步由用户选择候选，继续本任务。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户已选 PDF B / MD D 并要求饱和度统一；原路径保留、不透明白色背衬、同饱和度/明度红蓝已接入，软件图标和认可尺寸保持。5 项浏览器/12 帧解码通过；正式构建安装待完成，目前安装仍 cb72c45。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 

@@ -61,7 +61,7 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Release build
 
-软件与文件图标的 SVG 母版在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)：软件标记采用 Microsoft Fluent Emoji，工具和文件字母采用 Bootstrap Icons 1.13.1，分别保留 MIT 许可。应用内 `brandIcons.ts` 与原生生成器共用 `shell-reader.svg`、`shell-pdf.svg`、`shell-markdown.svg`；未知文件使用 shell-file.svg。软件 SVG 保留 Fluent 原有的渐变和过滤器，在 40×40 画布里放置原始 32×32 图形以调整占比；上游固定提交与许可见图标来源文档。修改母版后必须重新生成原生资源并重新打包安装，以同步软件内部和 Windows：
+软件与文件图标的 SVG 母版在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)：软件采用 Microsoft Fluent Emoji、工具采用 Bootstrap Icons 1.13.1；文件采用用户选定的 Material Icon Theme PDF、Material Design Icons Markdown，保留原路径/许可与修改 notice。应用内 `brandIcons.ts` 与原生生成器共用 `shell-reader.svg`、`shell-pdf.svg`、`shell-markdown.svg`；未知文件使用 shell-file.svg。软件 SVG 保留 Fluent 原有的渐变和过滤器，在 40×40 画布里放置原始 32×32 图形以调整占比；上游固定提交与许可见图标来源文档。修改母版后必须重新生成原生资源并重新打包安装，以同步软件内部和 Windows：
 
 ```powershell
 pnpm --dir reader generate:file-icons
@@ -73,7 +73,7 @@ pnpm --dir reader generate:file-icons
 
 正式更换 PDF/Markdown 文件关联图标时，保持 `file-pdf.ico` 和 `file-markdown.ico` 文件名不变即可；如果使用外部设计工具制作 ICO，则直接替换这两个生成文件，再重新构建安装包。仅替换已安装目录中的 ICO 只能用于本机临时测试，正式交付仍需重新打包并安装，因为安装器会把资源复制到安装目录，Explorer 也可能缓存旧图标。
 
-文件 UI 母版保持 22×22 画布，标签图片为 24px、最近列表图片为 32px。Windows 生成器仅裁掉外围留边，使用 viewBox `1.75 2 18 18`，避免列表放大时影响标签尺寸。左下角为红/蓝底白字标识，以窄白边与纸面分开；标识外边界保持认可的旧白底范围。调整这些值后应检查六帧 ICO 的透明外角、中心白色、标识实色/白边，以及窄窗口行高/溢出；采样避开抗锯齿边界。软件图标生成不受此裁边影响。
+文件 UI 母版保持 22×22 画布，标签图片为 24px、最近列表图片为 32px。Windows 生成器只裁外围留边，使用居中的 viewBox `2 2 18 18`；文件最长维度保持 16 单位，宽高比不变。两文件使用同饱和度/明度红蓝配色，白色背衬只填原图内部镂空。调整后检查六帧 ICO 的透明外角、内部不透明白色/实色、最长维度和无裁切，以及窄窗口行高/溢出；采样避开抗锯齿边界。软件图标生成不受此裁边影响。
 
 图标资源变更后重新生成 Windows bundle：
 

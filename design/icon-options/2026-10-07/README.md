@@ -1,6 +1,6 @@
 # PDF / Markdown existing icon candidates
 
-用户要求先挑选现成文件图标；本目录只用于选型，没有接入 Reader 或覆盖本机安装。
+用户已选 PDF B / MD D，并追加要求统一饱和度。选定资产已接入 Reader，共用母版增加内部不透明白色填充，配色 PDF #b45c5c / MD #5c83b4（同饱和度 36.97%、明度 53.33%）。下图保留选型时的原图/原色，正式安装与视觉状态见 docs/STATUS.md。
 
 ![Comparison](comparison.png)
 

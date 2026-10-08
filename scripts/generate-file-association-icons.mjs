@@ -53,6 +53,6 @@ function generate(source, files, shellViewBox) {
 
 fs.mkdirSync(output, { recursive: true });
 generate("shell-reader.svg", applicationFiles.map((file) => [file, file]));
-generate("shell-pdf.svg", [["icon.ico", "file-pdf.ico"]], "1.75 2 18 18");
-generate("shell-markdown.svg", [["icon.ico", "file-markdown.ico"]], "1.75 2 18 18");
+generate("shell-pdf.svg", [["icon.ico", "file-pdf.ico"]], "2 2 18 18");
+generate("shell-markdown.svg", [["icon.ico", "file-markdown.ico"]], "2 2 18 18");
 console.log("Generated native application and file association icons from the shell SVG sources.");

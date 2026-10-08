@@ -6,9 +6,9 @@
 
 ### Changed
 
-- 放大最近文件列表的文件图标并减少 Windows ICO 外留边，保留已认可的标签尺寸；按用户 Word 参考将 PDF/MD 左下角改为红/蓝底白字标识，窄白边与纸面分开，保持原纸张轮廓与字形。
+- 放大最近文件列表的文件图标并减少 Windows ICO 外留边，保留已认可的标签尺寸；文件改用用户选定的 Material Icon Theme PDF 和 Material Design Icons Markdown，统一红蓝饱和度与明度，内部镂空补不透明白色，保留原图宽高比。
 
-- Windows 软件图标采用 Microsoft Fluent 的白色纸页/蓝色封面书本，调整系统图标占比并保留成熟图形的明暗层次；PDF/Markdown 使用原文件轮廓和字形、白色纸面及红/蓝底白字标识，保留外围透明。PDF 右侧工具与 Markdown 共用 Bootstrap SVG 遮罩和尺寸，两者共用重新绘制的删除线。
+- Windows 软件图标采用 Microsoft Fluent 的白色纸页/蓝色封面书本，调整系统图标占比并保留成熟图形的明暗层次；文件图标外围透明。PDF 右侧工具与 Markdown 共用 Bootstrap SVG 遮罩和尺寸，两者共用重新绘制的删除线。
 - 标题栏、首页、标签、最近文件、拖拽预览及 favicon 同步使用新版软件/文件 SVG 母版，移除旧轮廓资源，避免应用内和 Windows 显示不同图标。
 
 - 最近文件不再按 8 条截断，保持完整历史、路径去重和最近打开顺序，长列表可滚动查看。
