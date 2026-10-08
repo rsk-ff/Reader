@@ -60,17 +60,24 @@ test("title bar, home and file entries decode the shared native SVG masters", as
       canvas.width = canvas.height = image.naturalWidth;
       const context = canvas.getContext("2d")!;
       context.drawImage(image, 0, 0);
-      // The overhanging letters must have a white backing to the left of the paper.
-      const letterBackground = Array.from(context.getImageData(
-        Math.round(3.75 * canvas.width / 22), Math.round(16 * canvas.height / 22), 1, 1).data);
+      // Sample the middle of the narrow border, away from its antialiased edge.
+      const whiteBorderPixel = Array.from(context.getImageData(
+        Math.floor(3.7 * canvas.width / 22), Math.round(16 * canvas.height / 22), 1, 1).data);
+      const badgePixel = Array.from(context.getImageData(
+        Math.round(4.2 * canvas.width / 22), Math.round(16.5 * canvas.height / 22), 1, 1).data);
       return { paper: svg.querySelector("path")?.getAttribute("fill"),
         outline: svg.querySelectorAll("path")[1]?.getAttribute("fill"),
-        badges: svg.querySelectorAll("rect").length, letterBackground };
+        badge: svg.querySelectorAll("rect")[1]?.getAttribute("fill"),
+        lettering: svg.querySelectorAll("path")[2]?.getAttribute("fill"),
+        whiteBorder: svg.querySelector("rect")?.getAttribute("fill"), whiteBorderPixel, badgePixel };
     }, sources[0]);
     expect(fills.paper).toBe("#fff");
     expect(fills.outline).toBe(type === "pdf" ? "#ba4f4f" : "#536b89");
-    expect(fills.badges).toBe(0);
-    expect(fills.letterBackground).toEqual([255, 255, 255, 255]);
+    expect(fills.badge).toBe(fills.outline);
+    expect(fills.lettering).toBe("#fff");
+    expect(fills.whiteBorder).toBe("#fff");
+    expect(fills.whiteBorderPixel).toEqual([255, 255, 255, 255]);
+    expect(fills.badgePixel).toEqual(type === "pdf" ? [186, 79, 79, 255] : [83, 107, 137, 255]);
     const tabIcon = (await page.locator(`.tab .tab-icon-${type} img`).boundingBox())!;
     expect(tabIcon.width).toBe(24);
     expect(tabIcon.height).toBe(24);

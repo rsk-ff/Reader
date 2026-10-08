@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户截图反馈最近列表和系统文件图标偏小，标签大小可接受，左下角白底不协调；正在单独放大列表、减少 ICO 留边并补齐文字背后白底，保留软件图标、标签尺寸和原配色。
+- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `in_progress`; 用户认可 cb72c45 尺寸，否定填充并明确选择 Word 风格：PDF 红底白字、MD 蓝底白字，窄白边与纸面分开。已实现并通过 12 帧/5 项浏览器检查，正在更新正式包；认可尺寸保持，尚未视觉验收。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
 
@@ -26,7 +26,13 @@
 
 ## Recorded automated verification
 
-2026-10-07 图标最终修订（6417832，本机安装完成，视觉待验收）：
+2026-10-07 上一轮截图反馈修订（cb72c45，已安装，尺寸已认可、填充待改）：
+
+- 最近图标 18px→32px，标签仍 24px，行高不增加；原轮廓/字母/颜色不变，文字下白底与纸面连通。生成器只对 Windows 文件 ICO 裁外围留边为 18×18，不改变 UI 22×22 母版或软件图标。5 项浏览器检查通过（含 330/620/1100px 布局、实际白底像素、列表/标签尺寸）；两个 ICO 全部 12 帧解码通过，256px 可见高度 228px、中心纯白不透明/外角透明。
+- TypeScript/Vite（1206 模块）、Rust release（5m49s）、MSI/NSIS 构建均通过；MSI 覆盖安装退出 0、程序/图标/许可与源码资源匹配，五项关联正确，SHChangeNotify 已执行。正式版 PID 1692、Reader 可见句柄 263718、响应正常。Rust 测试与 NSIS 安装/卸载未重跑。
+- cargo clean 移除 4,209 个文件（1.7 GiB），项目 2,388,078,454→542,309,810 字节，约 2.22→0.51 GiB；发布包/证据、源码、依赖和安装数据保留。用户认可尺寸，但否定填充；后续明确选择 Word 彩色底白字/窄白边，新实现的 12 帧/5 项浏览器已通过，正式包待生成。
+
+此前 2026-10-07 图标修订（6417832，已由 cb72c45 替换）：
 
 - 用户接受 Fluent 软件图标设计，要求所有位置同步；brandIcons 覆盖标题栏、首页、标签、最近文件、两类拖拽预览和未知文件，favicon 同步。最新文件反馈已实现：保留完整旧 Bootstrap 轮廓路径/字母/颜色，仅增加内部不透明白底，无格式色块。最终 5 项浏览器测试和两个 ICO 的全部 12 帧解码通过，中心为纯白且不透明、外角透明。
 - 最终 MSI/NSIS 构建退出 0，TypeScript、1206 模块前端与 Rust release（1m17s）通过。MSI 安装退出 0，程序、ICO/PDFium/许可和五项 DefaultIcon 核对一致，Windows 正常刷新通知已发出；正式版 PID 25940 响应正常。cargo clean 清掉 3.7 GiB，项目约 4.16→0.47 GiB。详细交付证据见下文；未重复 Rust 测试或 NSIS 安装/卸载，不将自动化和设计认可扩大为实际视觉验收。
@@ -169,14 +175,21 @@
 
 ## Latest local release artifacts
 
-以下本地文件不纳入 Git。2026-10-07 从图标最终修订 `6417832` 同时生成 MSI/NSIS，版本仍为 `0.1.0`、正式标识 `com.earendil.reader`；本机通过 MSI 覆盖安装。软件 Fluent 设计已认可，最新旧轮廓文件白底及全位置同步实际视觉待验收。发布目录独立于已清理的 target，包含包校验、构建/安装日志与核对记录；未上传外部平台。此前 de45f91 和 3ae410e 发布目录保留，正式版本已被此包替换。
+以下本地文件不纳入 Git。2026-10-07 从尺寸修订 `cb72c45` 同时生成 MSI/NSIS，版本仍为 `0.1.0`、正式标识 `com.earendil.reader`；本机通过 MSI 覆盖安装。软件 Fluent 设计与大小已认可；该版填充被用户否定，Word 风格填充下一版正在构建。发布目录包含包校验、构建/安装日志与核对记录，独立于已清理的 target；未上传外部平台。前版目录保留。
 
 | Format | Build scope | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | --- | ---: | --- | --- |
-| NSIS | 2026-10-07 / `6417832` | `releases/2026-10-07-0.1.0-6417832/Reader_0.1.0_x64-setup.exe` | 16,032,117 | `1A263F62056FE1EEB338BC1FEB981A22B0ED4F0E90C1D299F4EF5DBE29EA3127` | `NotSigned` |
-| MSI | 2026-10-07 / `6417832` | `releases/2026-10-07-0.1.0-6417832/Reader_0.1.0_x64_en-US.msi` | 20,922,368 | `3664FAA726708A0AF9AB1DB8D64068F090C970EC9FB1BEBD31CDF7BF32D83D29` | `NotSigned` |
+| NSIS | 2026-10-07 / `cb72c45` | `releases/2026-10-07-0.1.0-cb72c45/Reader_0.1.0_x64-setup.exe` | 16,031,505 | `EFC54900B5593A8170149348B845D72C6CE89C35B32600575D25A72FBC5259EA` | `NotSigned` |
+| MSI | 2026-10-07 / `cb72c45` | `releases/2026-10-07-0.1.0-cb72c45/Reader_0.1.0_x64_en-US.msi` | 20,922,368 | `5351405C4514CC9D271DEC8737B411E673E54E3E4A3775EECB54400A265C6984` | `NotSigned` |
 
 本次 MSI 构建与启动证据：
+
+- cb72c45 构建/安装退出 0，ProductCode={79DDEC28-0B6B-424F-97A8-1F7CC587E8AC} 登记存在，旧 {33FE60A1-7D97-4E5A-8E39-7DD3A2F6D166} 已移除；升级属性 257。exe SHA256 E18249214C287B7598481D15236321C526590BFA5131FCAB2C63F97FD1139709，仅 UNK→MSI 标记差异，资源/许可及五项关联匹配并刷新。PID 1692、Reader 可见句柄 263718、响应正常。
+- 发布目录含 packages.json、build.log、install.log、msi-audit.json、installed-verification.json、upgrade-registration.json、startup.json、file-icon-frames.json、generated-main.wxs、generated-installer.nsi 和 cleanup.json；清理 4,209 文件/1.7 GiB，项目约 2.22→0.51 GiB。用户认可尺寸、否定填充，Word 风格实现正在更新此安装版。
+
+### Previous release 6417832
+
+以下为前一版原轮廓白底安装/清理的历史证据：
 
 - 最终构建与 MSI 安装退出码均为 0。ProductCode={33FE60A1-7D97-4E5A-8E39-7DD3A2F6D166}、UpgradeCode={8C88C1AD-4BA2-5A3C-9E5F-45B76A862470}，同版本升级属性 257；新登记存在，3ae410e/de45f91 两个前版登记已移除。MSI/NSIS 包内均含 PDFium、两个 ICO 和两份许可；MSI 许可使用源文件名 LICENSE/ LICENSE-fluent-emoji，NSIS 使用映射 .txt 名称。NSIS 本轮未单独安装。
 - 安装目录 C:\Users\fanq1\AppData\Local\Reader。reader.exe 为 17,496,576 字节，SHA256 C72719786D266A887C3C7AC4EBBD8088F5F03772E62535151C664BC27E53F86B；除 UNK→MSI 三个标记字节外与 release 完全相同。两个 ICO、PDFium 与许可哈希相同，五项 DefaultIcon 正确；桌面快捷方式使用该正式 exe。已执行 SHChangeNotify 关联及资源/快捷方式更新通知，不改变默认应用选择或强删系统缓存。
