@@ -47,7 +47,7 @@ Windows / Tauri
 - Markdown 目录从标题模型生成，并驱动源码或渲染视图导航。
 - `printMarkdown.ts` 用独立临时 Crepe 解析打印快照，通过 `getHTML` 生成静态正文，再在隔离 iframe 中打印；保留 CodeMirror 以满足 LaTeX 依赖，打印 HTML 不含编辑控件。渲染模式直接读取活动编辑器避免监听延迟，源码模式读取工作文本；临时解析器销毁，打印后移除 iframe 并恢复焦点，不替换活动编辑器或调用保存。
 - `DocumentActions` 统一 PDF/Markdown 输出入口；`DocumentToolRail` 统一右侧竖栏。`PdfTools` 只调用既有批注与页面操作回调。
-- [`SidebarResizer`](../reader/src/components/SidebarResizer.tsx) 共用 PDF/Markdown 的 168–560px 调宽边界、84px 拖动收起阈值、指针捕获清理及键盘调宽。分隔条记录拖动起点与展开偏好宽度，按未截断累计位移判断收起；侧栏宽度/可见状态仍由各文档容器持有，不进入 Rust 工作区或文档内容。Markdown 的 ResizeObserver 只限制显示宽度，收起/展开及窗口放宽后保留原偏好。
+- [`SidebarResizer`](../reader/src/components/SidebarResizer.tsx) 共用 PDF/Markdown 的 168–560px 调宽边界、50.4px 拖动收起阈值（从最小宽度继续向左拖 70%）、指针捕获清理及键盘调宽。分隔条记录拖动起点与展开偏好宽度，按未截断累计位移判断收起；侧栏宽度/可见状态仍由各文档容器持有，不进入 Rust 工作区或文档内容。Markdown 的 ResizeObserver 只限制显示宽度，收起/展开及窗口放宽后保留原偏好。
 - PDF 删页使用原生 HTML `dialog` 模态与页码快照，避免 `window.confirm` 经 Tauri 注入后要求未授予的 `dialog.confirm` 权限；取消不调用变更命令，确认后仍使用既有 PDFium 删页路径。
 
 主要代码：

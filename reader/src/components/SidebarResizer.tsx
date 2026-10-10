@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 
 export const SIDEBAR_MIN_WIDTH = 168;
 export const SIDEBAR_MAX_WIDTH = 560;
-export const SIDEBAR_COLLAPSE_WIDTH = SIDEBAR_MIN_WIDTH / 2;
+// After reaching the minimum, drag another 70% of it left before collapsing.
+export const SIDEBAR_COLLAPSE_WIDTH = SIDEBAR_MIN_WIDTH * (1 - 0.7);
 
 interface SidebarResizerProps {
   kind: "md" | "pdf";

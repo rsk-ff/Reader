@@ -9,16 +9,19 @@ test.beforeEach(({ page }) => {
 });
 test.afterEach(({ page }) => expect(errors.get(page)).toEqual([]));
 
-for (const kind of ["md", "pdf"] as const) {
-  test(`${kind}: minimum, 50% collapse boundary, capture cleanup and restored width`, async ({ page }) => {
+for (const variant of ["md", "pdf-thumbnails", "pdf-outline"] as const) {
+  const kind = variant === "md" ? "md" : "pdf";
+  const pdfToggle = variant === "pdf-outline" ? "Outline" : "Thumbnails";
+  test(`${variant}: minimum, 70% extra-left-drag boundary, capture cleanup and restored width`, async ({ page }) => {
     if (kind === "pdf") {
       await page.route("http://reader-file.localhost/**", (route) => route.fulfill({
-        path: path.resolve("tests/fixtures/text-3.pdf"), contentType: "application/pdf",
+        path: path.resolve(variant === "pdf-outline" ? "tests/fixtures/ani1320588.pdf" : "tests/fixtures/text-3.pdf"), contentType: "application/pdf",
         headers: { "Access-Control-Allow-Origin": "*" },
       }));
       await page.goto("/tests/browser/pdf-viewer.html");
       await expect(page.locator('.page[data-page-number="1"] .textLayer')).toBeVisible();
-      await page.getByRole("button", { name: "Thumbnails", exact: true }).click();
+      await page.getByRole("button", { name: pdfToggle, exact: true }).click();
+      if (variant === "pdf-outline") await expect(page.locator(".outline-item").first()).toBeVisible();
     } else {
       await page.goto("/tests/browser/markdown-editor.html");
       await expect(page.locator(".ProseMirror")).toBeVisible();
@@ -42,10 +45,12 @@ for (const kind of ["md", "pdf"] as const) {
     await page.mouse.down();
     await page.mouse.move(x + 168 - 296, y);
     await expect(shell).toHaveCSS("width", "168px");
-    await page.mouse.move(x + 85 - 296, y);
+    await page.mouse.move(x + 84 - 296, y);
+    await expect(shell).toHaveCSS("width", "168px");
+    await page.mouse.move(x + 51 - 296, y);
     await expect(shell).toHaveCSS("width", "168px");
     await expect(page.locator("body")).toHaveClass(new RegExp(`${kind}-sidebar-resizing`));
-    await page.mouse.move(x + 84 - 296, y);
+    await page.mouse.move(x + 50 - 296, y);
     await expect(shell).toHaveCount(0);
     await expect(page.locator("body")).not.toHaveClass(/sidebar-resizing/);
     await page.mouse.move(x + 130, y);
@@ -54,10 +59,15 @@ for (const kind of ["md", "pdf"] as const) {
     expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
     const viewport = page.locator(kind === "md" ? ".md-viewport" : ".pdf-stage");
     expect((await viewport.boundingBox())!.x).toBe(0);
-    await page.getByRole("button", { name: kind === "md" ? "展开目录" : "Thumbnails", exact: true }).click();
+    await page.getByRole("button", { name: kind === "md" ? "展开目录" : pdfToggle, exact: true }).click();
     await expect(shell).toHaveCSS("width", "296px");
     if (kind === "md") await expect(page.locator(".md-source")).toHaveValue("# Collapse draft\n\nUnsaved text.");
     else await expect(page.locator('.page[data-page-number="1"] .textLayer')).toBeVisible();
+    if (variant === "pdf-outline") {
+      await expect(page.locator(".outline-item").first()).toBeVisible();
+      await page.locator(".outline-item").first().click();
+      await expect(page.locator('.page[data-page-number="1"]')).toBeVisible();
+    }
   });
 }
 
@@ -73,7 +83,7 @@ test("Markdown narrow-window drag collapse preserves the unclamped preferred wid
   const bounds = await separator.boundingBox();
   await page.mouse.move(bounds!.x + 3, bounds!.y + 80);
   await page.mouse.down();
-  await page.mouse.move(bounds!.x + 3 - 84, bounds!.y + 80);
+  await page.mouse.move(bounds!.x + 3 - 118, bounds!.y + 80);
   await page.mouse.up();
   await expect(page.locator(".md-outline-shell")).toHaveCount(0);
   await page.getByRole("button", { name: "展开目录", exact: true }).click();
