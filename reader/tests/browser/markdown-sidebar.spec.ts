@@ -44,17 +44,17 @@ test("drag bounds and keyboard separator work in both modes, including collapse 
   const separator = page.getByRole("separator", { name: "调整 Markdown 目录宽度" });
   await dragSidebar(page, 750);
   await expect(separator).toHaveAttribute("aria-valuenow", "560");
-  await dragSidebar(page, -750);
-  await expect(separator).toHaveAttribute("aria-valuenow", "120");
+  await dragSidebar(page, -440);
+  await expect(separator).toHaveAttribute("aria-valuenow", "168");
   await separator.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(separator).toHaveAttribute("aria-valuenow", "136");
+  await expect(separator).toHaveAttribute("aria-valuenow", "184");
   await page.keyboard.press("End");
   await expect(separator).toHaveAttribute("aria-valuenow", "560");
   await page.keyboard.press("Home");
-  await expect(separator).toHaveAttribute("aria-valuenow", "120");
+  await expect(separator).toHaveAttribute("aria-valuenow", "168");
   await page.getByRole("button", { name: "Source", exact: true }).click();
-  await dragSidebar(page, 120);
+  await dragSidebar(page, 72);
   await expect(separator).toHaveAttribute("aria-valuenow", "240");
   await page.locator(".md-source").fill("# Sidebar draft\n\nUnsaved content.");
   await page.getByRole("button", { name: "收起目录", exact: true }).click();
@@ -71,8 +71,8 @@ test("window shrink caps sidebar, keeps controls reachable and restores preferre
   await dragSidebar(page, 180);
   await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "400px");
   await page.setViewportSize({ width: 330, height: 480 });
-  await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "122px");
-  expect((await page.locator(".md-viewport").boundingBox())!.width).toBeGreaterThanOrEqual(160);
+  await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "168px");
+  expect((await page.locator(".md-viewport").boundingBox())!.width).toBeGreaterThanOrEqual(114);
   for (const name of ["收起目录", "打印", "已保存", "Source", "Rendered"]) {
     const bounds = await page.getByRole("button", { name, exact: true }).boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
@@ -81,7 +81,7 @@ test("window shrink caps sidebar, keeps controls reachable and restores preferre
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(330);
   await page.getByRole("button", { name: "收起目录", exact: true }).click();
   await page.getByRole("button", { name: "展开目录", exact: true }).click();
-  await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "122px");
+  await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "168px");
   await page.setViewportSize({ width: 1100, height: 760 });
   await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "400px");
 });

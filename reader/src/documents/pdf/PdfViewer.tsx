@@ -726,6 +726,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
              currentPage={currentPage}
              width={sidebarWidth}
              onWidthChange={resizeSidebar}
+             onCollapse={(restoreWidth) => { setSidebarWidth(restoreWidth); setSidebarMode(null); }}
              onOutlineClick={activateOutline}
             onThumbClick={scrollToPage}
           />

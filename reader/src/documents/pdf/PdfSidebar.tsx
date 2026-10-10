@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 
 import type { OutlineNode } from "./types";
+import { SidebarResizer } from "../../components/SidebarResizer";
 
 interface PdfSidebarProps {
   mode: "thumbnails" | "outline";
@@ -13,13 +14,10 @@ interface PdfSidebarProps {
   onThumbClick: (pageNumber: number) => void;
   width: number;
   onWidthChange: (width: number) => void;
+  onCollapse: (restoreWidth: number) => void;
 }
 
 export function PdfSidebar(props: PdfSidebarProps) {
-  const dragRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
-
-  useEffect(() => () => document.body.classList.remove("pdf-sidebar-resizing"), []);
-
   const content = props.mode === "outline" ? (
     <OutlineList outline={props.outline} onClick={props.onOutlineClick} />
   ) : (
@@ -43,45 +41,8 @@ export function PdfSidebar(props: PdfSidebarProps) {
     <aside className="pdf-sidebar-shell" style={{ width: props.width }}>
       <header className="pdf-sidebar-title">{props.mode === "outline" ? "文档目录" : "页面缩略图"}<span>{props.mode === "outline" ? props.outline.length : props.totalPages}</span></header>
       {content}
-      <div
-        className="pdf-sidebar-resizer"
-        role="separator"
-        aria-label="Resize PDF sidebar"
-        aria-orientation="vertical"
-        aria-valuemin={168}
-        aria-valuemax={560}
-        aria-valuenow={props.width}
-        tabIndex={0}
-        onPointerDown={(event) => {
-          dragRef.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startWidth: props.width,
-          };
-          event.currentTarget.setPointerCapture(event.pointerId);
-          document.body.classList.add("pdf-sidebar-resizing");
-        }}
-        onPointerMove={(event) => {
-          const drag = dragRef.current;
-          if (!drag || drag.pointerId !== event.pointerId) return;
-          props.onWidthChange(drag.startWidth + event.clientX - drag.startX);
-        }}
-        onPointerUp={(event) => {
-          if (dragRef.current?.pointerId !== event.pointerId) return;
-          dragRef.current = null;
-          event.currentTarget.releasePointerCapture(event.pointerId);
-          document.body.classList.remove("pdf-sidebar-resizing");
-        }}
-        onPointerCancel={() => {
-          dragRef.current = null;
-          document.body.classList.remove("pdf-sidebar-resizing");
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-          event.preventDefault();
-          props.onWidthChange(props.width + (event.key === "ArrowRight" ? 16 : -16));
-        }}
-      />
+      <SidebarResizer kind="pdf" label="Resize PDF sidebar" width={props.width}
+        onWidthChange={props.onWidthChange} onCollapse={props.onCollapse} />
     </aside>
   );
 }

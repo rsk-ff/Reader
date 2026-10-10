@@ -302,7 +302,8 @@ export function MarkdownEditor({
       />
       <div className="md-workspace">
         {outlineVisible && <MarkdownOutline headings={headings} onNavigate={navigateToHeading}
-          width={outlineWidth} onWidthChange={setOutlineWidth} />}
+          width={outlineWidth} onWidthChange={setOutlineWidth}
+          onCollapse={(restoreWidth) => { setOutlineWidth(restoreWidth); setOutlineVisible(false); }} />}
         <div className="md-viewport">
           <div ref={contentRef} className="md-content">
             {mode === "wysiwyg" ? (
