@@ -56,6 +56,7 @@ Windows / Tauri
 
 ## Workspace, tabs and windows
 
+- 最近列表按应用标识对应的用户数据目录及页面 origin 隔离；独立标识/localhost 开发检查版与正式 com.earendil.reader / http://tauri.localhost 各有自己的列表。普通 MSI 覆盖升级不迁移检查版历史，不删除正式 profile；不能把切换两种版本后列表不同判定为历史删除。
 - Rust 全局工作区拥有 `DocumentSession`、`WindowTab` 和每个窗口的标签顺序；`WindowTab.document_id = None` 表示不绑定文件但仍参与聚焦、排序、拖动和序列化的真实新标签页。
 - 打开的规范化路径会去重；前端 Zustand store 是 Rust 工作区的镜像。
 - 无文件启动时 Rust 为主窗口创建新标签；关闭主窗口最后一个标签会由工作区模型立即补位。打开文件时若目标窗口的活动标签是新标签，则原位转换为文件标签。

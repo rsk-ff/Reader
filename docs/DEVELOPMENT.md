@@ -71,6 +71,8 @@ pnpm --dir reader generate:file-icons
 
 缓存清理后的临时开发验收可在启动前设置 `$env:CARGO_PROFILE_DEV_DEBUG='0'`、`$env:CARGO_INCREMENTAL='0'`，减少调试符号和增量缓存；变量仅作用于该终端启动的进程，不改全局配置或 release profile。临时独立标识和验收标题通过 Tauri `--config <临时 JSON>` 传入，以免干扰正式安装版的单实例和存储。
 
+最近打开列表保存在 WebView2 localStorage，独立检查标识与正式标识、localhost 开发地址与正式页面地址互相隔离。交付时告知用户检查版历史不会自动出现在正式版；覆盖安装前后应比较正式 com.earendil.reader / http://tauri.localhost 的 reader.recent-files.v1，不能用检查版列表代替升级保留验证。保留正式用户数据，不为统一显示直接覆盖正式 profile 或合并验收样本历史。
+
 正式更换 PDF/Markdown 文件关联图标时，保持 `file-pdf.ico` 和 `file-markdown.ico` 文件名不变即可；如果使用外部设计工具制作 ICO，则直接替换这两个生成文件，再重新构建安装包。仅替换已安装目录中的 ICO 只能用于本机临时测试，正式交付仍需重新打包并安装，因为安装器会把资源复制到安装目录，Explorer 也可能缓存旧图标。
 
 文件 UI 母版保持 22×22 画布，标签图片为 24px、最近列表图片为 32px。Windows 生成器只裁外围留边，使用居中的 viewBox `2 2 18 18`；文件最长维度保持 16 单位，宽高比不变。两文件使用同饱和度/明度红蓝配色，白色背衬只填原图内部镂空。调整后检查六帧 ICO 的透明外角、内部不透明白色/实色、最长维度和无裁切，以及窄窗口行高/溢出；采样避开抗锯齿边界。软件图标生成不受此裁边影响。

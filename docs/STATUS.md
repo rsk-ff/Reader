@@ -2,14 +2,13 @@
 
 - Last updated: 2026-10-09
 - Application version: `0.1.0`
-- Latest user-accepted application source baseline: `de45f91 — Reader interface, recent history and Markdown icons accepted`
+- Latest user-accepted application source baseline: `b2c1553 — Markdown resize and PDF/Markdown drag-to-collapse accepted`
 
 ## Active task
 
-- [`2026-10-09-markdown-sidebar.md`](tasks/active/2026-10-09-markdown-sidebar.md) — `waiting_user_acceptance`; 两种侧栏保持 168px 最小宽度，收起改为到最小后再向左拖 70%（约 118px，目标 50.4px）。8 项相关浏览器测试、111 项前端测试和构建通过，新增真实 PDF 目录栏覆盖；检查窗口已补开带目录的 `sidebar-outline-review.pdf`，实际体验待用户。
 - [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户选定 PDF B / MD D 与同饱和度配色，源码 d7c2aab 已正式构建/安装/刷新/清理。5 项浏览器、12 帧、安装程序/九项资源/五项关联核对通过；软件图标与认可尺寸保持，实际视觉待用户。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
-- Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
+- Latest completed task: [`2026-10-09-sidebar-release.md`](tasks/archive/2026-10-09-sidebar-release.md)；用户已验收的侧栏 b2c1553 完成正式构建及本机覆盖安装，20 条正式历史安装/启动前后完全保留；[侧栏实现任务](tasks/archive/2026-10-09-markdown-sidebar.md)已验收归档。
 
 ## Implemented at the application baseline
 
@@ -27,6 +26,8 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-09 已验收侧栏发布（b2c1553）：正式 Tauri 构建退出 0，通过 TypeScript/Vite 1207 模块、Rust release（4m32s）、MSI/NSIS 打包；MSI 覆盖安装退出 0，新产品 {6086E093-4DCB-43D5-B45C-B7145776D844} 状态 5、旧 {10802324-E9D6-443D-942B-117D518E76D0} 状态 -1。安装程序除 UNK→MSI 三字节标记外匹配，九项资源和五项 DefaultIcon 匹配；正式 PID 55468、可见句柄 1050600、响应正常。正式最近列表原有 20 条在安装前/后/启动后内容完全一致；独立侧栏检查版有 3 条，按标识及 origin 隔离，当前证据不支持覆盖升级清空正式历史。构建和安装证据另存本轮 releases；没有外部上传、缓存清理、截图或桌面自动化。Pi 未调用，Rust 测试及 NSIS 安装/卸载未重复，包未签名。
 
 2026-10-09 最新反馈：70% 明确指到最小宽度后继续左拖其 70%，所以目标阈值为 50.4px，晚于原先 84px。8 项相关浏览器回归、111 项前端测试和 TypeScript/Vite（1207 模块）通过，文档/diff 检查通过；新增 ani1320588.pdf 的真实 PDF 目录测试，与 Markdown 和缩略图分别检查 84px/51px 仍展开、50px 收起及恢复。PID 58744 检查窗口已热更新（模块确认当前 70% 规则）、响应正常，并补开带真实书签的 `sidebar-outline-review.pdf` 副本。实际桌面体验待用户，Pi 未调用，Rust 测试和安装包未重跑。后续各段为早期步骤证据。
 
@@ -187,6 +188,21 @@
 
 ## Latest local release artifacts
 
+2026-10-09 从用户已验收侧栏源码 `b2c1553` 生成正式 MSI/NSIS，版本 `0.1.0`、标识 `com.earendil.reader`；本机 MSI 已覆盖安装并启动。包与证据保存 `releases/2026-10-09-0.1.0-b2c1553/`，不纳入 Git，未上传外部平台。
+
+| Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
+| --- | --- | ---: | --- | --- |
+| MSI | `releases/2026-10-09-0.1.0-b2c1553/Reader_0.1.0_x64_en-US.msi` | 20,930,560 | `F2816B7826322C8FBB4B9CCA5A86A55809FA67BC27621073DCA34FF71695244D` | `NotSigned` |
+| NSIS | `releases/2026-10-09-0.1.0-b2c1553/Reader_0.1.0_x64-setup.exe` | 16,040,985 | `9A6EA5B12BA4325AA86DBFCA9D35683D6D61451E98FDAAD764A6B7F8FE55EB5D` | `NotSigned` |
+
+- MSI ProductCode={6086E093-4DCB-43D5-B45C-B7145776D844}，UpgradeCode 不变、同版本升级属性 257；安装退出 0。新登记状态 5，旧 d7c2aab 登记状态 -1。
+- 安装 exe 17,497,600 字节，SHA256 `E9394AA6C26A25FF51560C219E459358ACE35EEB385D0F851814BFEF532B30BB`；仅包类型 UNK→MSI 标记不同，归一完全一致。两 ICO、PDFium、六份许可/notice 共九项资源和五项文件关联匹配。
+- 正式 PID 55468、Reader 可见句柄 1050600、响应正常；未重跑 Rust 测试/NSIS 安装或卸载，未做桌面视觉自动化；侧栏此前已由用户验收。开发版正常关闭，服务停止；本轮未清理构建缓存。
+- 正式 `reader.recent-files.v1` 安装前/后/启动后均 20 条，内容完全一致；检查标识 `com.earendil.reader.sidebar20261009` / `http://localhost:1420` 另有 3 条。诊断与正式 localStorage 备份在发布目录，本次不把样本历史合并到正式列表。
+- 证据：build.log、install.log、packages.json、msi-audit.json、upgrade-registration.json、installed-files.json、installed-associations.json、startup.json、history-before/after-install/after-startup.json 与 history-comparison.json。
+
+### Previous release d7c2aab
+
 以下本地文件不纳入 Git。2026-10-07 从选定图标源码 `d7c2aab` 生成 MSI/NSIS，版本仍 `0.1.0`、正式标识 `com.earendil.reader`；本机 MSI 已覆盖安装，PDF B / MD D 同饱和度配色与不透明白色内部填充已交付，实际视觉待用户。包与证据独立于已清理的 target，未上传外部平台；前版目录保留，84a5a26 Word 稿未安装。
 
 | Format | Build scope | Repository-relative output | Size (bytes) | SHA-256 | Signature |
@@ -226,6 +242,8 @@
 - 源码、Git 历史、开发依赖、PDFium、发布包及用户安装数据保留。自动审批阻止直接递归删除，因此使用 Cargo 自带清理；较小的 dist/测试/Vite 缓存保留。下次原生构建需要重新编译。
 
 ## Latest user acceptance
+
+- 2026-10-09：用户验收 Markdown 侧栏调宽、168px 统一最小宽度及 PDF/Markdown 继续左拖 70% 才收起的实现（b2c1553），授权正式发布与覆盖安装。
 
 - 2026-10-07：用户确认全面界面重做、最近文件不限条数及 MD 图标修复验收通过（de45f91），并授权发布、安装与清理。界面任务已归档。
 

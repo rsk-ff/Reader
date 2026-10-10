@@ -1,6 +1,6 @@
 # Markdown 调宽与 PDF/Markdown 侧栏拖动收起
 
-- Status: `waiting_user_acceptance`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-10-09`
 - Last updated: `2026-10-09`
@@ -56,7 +56,7 @@ PDF 目录数据/页面内容、编辑/保存实现、跨启动布局持久化�
 - [x] 两种模式可使用，修改内容和编辑器实例不因布局操作丢失（浏览器功能验证）。
 - [x] 窄窗口不横向溢出，顶部开关/保存/打印可见（330px 浏览器验证）。
 - [x] 浏览器功能、前端测试、生产构建、文档检查通过；连贯提交与干净工作树（提交主题见 Outcome）。
-- [ ] 用户在 Reader 中验收视觉与交互。
+- [x] 用户在 Reader 中验收视觉与交互（2026-10-09 回复“验收，发布，覆盖安装”）。
 - [x] 两种页面 168px 最小宽度，84px/51px 目标仍展开、50px 目标收起，拖动结束无残留，按钮恢复拖动前宽度（真实浏览器验证，含 PDF 真实目录）。
 
 ## Progress
@@ -102,7 +102,7 @@ PDF 目录数据/页面内容、编辑/保存实现、跨启动布局持久化�
 
 ## User acceptance
 
-waiting。
+2026-10-09 用户确认验收，通过最终源码 b2c1553；授权正式发布与覆盖安装。
 
 用户反馈：最小宽度与 PDF 一致，PDF/Markdown 都可继续向左拖到一定程度后收起。已采用 50% 最小宽度阈值并通过自动验证，实际桌面体验待用户复验。
 
@@ -116,11 +116,11 @@ waiting。
 
 ## Risks and remaining work
 
-实际 WebView2 交互待用户验收；本轮不修改 Rust 或生成安装包。
+实际 WebView2 交互已由用户验收；安装交付及最近打开列表诊断在独立发布记录中追踪，本侧栏目标无剩余实现。
 
 ## Next action
 
-等待用户用 `sidebar-outline-review.pdf` 的 Outline 与 Thumbnails，以及 Markdown 目录验收 70% 延后收起；同一目标在本会话继续，认可后归档。
+本侧栏目标完成；按用户本轮授权执行发布与覆盖安装。
 
 ## Outcome
 
@@ -129,3 +129,5 @@ waiting。
 续接修订提交主题 `feat: unify sidebar minimum width and drag-to-collapse`，哈希以 Git 历史为准；本目标仍待用户最终验收。
 
 最新修订提交主题 `fix: delay sidebar collapse and cover PDF outline`，修正 70% 方向并提供可验收的目录样本，哈希以 Git 历史为准；实际桌面验收仍待用户。
+
+最终结果：用户于 2026-10-09 验收 b2c1553，任务归档。下一个独立需求应新建会话；本轮用户明确授权的发布/安装继续完成。
