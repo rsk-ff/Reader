@@ -1060,7 +1060,8 @@ html.tab-drag-preview-document #root {
   font-variant-numeric: tabular-nums;
 }
 
-.pdf-sidebar-resizer {
+.pdf-sidebar-resizer,
+.md-sidebar-resizer {
   position: absolute;
   z-index: 5;
   top: 0;
@@ -1072,7 +1073,8 @@ html.tab-drag-preview-document #root {
   outline: none;
 }
 
-.pdf-sidebar-resizer::after {
+.pdf-sidebar-resizer::after,
+.md-sidebar-resizer::after {
   content: "";
   position: absolute;
   top: 0;
@@ -1084,13 +1086,18 @@ html.tab-drag-preview-document #root {
 
 .pdf-sidebar-resizer:hover::after,
 .pdf-sidebar-resizer:focus-visible::after,
-.pdf-sidebar-resizing .pdf-sidebar-resizer::after {
+.pdf-sidebar-resizing .pdf-sidebar-resizer::after,
+.md-sidebar-resizer:hover::after,
+.md-sidebar-resizer:focus-visible::after,
+.md-sidebar-resizing .md-sidebar-resizer::after {
   width: 2px;
   background: var(--accent);
 }
 
 body.pdf-sidebar-resizing,
-body.pdf-sidebar-resizing * {
+body.pdf-sidebar-resizing *,
+body.md-sidebar-resizing,
+body.md-sidebar-resizing * {
   cursor: col-resize !important;
   user-select: none !important;
 }
@@ -1338,12 +1345,20 @@ body.pdf-sidebar-resizing * {
   min-width: 0;
 }
 
+.md-outline-toggle { flex-shrink: 0; }
+
+.md-outline-shell {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+
 .md-outline {
-  flex: 0 0 220px;
-  width: 220px;
+  width: 100%;
   min-width: 0;
   overflow: auto;
-  border-right: 1px solid var(--border);
   background: #fafafa;
   color: var(--text-dim);
   scrollbar-width: thin;
@@ -1369,6 +1384,9 @@ body.pdf-sidebar-resizing * {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+
+.md-outline-title .ui-icon, .md-outline-title span { flex-shrink: 0; }
+.md-outline-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .md-outline-list {
   display: flex;
@@ -1472,13 +1490,6 @@ body.pdf-sidebar-resizing * {
 .md-scrollbar:hover .md-scrollbar-thumb,
 .md-scrollbar:focus-visible .md-scrollbar-thumb {
   background-color: #999;
-}
-
-@media (max-width: 767px) {
-  .md-outline {
-    flex-basis: 168px;
-    width: 168px;
-  }
 }
 
 /* Source mode */
@@ -1791,6 +1802,9 @@ body.pdf-sidebar-resizing * {
 
 @media (max-width: 420px) {
   .md-mode-switch .ui-icon { display: none; }
+  .md-toolbar { gap: 2px; padding-left: 6px; }
+  .md-outline-toggle { padding: 0 6px; }
+  .md-toolbar .document-actions { padding: 0 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -38,6 +38,8 @@ export function MarkdownEditor({
   const refreshWorkspace = useWorkspace((state) => state.refresh);
 
   const [mode, setMode] = useState<Mode>("wysiwyg");
+  const [outlineVisible, setOutlineVisible] = useState(true);
+  const [outlineWidth, setOutlineWidth] = useState(220);
   /** Current working text. The single source of truth for both modes. */
   const [workingText, setWorkingText] = useState<string | null>(untitled ? "" : null);
   /** Bump to force a Crepe re-mount (e.g. after switching back from source). */
@@ -295,9 +297,12 @@ export function MarkdownEditor({
         onSwitch={switchMode}
         onSave={saveFromEditor}
         onPrint={printFromEditor}
+        outlineVisible={outlineVisible}
+        onToggleOutline={() => setOutlineVisible((visible) => !visible)}
       />
       <div className="md-workspace">
-        <MarkdownOutline headings={headings} onNavigate={navigateToHeading} />
+        {outlineVisible && <MarkdownOutline headings={headings} onNavigate={navigateToHeading}
+          width={outlineWidth} onWidthChange={setOutlineWidth} />}
         <div className="md-viewport">
           <div ref={contentRef} className="md-content">
             {mode === "wysiwyg" ? (

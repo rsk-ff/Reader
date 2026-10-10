@@ -63,6 +63,7 @@ let registrations: MockInstance<EventTarget["addEventListener"]>;
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
   engine.instances.length = 0;
   engine.create.mockReset().mockResolvedValue();
   engine.invoke.mockReset().mockResolvedValue("initial text");

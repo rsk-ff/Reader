@@ -1,11 +1,12 @@
 # Current status
 
-- Last updated: 2026-10-07
+- Last updated: 2026-10-09
 - Application version: `0.1.0`
 - Latest user-accepted application source baseline: `de45f91 — Reader interface, recent history and Markdown icons accepted`
 
 ## Active task
 
+- [`2026-10-09-markdown-sidebar.md`](tasks/active/2026-10-09-markdown-sidebar.md) — `waiting_user_acceptance`; Markdown 目录调宽与完全收起实现，24 项相关浏览器回归、111 项前端测试与生产构建通过；独立窗口“Reader · Markdown 侧栏验收”已启动并打开临时样本，实际视觉/交互待用户。
 - [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户选定 PDF B / MD D 与同饱和度配色，源码 d7c2aab 已正式构建/安装/刷新/清理。5 项浏览器、12 帧、安装程序/九项资源/五项关联核对通过；软件图标与认可尺寸保持，实际视觉待用户。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
 - Latest completed task: [`2026-10-07-release-install-cleanup.md`](tasks/archive/2026-10-07-release-install-cleanup.md)；界面任务已验收归档，旧 MSI 待复验任务因被本次版本替代而取消归档。
@@ -16,7 +17,7 @@
 - PDF.js 构建资源按运行时请求路径平铺复制，未嵌入 Adobe CJK 字体的 PDF 可正常加载 CMap 并显示文字。
 - PDF 文字可从行侧空白开始选择，拖到末行下方补全该行，拖回文字恢复精确终点；已有选区在缩放和连续 Ctrl＋滚轮重绘期间保留。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
-- Markdown 所见即所得/源码模式、显式保存、等宽代码字体和左侧目录；渲染区域采用 Crepe 官方完整 Frame 浅色主题。
+- Markdown 所见即所得/源码模式、显式保存、等宽代码字体和左侧目录；目录支持拖动调宽与完全收起，窄窗口限制宽度并保留本标签页布局；渲染区域采用 Crepe 官方完整 Frame 浅色主题。
 - 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和跨启动最近文件列表；当前版本不再限制为 8 项。
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
@@ -25,6 +26,8 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-09 Markdown 侧栏：新增 4 项真实 Edge 浏览器回归，连同选字/编辑/工具共 24 项通过，覆盖拖动边界、键盘、捕获丢失、完全收起/恢复、模式切换、330px 窄窗口及未保存内容/编辑器实例保留。16 文件、111 项前端测试与 TypeScript/Vite 生产构建（1206 模块）通过，仅既有大 chunk 提示；文档检查与 diff 检查通过。独立标识 com.earendil.reader.sidebar20261009 开发编译成功（1m37s），窗口“Reader · Markdown 侧栏验收”PID 58744、句柄 2559122、响应正常，传入临时 Markdown 副本，Vite 侧栏模块包含当前实现。无截图或桌面自动化验收；Pi 未调用，Rust 源码未改，Rust 测试和安装包未重跑，实际 WebView2 交互待用户。
 
 2026-10-07 最新选定图标 d7c2aab：PDF B / MD D 原路径保留，内部镂空不透明白色、同 HSL 饱和度 36.97% / 明度 53.33%，保留 24px 标签/32px 列表与 Windows 最长维度 228/256px。5 项浏览器及 12 ICO 帧通过，软件资产逐字节未改；TypeScript/Vite 1206 模块、Rust release 1m12s、MSI/NSIS 退出 0。本机 MSI 首次因旧版卸载需管理员权限失败（1603 / 1730），Windows UAC 授权后退出 0；安装程序、九项资源和五项关联匹配，正式 PID 29008、Reader 可见句柄 395576、响应正常。cargo clean 移除 4,240 文件（1.7 GiB），项目约 2.29→0.57 GiB。实际视觉待用户；无桌面截图/视觉自动化，Pi 未调用，Rust 测试与 NSIS 安装/卸载未重跑。详见最新发布记录。
 

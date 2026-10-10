@@ -9,11 +9,19 @@ interface MarkdownToolbarProps {
   onSwitch: (m: "wysiwyg" | "source") => void;
   onSave: () => void;
   onPrint: () => void;
+  outlineVisible: boolean;
+  onToggleOutline: () => void;
 }
 
-export function MarkdownToolbar({ mode, dirty, saving, printing, onSwitch, onSave, onPrint }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ mode, dirty, saving, printing, onSwitch, onSave, onPrint, outlineVisible, onToggleOutline }: MarkdownToolbarProps) {
   return (
     <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
+      <button type="button" className={"md-tbtn md-outline-toggle" + (outlineVisible ? " md-tbtn-active" : "")}
+        title={outlineVisible ? "收起目录" : "展开目录"}
+        aria-label={outlineVisible ? "收起目录" : "展开目录"}
+        aria-expanded={outlineVisible} onClick={onToggleOutline}>
+        <UiIcon name="outline" />
+      </button>
       <div className="md-toolbar-group md-mode-switch" role="group" aria-label="Editor mode">
         <button
           type="button"
