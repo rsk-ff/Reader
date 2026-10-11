@@ -44,6 +44,31 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   const request = useRef(0);
   const qualified = useRef(false);
   const busy = pending !== null;
+  const moveHistory = useCallback((delta: -1 | 1) => {
+    if (busy || newFileFolder) return;
+    setMenu(null);
+    setHistory((previous) => {
+      const index = Math.max(0, Math.min(previous.index + delta, previous.paths.length - 1));
+      return index === previous.index ? previous : { ...previous, index };
+    });
+  }, [busy, newFileFolder]);
+
+  useEffect(() => {
+    if (!active) return;
+    const sideButton = (event: globalThis.MouseEvent) => {
+      if (event.button !== 3 && event.button !== 4) return;
+      // Consume the complete sequence so WebView history never replaces folder history.
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.type === "mouseup") moveHistory(event.button === 3 ? -1 : 1);
+    };
+    const events = ["mousedown", "mouseup", "auxclick"] as const;
+    for (const type of events) document.addEventListener(type, sideButton, true);
+    return () => {
+      for (const type of events) document.removeEventListener(type, sideButton, true);
+    };
+  }, [active, moveHistory]);
+
   const fixed = useMemo(() => fixedFolders(locations.shortcuts, folders),
     [locations.shortcuts, folders.pinned, folders.hiddenDefaults]);
   const frequent = useMemo(() => frequentFolders(folders.visits, [...fixed, ...locations.roots], now),
@@ -192,8 +217,8 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     </aside>
     <div className="home-workspace">
       <div className="home-navigation" aria-label="文件夹导航">
-        <button type="button" className="home-icon-button" aria-label="后退" disabled={busy || history.index === 0} onClick={() => setHistory((value) => ({ ...value, index: value.index - 1 }))}><UiIcon name="back" /></button>
-        <button type="button" className="home-icon-button" aria-label="前进" disabled={busy || history.index === history.paths.length - 1} onClick={() => setHistory((value) => ({ ...value, index: value.index + 1 }))}><UiIcon name="forward" /></button>
+        <button type="button" className="home-icon-button" aria-label="后退" disabled={busy || !!newFileFolder || history.index === 0} onClick={() => moveHistory(-1)}><UiIcon name="back" /></button>
+        <button type="button" className="home-icon-button" aria-label="前进" disabled={busy || !!newFileFolder || history.index === history.paths.length - 1} onClick={() => moveHistory(1)}><UiIcon name="forward" /></button>
         <button type="button" className="home-icon-button" aria-label="上一级" disabled={busy || !isDirectory || !directory} onClick={() => navigate(directory?.parent ?? "computer")}><UiIcon name="up" /></button>
         <button type="button" className="home-icon-button" aria-label="刷新" disabled={busy || loading} onClick={() => setRevision((value) => value + 1)}><UiIcon name="refresh" /></button>
         <form className="home-address" onSubmit={(event) => {

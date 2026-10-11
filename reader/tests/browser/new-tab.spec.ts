@@ -14,6 +14,62 @@ async function blankMenu(page: Page) {
   await expect(page.getByRole("menu")).toBeVisible();
 }
 
+async function sideButton(page: Page, button: "back" | "forward") {
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send("Input.dispatchMouseEvent", { type: "mousePressed", x: 300, y: 250,
+      button, buttons: button === "back" ? 8 : 16, clickCount: 1 });
+    await session.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: 300, y: 250,
+      button, buttons: 0, clickCount: 1 });
+  } finally { await session.detach(); }
+}
+
+test("mouse side buttons navigate folder history once without leaving the application", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html?sentinel=1");
+  await page.goto("/tests/browser/new-tab.html");
+  const address = page.getByRole("textbox", { name: "文件夹路径" });
+  await page.locator(".home-drive-links button").first().click();
+  await page.locator(".home-directory-entry").filter({ hasText: "Notes" }).click();
+  await sideButton(page, "back");
+  await expect(address).toHaveValue("C:/");
+  await sideButton(page, "back");
+  await expect(address).toHaveValue("主页");
+  await sideButton(page, "back");
+  await expect(address).toHaveValue("主页");
+  expect(page.url()).not.toContain("sentinel");
+  await sideButton(page, "forward");
+  await expect(address).toHaveValue("C:/");
+  await sideButton(page, "forward");
+  await expect(address).toHaveValue("C:/Notes");
+  await sideButton(page, "forward");
+  await expect(address).toHaveValue("C:/Notes");
+  await sideButton(page, "back");
+  await goFolder(page, "D:/Work");
+  await expect(page.getByRole("button", { name: "前进", exact: true })).toBeDisabled();
+  await sideButton(page, "forward");
+  await expect(address).toHaveValue("D:/Work");
+});
+
+test("side buttons respect inactive tabs and the new Markdown dialog", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await goFolder(page);
+  const address = page.getByRole("textbox", { name: "文件夹路径", includeHidden: true });
+  await page.evaluate(() => (window as Window & { __readerSetActive: (active: boolean) => void }).__readerSetActive(false));
+  await expect(page.locator(".content-area")).toHaveAttribute("aria-hidden", "true");
+  await page.locator(".home-body").dispatchEvent("mouseup", { button: 3, bubbles: true, cancelable: true });
+  await expect(address).toHaveValue("C:/Notes");
+  await page.evaluate(() => (window as Window & { __readerSetActive: (active: boolean) => void }).__readerSetActive(true));
+  await expect(page.locator(".content-area")).toHaveAttribute("aria-hidden", "false");
+  await blankMenu(page);
+  await page.getByRole("menuitem", { name: "新建 Markdown", exact: true }).click();
+  await sideButton(page, "back");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(address).toHaveValue("C:/Notes");
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await sideButton(page, "back");
+  await expect(address).toHaveValue("主页");
+});
+
 test("home has one continuous pinned folder list and only recent files in the main area", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
   await expect(page.locator(".home-pin")).toHaveCount(3);
