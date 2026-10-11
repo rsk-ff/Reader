@@ -1,4 +1,4 @@
-//! Read-only, one-directory-at-a-time browsing for the new tab page.
+//! One-directory-at-a-time browsing and exclusive Markdown creation for new tabs.
 use std::{path::PathBuf, time::UNIX_EPOCH};
 
 use serde::Serialize;
@@ -172,9 +172,120 @@ pub async fn list_local_directory(path: String) -> Result<LocalDirectory, String
         .map_err(|error| error.to_string())?
 }
 
+fn markdown_name(name: &str) -> Result<String, String> {
+    let name = name.trim();
+    if name.is_empty()
+        || name.ends_with(['.', ' '])
+        || name
+            .chars()
+            .any(|c| c.is_control() || r#"<>:"/\|?*"#.contains(c))
+    {
+        return Err("请输入有效的文件名，不要包含路径或 Windows 保留字符".into());
+    }
+    let stem = name.split('.').next().unwrap_or("").to_uppercase();
+    if ["CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"].contains(&stem.as_str())
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && matches!(stem.as_bytes()[3], b'1'..=b'9'))
+    {
+        return Err("这个文件名由 Windows 保留，请换一个名称".into());
+    }
+    let name = if supported_file(std::path::Path::new(name)) {
+        if name.to_lowercase().ends_with(".pdf") {
+            return Err("请使用 .md 或 .markdown 扩展名".into());
+        }
+        name.to_string()
+    } else {
+        format!("{name}.md")
+    };
+    if name.encode_utf16().count() > 255 {
+        return Err("文件名过长，请缩短名称".into());
+    }
+    Ok(name)
+}
+
+fn create_markdown(directory: PathBuf, file_name: &str) -> Result<String, String> {
+    if !directory.is_absolute() {
+        return Err("请输入完整的文件夹路径".into());
+    }
+    let name = markdown_name(file_name)?;
+    let directory =
+        std::fs::canonicalize(directory).map_err(|error| format!("无法访问文件夹：{error}"))?;
+    if !directory.is_dir() {
+        return Err("新建位置必须是文件夹".into());
+    }
+    let path = directory.join(name);
+    // Exclusive creation also protects against races and existing symbolic links.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::AlreadyExists {
+                "同名文件已存在，请换一个名称".into()
+            } else {
+                format!("无法新建文件：{error}")
+            }
+        })?;
+    Ok(display_path(&path))
+}
+
+#[tauri::command]
+pub async fn create_local_markdown(directory: String, file_name: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        create_markdown(PathBuf::from(directory), &file_name)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn creates_markdown_in_requested_folder_without_overwriting() {
+        let root = std::env::temp_dir().join(format!("reader-create-md-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = create_markdown(root.clone(), "记录").unwrap();
+        assert!(path.ends_with("记录.md"));
+        assert_eq!(std::fs::read(root.join("记录.md")).unwrap(), b"");
+        std::fs::write(root.join("记录.md"), "keep existing content").unwrap();
+        assert!(create_markdown(root.clone(), "记录.md")
+            .unwrap_err()
+            .contains("已存在"));
+        assert_eq!(
+            std::fs::read_to_string(root.join("记录.md")).unwrap(),
+            "keep existing content"
+        );
+        assert!(create_markdown(root.join("missing"), "a.md").is_err());
+        assert!(create_markdown(root.join("记录.md"), "a.md").is_err());
+        assert!(create_markdown(PathBuf::from("relative"), "a.md").is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn markdown_names_reject_traversal_reserved_devices_and_invalid_characters() {
+        for name in [
+            "",
+            "..",
+            "../escape.md",
+            r"sub\escape.md",
+            "C:escape.md",
+            "a?.md",
+            "CON.md",
+            "lpt1.md",
+            "nul",
+            "trailing.",
+            "a\n.md",
+            "a.pdf",
+        ] {
+            assert!(markdown_name(name).is_err(), "{name}");
+        }
+        assert!(markdown_name(&"字".repeat(256)).is_err());
+        assert_eq!(markdown_name("notes.MD").unwrap(), "notes.MD");
+        assert_eq!(markdown_name("a.markdown").unwrap(), "a.markdown");
+    }
 
     #[test]
     fn directory_is_read_only_filtered_sorted_and_resolves_parent() {

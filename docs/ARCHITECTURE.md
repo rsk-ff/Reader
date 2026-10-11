@@ -43,7 +43,7 @@ Windows / Tauri
 - Crepe 实例只随组件挂载/卸载创建与销毁；编辑内容回传不替换实例，以保留焦点、选区和撤销历史。源码返回及放弃修改通过父组件的显式重挂载加载内容，重复选择当前模式不重置编辑器。异步创建和销毁串行化，旧实例不再向当前文档发布修改。
 - 首个标题的顶部间距按首个文档内容元素判断，排除 ProseMirror widget 和虚拟光标；选区变化会增删这些装饰节点，不能直接使用 `:first-child` 判断首个标题。
 - 保存使用临时文件、刷新和原子替换；保存过程使用修订号，避免并发编辑被错误标记为已保存。
-- 新建 Markdown 先由 Rust 工作区创建 `untitled` 内存文档（空路径、稳定文档 ID），首次保存时前端才调用原生保存对话框；Rust 在原子写入成功后为同一文档和标签绑定规范化路径。
+- 目录空白右键的新建 Markdown 由 `NewMarkdownDialog` 收集单个文件名，`create_local_markdown` 在当前目录独占创建空文件，然后沿用 `open_document` 与原子保存。原有 Rust `untitled` 内存文档及首次保存绑定路径协议仍保留，当前新标签页不提供该入口。
 - Markdown 目录从标题模型生成，并驱动源码或渲染视图导航。
 - `printMarkdown.ts` 用独立临时 Crepe 解析打印快照，通过 `getHTML` 生成静态正文，再在隔离 iframe 中打印；保留 CodeMirror 以满足 LaTeX 依赖，打印 HTML 不含编辑控件。渲染模式直接读取活动编辑器避免监听延迟，源码模式读取工作文本；临时解析器销毁，打印后移除 iframe 并恢复焦点，不替换活动编辑器或调用保存。
 - `DocumentActions` 统一 PDF/Markdown 输出入口；`DocumentToolRail` 统一右侧竖栏。`PdfTools` 只调用既有批注与页面操作回调。
@@ -56,15 +56,15 @@ Windows / Tauri
 
 ## Workspace, tabs and windows
 
-- [`local_files.rs`](../reader/src-tauri/src/local_files.rs) 提供 `get_local_locations` 与异步 `list_local_directory`：系统位置来自 Tauri PathResolver，本地磁盘来自 Windows 逻辑磁盘位图/类型（排除网络盘），目录读取放在阻塞线程，要求绝对路径并规范化，只返回当前目录下的文件夹、PDF/MD/Markdown 及大小/修改时间/不可读项目数。不扫描子树，不读取内容或执行管理写操作；文件打开仍进入现有工作区命令。
-- [`NewTabPage.tsx`](../reader/src/components/NewTabPage.tsx) 持有每个新标签的导航历史、筛选和目录结果；请求序号与卸载清理防止较慢的旧目录响应覆盖当前目录。地址栏显示规范化后的普通 Windows 路径；成功访问才计入常用，刷新不计数。
-- [`folderLocations.ts`](../reader/src/workspace/folderLocations.ts) 用独立 `reader.folder-locations.v1` 保存固定位置与目录访问次数/时间，Zustand 在同 webview 同步，storage 事件同步同 origin 的其他窗口。常用位置合并访问记录与最近文件父目录，以频率/时间排序前 8 个；原最近文件 v1 键和数据结构不变，不覆盖正式版历史。
+- [`local_files.rs`](../reader/src-tauri/src/local_files.rs) 提供 `get_local_locations` 与异步 `list_local_directory`：系统位置来自 Tauri PathResolver，本地磁盘来自 Windows 逻辑磁盘位图/类型（排除网络盘），目录读取放在阻塞线程，要求绝对路径并规范化，只返回当前目录下的文件夹、PDF/MD/Markdown 及大小/修改时间/不可读项目数。不扫描子树或读取内容。唯一新增写操作 `create_local_markdown` 校验单个文件名、Windows 保留名称和扩展名，再用 `create_new` 创建，已有文件和链接不能覆盖；文件打开仍进入现有工作区命令。
+- [`NewTabPage.tsx`](../reader/src/components/NewTabPage.tsx) 持有每个新标签的导航历史、筛选和目录结果；请求序号与卸载清理防止旧目录响应覆盖当前目录。地址栏显示普通 Windows 路径。`DocumentView` 传递活动标签状态，只有活动、可见、聚焦目录连续停留 30 秒才提交有效访问，同一次导航刷新/恢复焦点不重复；快捷浏览不计。`FolderContextMenu` 用 portal 展示钉选/目录空白新建，提供视口限制与键盘焦点恢复；新建对话框保存打开时的目录快照。
+- [`folderLocations.ts`](../reader/src/workspace/folderLocations.ts) 沿用独立 `reader.folder-locations.v1` 键，以 version:2 保存自定义固定项、默认项隐藏状态、有效次数/rank/时间与一次初始化标志；Zustand 同步同 webview，storage 事件同步同 origin 的其他窗口。成功打开/首次保存（含原生外部打开）在父目录计分，同目录 30 分钟去重；按[决策 0003](decisions/0003-frequent-folders.md) 的 zoxide 权重和老化规则选最多 8 项，要求至少 3 次有效访问并排除根/固定/90 天旧目录。旧点击计数丢弃、旧固定保留，仅带时间的最近文件保守初始化；原最近文件 v1 键和内容不变。
 
 - 最近列表按应用标识对应的用户数据目录及页面 origin 隔离；独立标识/localhost 开发检查版与正式 com.earendil.reader / http://tauri.localhost 各有自己的列表。普通 MSI 覆盖升级不迁移检查版历史，不删除正式 profile；不能把切换两种版本后列表不同判定为历史删除。
 - Rust 全局工作区拥有 `DocumentSession`、`WindowTab` 和每个窗口的标签顺序；`WindowTab.document_id = None` 表示不绑定文件但仍参与聚焦、排序、拖动和序列化的真实新标签页。
 - 打开的规范化路径会去重；前端 Zustand store 是 Rust 工作区的镜像。
 - 无文件启动时 Rust 为主窗口创建新标签；关闭主窗口最后一个标签会由工作区模型立即补位。打开文件时若目标窗口的活动标签是新标签，则原位转换为文件标签。
-- 新标签页的打开/首次保存位置由 Tauri dialog plugin 提供原生对话框，能力限定为 `open` 与 `save`；文件读取和原子写入仍由 Rust 命令执行。
+- 新标签页通过目录列表打开文件和在当前目录创建 Markdown；既有未命名 Markdown 首次保存仍可用 Tauri dialog plugin 的原生保存对话框，文件读取和原子写入由 Rust 命令执行。
 - 最近文件由前端工作区层维护在 webview `localStorage`，只记录成功打开或首次保存后的规范文件，不记录未命名文档；列表按最近使用去重，不设条数上限；v1 加载使用按规范路径索引的 Map 保持最新记录顺序，并从较旧重复记录补齐缺少的元数据，避免重复复制整个列表。记录可选 `opened_at`（本地成功打开的 epoch 毫秒）和 `file_size`（已有工作区元数据），保持 v1 存储键并兼容旧记录；快照更新大小不改变打开时间或列表顺序，首次保存建立文件记录。大小是已有快照缓存，不主动轮询磁盘或检测外部修改。Windows `\\?\` / `\\?\UNC\` 扩展长度前缀在身份比较和显示前转换为普通盘符或 UNC 路径，加载旧记录时同步迁移并合并重复项。
 - 同一窗口内切换标签时组件保持挂载，从而保留阅读器和编辑器状态。
 - 标签使用 Pointer Events 在同一窗口内排序；拖动时先由 React 显示标签预览，离开来源标题栏后改用忽略鼠标事件的短生命周期原生预览窗口，使反馈能跨出 webview 边界。

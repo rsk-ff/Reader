@@ -1,21 +1,33 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("folder chooser adds a fixed location only once and cancelling file open preserves history", async ({ page }) => {
+const visits = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("reader.folder-locations.v1") ?? '{"visits":[]}').visits);
+async function goFolder(page: Page, path = "C:/Notes") {
+  const address = page.getByRole("textbox", { name: "文件夹路径" });
+  await address.fill(path);
+  await address.press("Enter");
+  await expect(page.locator(".home-directory-entry")).toHaveCount(3);
+}
+async function blankMenu(page: Page) {
+  const body = page.locator(".home-body");
+  const rect = (await body.boundingBox())!;
+  await body.click({ button: "right", position: { x: rect.width - 4, y: rect.height - 4 } });
+  await expect(page.getByRole("menu")).toBeVisible();
+}
+
+test("home has one continuous pinned folder list and only recent files in the main area", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
-  await page.getByRole("button", { name: "添加固定文件夹", exact: true }).click();
-  await expect(page.locator(".home-pinned-row")).toHaveCount(1);
-  await page.getByRole("button", { name: "添加固定文件夹", exact: true }).click();
-  await expect(page.locator(".home-pinned-row")).toHaveCount(1);
-  await page.getByRole("button", { name: "打开文件", exact: true }).click();
-  await expect(page.locator(".new-tab-recent-item")).toHaveCount(2);
-  await expect(page.getByRole("alert")).toHaveCount(0);
-  expect(await page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBeNull();
+  await expect(page.locator(".home-pin")).toHaveCount(3);
+  await expect(page.locator(".home-folder-links .home-nav-name")).toHaveText(["桌面", "下载", "文档"]);
+  await expect(page.locator(".new-tab-hero, .home-command-bar, .home-nav-group, .home-folder-section")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "此电脑", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "打开文件", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "新建 Markdown", exact: true })).toHaveCount(0);
+  await expect(page.locator(".home-sidebar h2")).toHaveCount(0);
 });
 
-test("this computer browses folders and opens documents with navigation and filtering", async ({ page }) => {
+test("local drive browsing keeps navigation, filtering and document opening", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
-  await page.getByRole("button", { name: "此电脑", exact: true }).click();
-  await page.locator(".home-drive").first().click();
+  await page.locator(".home-drive-links button").first().click();
   await page.locator(".home-directory-entry").filter({ hasText: "Notes" }).click();
   await expect(page.locator(".home-directory-entry")).toHaveCount(3);
   await page.getByRole("textbox", { name: "筛选当前列表" }).fill("review");
@@ -32,22 +44,97 @@ test("this computer browses folders and opens documents with navigation and filt
   await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/review.md");
 });
 
-test("fixed folders survive reload and can be unpinned while visits stay available", async ({ page }) => {
+test("folder context menu pins and unpins across reload without creating fake common folders", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
-  const address = page.getByRole("textbox", { name: "文件夹路径" });
-  await address.fill("C:/Notes");
-  await address.press("Enter");
-  await page.getByRole("button", { name: "固定此文件夹", exact: true }).click();
+  await page.locator(".home-drive-links button").first().click();
+  await page.locator(".home-directory-entry").filter({ hasText: "Notes" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "固定到侧栏", exact: true }).click();
+  await expect(page.locator(".home-folder-links button").filter({ hasText: "Notes" }).locator(".home-pin")).toHaveCount(1);
   await page.reload();
-  await expect(page.locator(".home-pinned-row")).toHaveCount(1);
-  await expect(page.locator(".home-folder-section").first().locator(".home-folder-open")).toContainText("Notes");
-  await page.getByRole("button", { name: "取消固定 Notes", exact: true }).click();
+  const pinned = page.locator(".home-folder-links button").filter({ hasText: "Notes" });
+  await pinned.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "取消固定", exact: true }).click();
   await page.reload();
-  await expect(page.locator(".home-pinned-row")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "最近常用文件夹", exact: true }).locator(".home-folder-open")).toContainText(["Notes"]);
+  await expect(page.locator(".home-folder-links button").filter({ hasText: "Notes" })).toHaveCount(0);
 });
 
-test("invalid paths recover and delayed old results cannot replace the current folder", async ({ page }) => {
+test("default folders are pinned and unpinning them persists", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await page.getByRole("button", { name: "桌面", exact: false }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "取消固定", exact: true }).click();
+  await page.reload();
+  await expect(page.locator(".home-folder-links button").filter({ hasText: "桌面" })).toHaveCount(0);
+  await goFolder(page, "C:/Desktop");
+  await blankMenu(page);
+  await page.getByRole("menuitem", { name: "固定到侧栏", exact: true }).click();
+  await expect(page.locator(".home-folder-links button").filter({ hasText: "桌面" }).locator(".home-pin")).toHaveCount(1);
+});
+
+test("frequent folders use folder icons and can be pinned without duplicates", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html?frequent=1");
+  const work = page.locator(".home-folder-links button").filter({ hasText: "Work" });
+  await expect(work.locator(".home-pin")).toHaveCount(0);
+  expect(await work.locator(".ui-icon path").getAttribute("d")).toBe(await page.locator(".home-folder-links button").first().locator(".ui-icon path").first().getAttribute("d"));
+  await work.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "固定到侧栏", exact: true }).click();
+  await expect(work).toHaveCount(1);
+  await expect(work.locator(".home-pin")).toHaveCount(1);
+});
+
+test("blank-space context creates Markdown in the current folder and cancel writes nothing", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await goFolder(page);
+  await blankMenu(page);
+  await page.getByRole("menuitem", { name: "新建 Markdown", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  expect(await page.evaluate(() => (window as Window & { __readerCreated: unknown[] }).__readerCreated)).toEqual([]);
+  await blankMenu(page);
+  await page.getByRole("menuitem", { name: "新建 Markdown", exact: true }).click();
+  await page.getByRole("textbox", { name: "文件名", exact: true }).fill("draft");
+  await page.getByRole("button", { name: "创建", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/draft.md");
+  expect(await page.evaluate(() => (window as Window & { __readerCreated: unknown[] }).__readerCreated)).toEqual([{ directory: "C:/Notes", fileName: "draft.md", path: "C:/Notes/draft.md" }]);
+});
+
+test("existing Markdown is protected and the creation dialog can recover", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await goFolder(page);
+  await blankMenu(page);
+  await page.getByRole("menuitem", { name: "新建 Markdown", exact: true }).click();
+  await page.getByRole("textbox", { name: "文件名", exact: true }).fill("review.md");
+  await page.getByRole("button", { name: "创建", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText("同名文件已存在");
+  expect(await page.evaluate(() => (window as Window & { __readerCreated: unknown[] }).__readerCreated)).toEqual([]);
+  await page.getByRole("textbox", { name: "文件名", exact: true }).fill("other.md");
+  await page.getByRole("button", { name: "创建", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("context menu stays in the viewport and supports keyboard and dismissal", async ({ page }) => {
+  await page.setViewportSize({ width: 330, height: 480 });
+  await page.goto("/tests/browser/new-tab.html");
+  await goFolder(page);
+  await blankMenu(page);
+  const box = (await page.getByRole("menu").boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(480);
+  expect(box.x + box.width).toBeLessThanOrEqual(330);
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menuitem", { name: "固定到侧栏", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(page.locator(".home-body")).toBeFocused();
+  const folder = page.locator(".home-directory-entry").first();
+  await folder.focus();
+  await page.keyboard.press("Shift+F10");
+  await expect(page.getByRole("menu")).toBeVisible();
+  await page.getByRole("textbox", { name: "文件夹路径" }).click();
+  await expect(page.getByRole("menu")).toHaveCount(0);
+});
+
+test("invalid paths recover and delayed results do not replace or count the current folder", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
   const address = page.getByRole("textbox", { name: "文件夹路径" });
   await address.fill("C:/missing");
@@ -56,18 +143,45 @@ test("invalid paths recover and delayed old results cannot replace the current f
   await address.fill("C:/Slow");
   await address.press("Enter");
   await expect(page.getByRole("status")).toContainText("正在读取");
-  await address.fill("D:/Work");
-  await address.press("Enter");
-  await expect(page.locator(".home-directory-entry").first()).toHaveAttribute("title", "D:/Work/nested");
+  await goFolder(page, "D:/Work");
   await page.waitForTimeout(1000);
   await expect(address).toHaveValue("D:/Work");
   await expect(page.locator(".home-directory-entry").first()).toHaveAttribute("title", "D:/Work/nested");
   await expect(page.getByRole("alert")).toHaveCount(0);
-  const visitsBefore = await page.evaluate(() => JSON.parse(localStorage.getItem("reader.folder-locations.v1")!).visits);
-  expect(visitsBefore.map((visit: { path: string }) => visit.path)).toEqual(["D:/Work"]);
+  expect(await visits(page)).toEqual([]);
   await page.getByRole("button", { name: "刷新", exact: true }).click();
   await expect(page.locator(".home-directory-entry")).toHaveCount(3);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("reader.folder-locations.v1")!).visits)).toEqual(visitsBefore);
+  expect(await visits(page)).toEqual([]);
+});
+
+test("only foreground dwell counts, refresh cannot inflate it, and common requires repeated use", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-10-11T12:00:00Z") });
+  await page.goto("/tests/browser/new-tab.html");
+  await goFolder(page);
+  await page.clock.fastForward(29_000);
+  expect(await visits(page)).toEqual([]);
+  await page.evaluate(() => (window as Window & { __readerSetActive: (active: boolean) => void }).__readerSetActive(false));
+  await expect(page.locator(".content-area")).toHaveAttribute("aria-hidden", "true");
+  await page.clock.fastForward(120_000);
+  expect(await visits(page)).toEqual([]);
+  await page.evaluate(() => (window as Window & { __readerSetActive: (active: boolean) => void }).__readerSetActive(true));
+  await expect(page.locator(".content-area")).toHaveAttribute("aria-hidden", "false");
+  await page.clock.fastForward(30_000);
+  expect((await visits(page))[0].count).toBe(1);
+  await page.getByRole("button", { name: "刷新", exact: true }).click();
+  await expect(page.locator(".home-directory-entry")).toHaveCount(3);
+  await page.clock.fastForward(30_000);
+  expect((await visits(page))[0].count).toBe(1);
+  await expect(page.locator(".home-folder-links button").filter({ hasText: "Notes" })).toHaveCount(0);
+  for (const count of [2, 3]) {
+    await page.getByRole("button", { name: "主页", exact: true }).click();
+    await page.clock.fastForward(31 * 60_000);
+    await goFolder(page);
+    await page.clock.fastForward(30_000);
+    expect((await visits(page))[0].count).toBe(count);
+  }
+  await expect(page.locator(".home-folder-links button").filter({ hasText: "Notes" })).toHaveCount(1);
+  await expect(page.locator(".home-folder-links button").filter({ hasText: "Notes" }).locator(".home-pin")).toHaveCount(0);
 });
 
 for (const width of [330, 620, 1100]) {
@@ -114,8 +228,8 @@ test("title bar, home and file entries decode the shared native SVG masters", as
   await expect(page.locator(".titlebar-icon img")).toBeVisible();
   const appSources = await page.locator(".titlebar-icon img, .new-tab-hero img").evaluateAll((images) =>
     images.map((image) => (image as HTMLImageElement).src));
-  expect(appSources).toHaveLength(2);
-  expect(appSources[0]).toBe(appSources[1]);
+  expect(appSources).toHaveLength(1);
+
   const colors: number[][] = [];
   for (const type of ["pdf", "markdown"]) {
     const sources = await page.locator(`.tab-icon-${type} img`).evaluateAll((images) =>
@@ -174,7 +288,7 @@ test("title bar, home and file entries decode the shared native SVG masters", as
       try { await image.decode(); return image.naturalWidth === 128 && image.naturalHeight === 128; }
       catch { return false; }
     })));
-  expect(decoded).toEqual(Array(6).fill(true));
+  expect(decoded).toEqual(Array(5).fill(true));
   expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(36);
   expect((await page.locator(".winctl").first().boundingBox())!.width).toBe(46);
 });

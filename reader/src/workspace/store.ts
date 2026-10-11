@@ -99,6 +99,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     const snap = await invoke<WorkspaceSnapshot>("get_workspace", {
       windowId: myWindowId,
     });
+    for (const document of snap.documents) {
+      if (document.untitled || !document.path || document.doc_type === "unknown") continue;
+      if (get().documents.some((previous) => previous.id === document.id && previous.path === document.path)) continue;
+      const folder = parentFolder(document.path);
+      if (folder) useFolderLocations.getState().recordVisit(folder);
+    }
     const recentFiles = mergeRecentFilesFromSnapshot(
       get().recentFiles,
       get().documents,
@@ -115,6 +121,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
 
   init: async () => {
     if (get().ready) return;
+    useFolderLocations.getState().seedRecentFiles(get().recentFiles);
     const myWindowId = getCurrentWindow().label;
     set({ myWindowId });
     // Wake-up signal from Rust — re-fetch our own snapshot.

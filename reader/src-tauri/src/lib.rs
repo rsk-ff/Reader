@@ -81,6 +81,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             local_files::get_local_locations,
             local_files::list_local_directory,
+            local_files::create_local_markdown,
             commands::get_workspace,
             commands::open_document_command,
             commands::create_new_tab,

@@ -20,7 +20,7 @@ export function DocumentView({ tab, active }: { tab: WindowTab; active: boolean 
   const doc = useWorkspace((s) =>
     tab.document_id ? s.documentsById[tab.document_id] : undefined,
   );
-  if (tab.document_id === null) return <NewTabPage />;
+  if (tab.document_id === null) return <NewTabPage active={active} />;
   if (!doc) return <PlaceholderView tab={tab} />;
 
   switch (doc.doc_type) {
