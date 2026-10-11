@@ -15,7 +15,28 @@ window.__readerReopened = null;
 window.__TAURI_INTERNALS__ = {
   metadata: { currentWindow: { label: "main" } },
   transformCallback: () => 1,
-  invoke: async () => 0,
+  invoke: async (command, args) => {
+    if (command === "plugin:dialog|open") return args.options.directory ? "C:/Notes" : null;
+    if (command === "get_local_locations") return {
+      roots: [{ name: "本地磁盘 (C:)", path: "C:/" }, { name: "本地磁盘 (D:)", path: "D:/" }],
+      shortcuts: [{ name: "桌面", path: "C:/Desktop" }, { name: "下载", path: "C:/Downloads" }],
+    };
+    if (command === "list_local_directory") {
+      if (args.path.includes("missing")) throw new Error("无法访问文件夹：路径不存在");
+      if (args.path === "C:/Slow") await new Promise((resolve) => setTimeout(resolve, 800));
+      return { path: args.path, parent: args.path === "C:/" || args.path === "D:/" ? null : "C:/", skipped: 0,
+        entries: args.path === "C:/" ? [
+          { name: "Notes", path: "C:/Notes", is_dir: true, file_size: null, modified_at: 1 },
+          { name: "Slow", path: "C:/Slow", is_dir: true, file_size: null, modified_at: 1 },
+        ] : [
+          { name: "nested", path: `${args.path}/nested`, is_dir: true, file_size: null, modified_at: 1 },
+          { name: "review.md", path: `${args.path}/review.md`, is_dir: false, file_size: 12345, modified_at: 1 },
+          { name: "sample.pdf", path: `${args.path}/sample.pdf`, is_dir: false, file_size: 2048, modified_at: 1 },
+        ],
+      };
+    }
+    return 0;
+  },
 };
 const documents = [known, legacy].map((file, index) => ({ ...file, id: `document-${index}`, dirty: false }));
 const tabs = documents.map((document, index) => ({ id: `tab-${index}`, window_id: "main",

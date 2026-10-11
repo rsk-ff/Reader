@@ -1,4 +1,12 @@
 const paths = {
+  home: "m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9",
+  computer: "M3 3h18v13H3ZM8 21h8M12 16v5",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2",
+  pin: "M9 3h6l-1 6 4 4v2H6v-2l4-4-1-6ZM12 15v6",
+  back: "m14 5-7 7 7 7",
+  forward: "m10 5 7 7-7 7",
+  refresh: "M20 10a8 8 0 1 0-1 7M20 3v7h-7",
+  close: "m6 6 12 12M18 6 6 18",
   book: "M12 5.5C9 3.5 5 3.5 3 4.5v15c2-1 6-1 9 1 3-2 7-2 9-1v-15c-2-1-6-1-9 1Zm0 0v15",
   folder: "M3 7h6l2 2h10l-3 10H4L2 9V5h7l2 2h7",
   file: "M14 3H6v18h12V7l-4-4Zm0 0v5h4M9 12h6M9 16h4",

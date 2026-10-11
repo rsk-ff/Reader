@@ -56,6 +56,10 @@ Windows / Tauri
 
 ## Workspace, tabs and windows
 
+- [`local_files.rs`](../reader/src-tauri/src/local_files.rs) 提供 `get_local_locations` 与异步 `list_local_directory`：系统位置来自 Tauri PathResolver，本地磁盘来自 Windows 逻辑磁盘位图/类型（排除网络盘），目录读取放在阻塞线程，要求绝对路径并规范化，只返回当前目录下的文件夹、PDF/MD/Markdown 及大小/修改时间/不可读项目数。不扫描子树，不读取内容或执行管理写操作；文件打开仍进入现有工作区命令。
+- [`NewTabPage.tsx`](../reader/src/components/NewTabPage.tsx) 持有每个新标签的导航历史、筛选和目录结果；请求序号与卸载清理防止较慢的旧目录响应覆盖当前目录。地址栏显示规范化后的普通 Windows 路径；成功访问才计入常用，刷新不计数。
+- [`folderLocations.ts`](../reader/src/workspace/folderLocations.ts) 用独立 `reader.folder-locations.v1` 保存固定位置与目录访问次数/时间，Zustand 在同 webview 同步，storage 事件同步同 origin 的其他窗口。常用位置合并访问记录与最近文件父目录，以频率/时间排序前 8 个；原最近文件 v1 键和数据结构不变，不覆盖正式版历史。
+
 - 最近列表按应用标识对应的用户数据目录及页面 origin 隔离；独立标识/localhost 开发检查版与正式 com.earendil.reader / http://tauri.localhost 各有自己的列表。普通 MSI 覆盖升级不迁移检查版历史，不删除正式 profile；不能把切换两种版本后列表不同判定为历史删除。
 - Rust 全局工作区拥有 `DocumentSession`、`WindowTab` 和每个窗口的标签顺序；`WindowTab.document_id = None` 表示不绑定文件但仍参与聚焦、排序、拖动和序列化的真实新标签页。
 - 打开的规范化路径会去重；前端 Zustand store 是 Rust 工作区的镜像。
@@ -101,6 +105,7 @@ Windows / Tauri
 ## Security boundary
 
 - 生产 webview 使用 Content Security Policy。
+- 本地浏览命令只读取用户导航到的目录元数据，允许完整目录路径以支持此电脑浏览，不向 webview 返回任意文件内容；目录链接按需跟随，访问权限仍由操作系统决定。
 - PDF Range 协议只接受 `GET`、`HEAD` 和 `OPTIONS`。
 - 协议只提供已在 Rust 工作区打开的规范化 `.pdf` 路径，拒绝任意文件系统访问。
 - 外部链接通过受控 opener 打开，不在应用 webview 内导航。

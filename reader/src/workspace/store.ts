@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 
 import type { TabId, WindowId, WorkspaceSnapshot } from "./types";
 import { prepareDocumentForClose } from "./documentLifecycle";
+import { parentFolder, useFolderLocations } from "./folderLocations";
 import {
   loadRecentFiles,
   mergeRecentFilesFromSnapshot,
@@ -137,6 +138,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   openDocument: async (path) => {
     const myWindowId = get().myWindowId;
     await invoke<string>("open_document_command", { path, windowId: myWindowId });
+    const folder = parentFolder(path);
+    if (folder) useFolderLocations.getState().recordVisit(folder);
     const file = recentFileFromPath(path, Date.now());
     if (file) {
       const recentFiles = rememberRecentFile(get().recentFiles, file);

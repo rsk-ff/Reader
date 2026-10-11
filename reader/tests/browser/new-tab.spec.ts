@@ -1,5 +1,75 @@
 import { expect, test } from "@playwright/test";
 
+test("folder chooser adds a fixed location only once and cancelling file open preserves history", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await page.getByRole("button", { name: "添加固定文件夹", exact: true }).click();
+  await expect(page.locator(".home-pinned-row")).toHaveCount(1);
+  await page.getByRole("button", { name: "添加固定文件夹", exact: true }).click();
+  await expect(page.locator(".home-pinned-row")).toHaveCount(1);
+  await page.getByRole("button", { name: "打开文件", exact: true }).click();
+  await expect(page.locator(".new-tab-recent-item")).toHaveCount(2);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBeNull();
+});
+
+test("this computer browses folders and opens documents with navigation and filtering", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await page.getByRole("button", { name: "此电脑", exact: true }).click();
+  await page.locator(".home-drive").first().click();
+  await page.locator(".home-directory-entry").filter({ hasText: "Notes" }).click();
+  await expect(page.locator(".home-directory-entry")).toHaveCount(3);
+  await page.getByRole("textbox", { name: "筛选当前列表" }).fill("review");
+  await expect(page.locator(".home-directory-entry")).toHaveCount(1);
+  await page.getByRole("button", { name: "清除筛选" }).click();
+  await page.getByRole("button", { name: "上一级" }).click();
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/");
+  await page.getByRole("button", { name: "后退", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/Notes");
+  await page.getByRole("button", { name: "前进", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/");
+  await page.getByRole("button", { name: "后退", exact: true }).click();
+  await page.locator(".home-directory-entry").filter({ hasText: "review.md" }).click();
+  await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/review.md");
+});
+
+test("fixed folders survive reload and can be unpinned while visits stay available", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  const address = page.getByRole("textbox", { name: "文件夹路径" });
+  await address.fill("C:/Notes");
+  await address.press("Enter");
+  await page.getByRole("button", { name: "固定此文件夹", exact: true }).click();
+  await page.reload();
+  await expect(page.locator(".home-pinned-row")).toHaveCount(1);
+  await expect(page.locator(".home-folder-section").first().locator(".home-folder-open")).toContainText("Notes");
+  await page.getByRole("button", { name: "取消固定 Notes", exact: true }).click();
+  await page.reload();
+  await expect(page.locator(".home-pinned-row")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "最近常用文件夹", exact: true }).locator(".home-folder-open")).toContainText(["Notes"]);
+});
+
+test("invalid paths recover and delayed old results cannot replace the current folder", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  const address = page.getByRole("textbox", { name: "文件夹路径" });
+  await address.fill("C:/missing");
+  await address.press("Enter");
+  await expect(page.getByRole("alert")).toContainText("路径不存在");
+  await address.fill("C:/Slow");
+  await address.press("Enter");
+  await expect(page.getByRole("status")).toContainText("正在读取");
+  await address.fill("D:/Work");
+  await address.press("Enter");
+  await expect(page.locator(".home-directory-entry").first()).toHaveAttribute("title", "D:/Work/nested");
+  await page.waitForTimeout(1000);
+  await expect(address).toHaveValue("D:/Work");
+  await expect(page.locator(".home-directory-entry").first()).toHaveAttribute("title", "D:/Work/nested");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  const visitsBefore = await page.evaluate(() => JSON.parse(localStorage.getItem("reader.folder-locations.v1")!).visits);
+  expect(visitsBefore.map((visit: { path: string }) => visit.path)).toEqual(["D:/Work"]);
+  await page.getByRole("button", { name: "刷新", exact: true }).click();
+  await expect(page.locator(".home-directory-entry")).toHaveCount(3);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("reader.folder-locations.v1")!).visits)).toEqual(visitsBefore);
+});
+
 for (const width of [330, 620, 1100]) {
   test(`recent files at ${width}px show compact metadata without overflow`, async ({ page }) => {
     await page.setViewportSize({ width, height: 760 });

@@ -57,6 +57,8 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Visual acceptance
 
+新标签页本地浏览回归运行 `pnpm --dir reader test:browser -- new-tab.spec.ts`，模拟原生目录接口并检查导航/筛选/固定持久化、错误恢复、旧响应抑制与原最近文件布局；Rust `local_files` 测试使用真实临时目录验证过滤、排序、父级、元数据与错误路径。两者不代替本机系统位置、磁盘权限和可移动设备的实际用户验收。
+
 视觉与交互必须在真实 Windows 桌面环境中验收；职责、启动方式和反馈记录遵循 [`AGENTS.md`](../AGENTS.md#user-visual-acceptance)，检查项保存在对应活动任务文件中。
 
 ## Release build

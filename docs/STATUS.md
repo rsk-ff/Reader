@@ -1,10 +1,12 @@
 # Current status
 
-- Last updated: 2026-10-09
+- Last updated: 2026-10-10
 - Application version: `0.1.0`
 - Latest user-accepted application source baseline: `b2c1553 — Markdown resize and PDF/Markdown drag-to-collapse accepted`
 
 ## Active task
+
+- [`2026-10-10-local-file-home.md`](tasks/active/2026-10-10-local-file-home.md) — `waiting_user_acceptance`; 新标签页本地文件浏览/固定与常用文件夹已实现，115 项前端、46 项 Rust、9 项浏览器及类型/构建/静态检查通过；独立检查窗口已启动，实际布局与交互待用户。
 
 - [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户选定 PDF B / MD D 与同饱和度配色，源码 d7c2aab 已正式构建/安装/刷新/清理。5 项浏览器、12 帧、安装程序/九项资源/五项关联核对通过；软件图标与认可尺寸保持，实际视觉待用户。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
@@ -18,7 +20,7 @@
 - PDF 文字可从行侧空白开始选择，拖到末行下方补全该行，拖回文字恢复精确终点；已有选区在缩放和连续 Ctrl＋滚轮重绘期间保留。
 - 可填写 PDF 的表单内容只渲染一次，不再出现已复现的文字重影。
 - Markdown 所见即所得/源码模式、显式保存、等宽代码字体和左侧目录；目录支持拖动调宽与完全收起，窄窗口限制宽度并保留本标签页布局；渲染区域采用 Crepe 官方完整 Frame 浅色主题。
-- 新标签页提供原生文件选择、无需预选位置的未命名 Markdown 创建和跨启动最近文件列表；当前版本不再限制为 8 项。
+- 新标签页提供本地磁盘/文件夹逐级浏览、固定及最近常用文件夹、路径/导航/当前列表筛选；保留原生文件选择、无需预选位置的未命名 Markdown 创建和跨启动不限条数最近文件列表。本地文件入口实际视觉与交互待验收。
 - 标签切换、关闭、排序、拖出窗口和跨窗口停靠；标签拖动具有跨窗口跟随预览、释放点定位、标签页栏悬停抬升和可靠的原生 Z 序。
 - 标签页显示 PDF、Markdown 或通用文件类型图标；同一标签栏中的标签页等宽，并在 `28px` 至 `220px` 范围内随可用标题栏空间自适应。空间收缩时先隐藏未选中标签的关闭按钮，文字自然被截断；极窄时选中标签保留关闭按钮，未选中标签保留类型图标。
 - Windows 自定义标题栏、原生窗口按钮和 Snap Layout。
@@ -26,6 +28,8 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-10 本地文件新标签页：左侧/主页固定与常用目录、此电脑本地磁盘与逐级目录浏览、历史导航/上一级/刷新/路径/当前筛选已实现，独立 `reader.folder-locations.v1` 存储保持原最近文件 v1。115 项前端、46 项 Rust 和最终 9 项 Edge 浏览器通过，TypeScript/Vite 1209 模块、fmt/clippy、文档/diff 检查通过；布尔表达式静态修订后 2 项真实目录测试再验通过。覆盖固定重载/幂等、取消打开、路径错误/旧响应抑制/刷新不计次、330/620/1100px 与 40 条最近文件。独立标识 `com.earendil.reader.localhome20261010` 检查窗口 PID 77336、句柄 2361652、响应正常，当前模块 HTTP 200；实际桌面与权限/可移动设备仍待用户。无新增依赖、正式打包/安装、历史迁移、截图或桌面自动化；Pi 未调用。正式 PID 68904 保持运行，检查版不会显示正式历史。
 
 2026-10-09 已验收侧栏发布（b2c1553）：正式 Tauri 构建退出 0，通过 TypeScript/Vite 1207 模块、Rust release（4m32s）、MSI/NSIS 打包；MSI 覆盖安装退出 0，新产品 {6086E093-4DCB-43D5-B45C-B7145776D844} 状态 5、旧 {10802324-E9D6-443D-942B-117D518E76D0} 状态 -1。安装程序除 UNK→MSI 三字节标记外匹配，九项资源和五项 DefaultIcon 匹配；正式 PID 55468、可见句柄 1050600、响应正常。正式最近列表原有 20 条在安装前/后/启动后内容完全一致；独立侧栏检查版有 3 条，按标识及 origin 隔离，当前证据不支持覆盖升级清空正式历史。构建和安装证据另存本轮 releases；没有外部上传、缓存清理、截图或桌面自动化。Pi 未调用，Rust 测试及 NSIS 安装/卸载未重复，包未签名。
 
