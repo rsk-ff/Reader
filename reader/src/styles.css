@@ -535,6 +535,7 @@ html.tab-drag-preview-document #root {
 .home-pin { display: flex; flex: 0 0 16px; color: #91959c; }
 .home-pin .ui-icon { width: 14px; height: 14px; }
 .home-folder-links { margin-top: 8px; }
+.home-cloud-links { margin-top: 8px; }
 .home-drive-links { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
 .folder-context-menu { position: fixed; z-index: 1000; min-width: 174px; padding: 4px; border: 1px solid #c9cdd2; border-radius: 2px; background: var(--bg-elev); color: var(--text); }
 .folder-context-menu button { display: block; width: 100%; border: 0; padding: 8px 12px; background: transparent; text-align: left; color: inherit; font: inherit; cursor: pointer; }
@@ -549,8 +550,8 @@ html.tab-drag-preview-document #root {
 .new-markdown-dialog-actions button { border: 1px solid #bec3ca; border-radius: 2px; padding: 7px 14px; background: #fafafa; color: inherit; font: inherit; cursor: pointer; }
 .new-markdown-dialog-actions button:disabled { opacity: .5; cursor: default; }
 @media (max-width: 680px) {
-  .home-folder-links, .home-drive-links { display: flex; flex-wrap: wrap; width: 100%; margin: 0; padding: 0; border: 0; }
-  .home-folder-links .home-nav-item, .home-drive-links .home-nav-item { width: auto; max-width: 220px; }
+  .home-folder-links, .home-drive-links, .home-cloud-links { display: flex; flex-wrap: wrap; width: 100%; margin: 0; padding: 0; border: 0; }
+  .home-folder-links .home-nav-item, .home-drive-links .home-nav-item, .home-cloud-links .home-nav-item { width: auto; max-width: 220px; }
 }
 
 /* ---- PDF viewer ---- */

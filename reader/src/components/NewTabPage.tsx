@@ -30,7 +30,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   const [history, setHistory] = useState({ paths: ["home"], index: 0 });
   const location = history.paths[history.index];
   const isDirectory = location !== "home" && location !== "computer";
-  const [locations, setLocations] = useState<LocalLocations>({ roots: [], shortcuts: [] });
+  const [locations, setLocations] = useState<LocalLocations>({ roots: [], shortcuts: [], cloud: [] });
   const [directory, setDirectory] = useState<LocalDirectory | null>(null);
   const [address, setAddress] = useState("");
   const [query, setQuery] = useState("");
@@ -69,10 +69,11 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     };
   }, [active, moveHistory]);
 
-  const fixed = useMemo(() => fixedFolders(locations.shortcuts, folders),
-    [locations.shortcuts, folders.pinned, folders.hiddenDefaults]);
-  const frequent = useMemo(() => frequentFolders(folders.visits, [...fixed, ...locations.roots], now),
-    [folders.visits, fixed, locations.roots, now]);
+  const fixed = useMemo(() => fixedFolders(locations.shortcuts, folders).filter((folder) =>
+    !locations.cloud.some((cloud) => folderIdentity(cloud.path) === folderIdentity(folder.path))),
+    [locations.shortcuts, locations.cloud, folders.pinned, folders.hiddenDefaults]);
+  const frequent = useMemo(() => frequentFolders(folders.visits, [...fixed, ...locations.roots, ...locations.cloud], now),
+    [folders.visits, fixed, locations.roots, locations.cloud, now]);
 
   useEffect(() => {
     const update = () => setNow(Date.now());
@@ -82,12 +83,27 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   }, []);
   useEffect(() => { qualified.current = false; }, [location]);
   useEffect(() => {
+    if (!active) return;
     let alive = true;
-    void invoke<LocalLocations>("get_local_locations").then((value) => {
-      if (alive) setLocations(value);
-    }).catch((cause) => { if (alive) setError(`无法加载本地位置：${errorMessage(cause)}`); });
-    return () => { alive = false; };
-  }, [revision]);
+    let sequence = 0;
+    const update = () => {
+      if (document.hidden) return;
+      const id = ++sequence;
+      void invoke<LocalLocations>("get_local_locations").then((value) => {
+        if (alive && sequence === id) setLocations(value);
+      }).catch((cause) => { if (alive && sequence === id) setError(`无法加载本地位置：${errorMessage(cause)}`); });
+    };
+    update();
+    const timer = window.setInterval(() => { if (document.hasFocus()) update(); }, 30_000);
+    window.addEventListener("focus", update);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", update);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, [revision, active]);
   useEffect(() => {
     const id = ++request.current;
     setError(null);
@@ -163,7 +179,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     const rect = owner.getBoundingClientRect();
     const x = "clientX" in event && event.clientX ? event.clientX : rect.left + 12;
     const y = "clientY" in event && event.clientY ? event.clientY : rect.bottom;
-    const pinned = fixed.some((item) => folderIdentity(item.path) === folderIdentity(folder.path));
+    const pinned = fixedFolders(locations.shortcuts, folders).some((item) => folderIdentity(item.path) === folderIdentity(folder.path));
     const isDefault = locations.shortcuts.some((item) => folderIdentity(item.path) === folderIdentity(folder.path));
     setMenu({ x, y, owner, items: [
       ...(background ? [{ label: "新建 Markdown", action: () => setNewFileFolder(folder.path) }] : []),
@@ -206,6 +222,9 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     <aside className="home-sidebar" aria-label="本地文件导航">
       <nav>
         {navItem({ name: "主页", path: "home" }, "home", false, false)}
+        {!!locations.cloud.length && <div className="home-cloud-links" aria-label="同步文件夹">
+          {locations.cloud.map((folder) => navItem(folder, "cloud", false, false))}
+        </div>}
         <div className="home-folder-links" aria-label="文件夹">
           {fixed.map((folder) => navItem(folder, "folder", true))}
           {frequent.map((folder) => navItem(folder, "folder"))}

@@ -9,6 +9,7 @@
 //!   - the workspace state + open_document router (§16)
 //!   - high-level commands (§24)
 
+mod cloud_locations;
 mod commands;
 mod local_files;
 pub mod pdf;

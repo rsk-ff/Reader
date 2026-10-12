@@ -14,6 +14,7 @@ pub struct LocalLocation {
 pub struct LocalLocations {
     roots: Vec<LocalLocation>,
     shortcuts: Vec<LocalLocation>,
+    cloud: Vec<crate::cloud_locations::CloudLocation>,
 }
 
 #[derive(Serialize)]
@@ -33,7 +34,7 @@ pub struct LocalDirectory {
     skipped: usize,
 }
 
-fn display_path(path: &std::path::Path) -> String {
+pub(crate) fn display_path(path: &std::path::Path) -> String {
     let value = path.to_string_lossy();
     if let Some(unc) = value.strip_prefix(r"\\?\UNC\") {
         format!(r"\\{unc}")
@@ -79,8 +80,7 @@ fn local_roots() -> Vec<LocalLocation> {
     }]
 }
 
-#[tauri::command]
-pub fn get_local_locations(app: tauri::AppHandle) -> LocalLocations {
+fn local_locations(app: tauri::AppHandle) -> LocalLocations {
     let resolver = app.path();
     let shortcuts = [
         ("桌面", resolver.desktop_dir()),
@@ -99,7 +99,15 @@ pub fn get_local_locations(app: tauri::AppHandle) -> LocalLocations {
     LocalLocations {
         roots: local_roots(),
         shortcuts,
+        cloud: crate::cloud_locations::discover(),
     }
+}
+
+#[tauri::command]
+pub async fn get_local_locations(app: tauri::AppHandle) -> Result<LocalLocations, String> {
+    tauri::async_runtime::spawn_blocking(move || local_locations(app))
+        .await
+        .map_err(|error| error.to_string())
 }
 
 fn supported_file(path: &std::path::Path) -> bool {

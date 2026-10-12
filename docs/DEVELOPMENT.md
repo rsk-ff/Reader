@@ -42,6 +42,10 @@ cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-fea
 
 只改文档时不重复运行应用测试；需要检查 Markdown 链接、Git diff 和工作树状态。
 
+如果直接 Cargo 构建提示找不到 RC.EXE，先查当前 Windows SDK 的 x64 资源编译器，再仅为当前终端设置 `$env:RC` 为其绝对路径。本机 2026-10-12 验证路径为 `C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/rc.exe`；不修改全局 PATH 或 SDK。Tauri CLI 的开发启动另有工具链环境探测。
+
+同步目录发现回归在 `cloud_locations` Rust 测试中用真实临时目录和配置验证卸载残留、重装换路径、个人/工作账户、最新配置、无效路径和去重；本机只读探测可运行 `cargo test --manifest-path reader/src-tauri/Cargo.toml cloud_locations -- --nocapture`，仅输出识别的提供方与目录。浏览器 `new-tab.spec.ts` 用模拟配置/时钟检查焦点、30 秒和刷新更新，并保留既有右键/侧键回归。不会实际卸载/重装用户的同步软件，真实客户端变更后的桌面体验由用户验收。
+
 Markdown 编辑器生命周期回归测试使用开发依赖 `jsdom` 挂载真实 React 组件，并模拟 Crepe 引擎与 Tauri 边界；覆盖实例稳定、模式切换、异步清理、保存及放弃修改。运行 `pnpm --dir reader test src/documents/markdown/MilkdownCrepe.test.tsx` 可单独检查；这不替代真实桌面中文输入法与交互验收。
 
 浏览器功能回归测试运行 `pnpm --dir reader test:browser`，使用开发依赖 `@playwright/test` 和已安装的 Microsoft Edge，无需另行下载浏览器。测试启动独立的 `127.0.0.1:1422` 服务，不生成截图、视频或 trace。入口为 `reader/playwright.config.ts` 和 `reader/tests/browser/`。Vitest 仅发现 `src/**/*.test.{ts,tsx}`，避免混跑 Playwright 用例。此测试仍不替代用户在真实 Reader 中的中文输入法和交互验收。

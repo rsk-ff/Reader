@@ -1,6 +1,7 @@
 const paths = {
   home: "m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9",
   computer: "M3 3h18v13H3ZM8 21h8M12 16v5",
+  cloud: "M7 19a5 5 0 0 1-1-10 6 6 0 0 1 11-2 6 6 0 0 1 0 12H7Z",
   clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2",
   pin: "M9 3h6l-1 6 4 4v2H6v-2l4-4-1-6ZM12 15v6",
   back: "m14 5-7 7 7 7",

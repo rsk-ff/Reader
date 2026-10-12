@@ -1,12 +1,12 @@
 # Current status
 
-- Last updated: 2026-10-11
+- Last updated: 2026-10-12
 - Application version: `0.1.0`
 - Latest user-accepted application source baseline: `b2c1553 — Markdown resize and PDF/Markdown drag-to-collapse accepted`
 
 ## Active task
 
-- [`2026-10-10-local-file-home.md`](tasks/active/2026-10-10-local-file-home.md) — `waiting_user_acceptance`; 按标注精简主页/侧栏，固定与常用连续排列，右键固定/目录空白新建 MD，有效访问与 zoxide 计分已实现。120 项前端、48 项 Rust、15 项浏览器及类型/构建/静态检查通过；独立检查窗口已更新，实际布局与交互待用户。
+- [`2026-10-10-local-file-home.md`](tasks/active/2026-10-10-local-file-home.md) — `waiting_user_acceptance`; OneDrive/Dropbox 本机自动入口及卸载/重装/路径变化更新已实现，120 项前端、52 项 Rust、18 项浏览器与类型/构建/静态检查通过；独立检查窗口已启动，实际入口与交互待用户。
 
 - [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户选定 PDF B / MD D 与同饱和度配色，源码 d7c2aab 已正式构建/安装/刷新/清理。5 项浏览器、12 帧、安装程序/九项资源/五项关联核对通过；软件图标与认可尺寸保持，实际视觉待用户。
 - [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
@@ -28,6 +28,8 @@
 - Windows 文件关联安装 PDF 与 Markdown 专用 ICO，并为 NSIS 和 MSI bundle 的两套关联类注册相应的 `DefaultIcon`。
 
 ## Recorded automated verification
+
+2026-10-12 同步目录入口（基于 ae550fa）：只读识别 OneDrive 当前账户路径、Dropbox 最新 info.json 和匹配当前用户/当前配置的工作空间根，验证客户端二进制与现存绝对目录。启动/刷新/焦点/活动页前台 30 秒重查，自动项不持久化，路径变化覆盖旧入口，重复的手动固定状态保留且可取消。120 项前端通过；52 项 Rust 全部通过（含 4 项云目录发现）；18 项浏览器最终通过（23.4s），覆盖卸载/重装换路径、focus/定时/刷新/激活、后台停止、固定去重/取消及既有回归。TypeScript/Vite 1211 模块通过（22.25s），最后固定状态修订另经 tsc 与浏览器复验；fmt/clippy 通过，无新增依赖。直接 Cargo 的 RC.EXE 缺失通过仅本终端设置现有 SDK 资源编译器解决；配置时间测试的 Windows 写属性句柄修正后通过。本机原生探测识别 D:\OneDrive 与 C:\Users\fanq1\ICRP Dropbox。独立开发版最后编译 36.41s，PID 90784、验收窗口句柄 984274、响应正常，模块 HTTP 200 含同步入口与更新实现；正式 PID 68904 运行中。实际卸载/重装、在线占位文档与视觉未操作，未安装/发布或截图，Pi 未调用，无 session ID。
 
 2026-10-11 鼠标侧键追加（基于 1f2938b）：活动新标签监听返回/前进侧键并阻止网页默认导航，与顶部按钮共用有界目录历史；非活动标签、新建模态和文件打开期间不改变目录。17 项新标签浏览器回归通过（12.5s），新增 CDP 实际输入序列检查单次导航/历史边界/分支，以及非活动与模态保护；TypeScript/Vite 1211 模块通过（18.82s），仅既有大 chunk 提示。原生和通用单元测试未重复，Rust 未改；独立窗口 PID 45620、真实验收窗口句柄 9374318 可见且响应正常，模块 HTTP 200 含侧键实现。鼠标硬件及真实 WebView2 行为待用户；没有截图/桌面自动化或正式安装，Pi 未调用，无 session ID。
 

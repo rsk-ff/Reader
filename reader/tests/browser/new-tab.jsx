@@ -14,6 +14,7 @@ const recentFiles = new URLSearchParams(location.search).has("many")
   : [known, legacy];
 window.__readerReopened = null;
 window.__readerCreated = [];
+window.__readerCloud = [];
 if (new URLSearchParams(location.search).has("frequent")) {
   useFolderLocations.setState({ ...parseFolderLocations(null), seeded: true,
     visits: [{ path: "D:/Work", name: "Work", count: 3, rank: 3, last_opened: Date.now() }] });
@@ -30,6 +31,7 @@ window.__TAURI_INTERNALS__ = {
       return path;
     }
     if (command === "get_local_locations") return {
+      cloud: window.__readerCloud.map((folder) => ({ ...folder })),
       roots: [{ name: "本地磁盘 (C:)", path: "C:/" }, { name: "本地磁盘 (D:)", path: "D:/" }],
       shortcuts: [{ name: "桌面", path: "C:/Desktop" }, { name: "下载", path: "C:/Downloads" }, { name: "文档", path: "C:/Documents" }],
     };

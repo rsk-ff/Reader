@@ -24,6 +24,46 @@ async function sideButton(page: Page, button: "back" | "forward") {
   } finally { await session.detach(); }
 }
 
+test("cloud entries adapt to uninstall, reinstall and path changes without persisting stale roots", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-10-12T12:00:00Z") });
+  await page.goto("/tests/browser/new-tab.html");
+  const cloud = page.locator(".home-cloud-links");
+  await expect(cloud).toHaveCount(0);
+  await page.evaluate(() => {
+    (window as Window & { __readerCloud: unknown[] }).__readerCloud = [
+      { id: "onedrive:Personal", provider: "onedrive", name: "OneDrive", path: "D:/OneDrive" },
+      { id: "dropbox:business", provider: "dropbox", name: "Dropbox（工作）", path: "D:/Team Dropbox" },
+    ];
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(cloud.locator("button")).toHaveCount(2);
+  await expect(cloud.locator(".home-pin")).toHaveCount(0);
+  await cloud.getByRole("button", { name: "Dropbox（工作）", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("D:/Team Dropbox");
+  await page.evaluate(() => (window as Window & { __readerCloud: unknown[] }).__readerCloud.splice(1));
+  await page.clock.fastForward(30_000);
+  await expect(cloud.locator("button")).toHaveCount(1);
+  await page.evaluate(() => (window as Window & { __readerCloud: unknown[] }).__readerCloud.push(
+    { id: "dropbox:business", provider: "dropbox", name: "Dropbox（工作）", path: "C:/New Dropbox" }));
+  await page.getByRole("button", { name: "刷新", exact: true }).click();
+  await expect(cloud.getByRole("button", { name: "Dropbox（工作）", exact: true })).toHaveAttribute("title", "C:/New Dropbox");
+  await cloud.getByRole("button", { name: "Dropbox（工作）", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/New Dropbox");
+  expect(await page.evaluate(() => localStorage.getItem("reader.folder-locations.v1") ?? "")).not.toContain("C:/New Dropbox");
+  await blankMenu(page);
+  await page.getByRole("menuitem", { name: "固定到侧栏", exact: true }).click();
+  await expect(page.locator(".home-folder-links button[title='C:/New Dropbox']")).toHaveCount(0);
+  await blankMenu(page);
+  await page.getByRole("menuitem", { name: "取消固定", exact: true }).click();
+  await page.evaluate(() => (window as Window & { __readerSetActive: (active: boolean) => void }).__readerSetActive(false));
+  await expect(page.locator(".content-area")).toHaveAttribute("aria-hidden", "true");
+  await page.evaluate(() => (window as Window & { __readerCloud: unknown[] }).__readerCloud = []);
+  await page.clock.fastForward(60_000);
+  await expect(cloud.locator("button")).toHaveCount(2);
+  await page.evaluate(() => (window as Window & { __readerSetActive: (active: boolean) => void }).__readerSetActive(true));
+  await expect(cloud).toHaveCount(0);
+});
+
 test("mouse side buttons navigate folder history once without leaving the application", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html?sentinel=1");
   await page.goto("/tests/browser/new-tab.html");

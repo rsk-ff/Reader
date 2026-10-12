@@ -57,6 +57,7 @@ Windows / Tauri
 ## Workspace, tabs and windows
 
 - [`local_files.rs`](../reader/src-tauri/src/local_files.rs) 提供 `get_local_locations` 与异步 `list_local_directory`：系统位置来自 Tauri PathResolver，本地磁盘来自 Windows 逻辑磁盘位图/类型（排除网络盘），目录读取放在阻塞线程，要求绝对路径并规范化，只返回当前目录下的文件夹、PDF/MD/Markdown 及大小/修改时间/不可读项目数。不扫描子树或读取内容。唯一新增写操作 `create_local_markdown` 校验单个文件名、Windows 保留名称和扩展名，再用 `create_new` 创建，已有文件和链接不能覆盖；文件打开仍进入现有工作区命令。
+- [`cloud_locations.rs`](../reader/src-tauri/src/cloud_locations.rs) 在 `get_local_locations` 阻塞线程中只读发现本机同步目录：OneDrive 从当前用户 Accounts/UserFolder 取当前账户路径；Dropbox 从官方 APPDATA/LOCALAPPDATA 的 info.json 取最新有效配置，工作空间可使用 Windows SyncRootManager 中当前用户、且包含当前配置目录的注册根。客户端二进制由标准安装位置及 App Paths/InstallPath（64/32 位注册表视图）验证存在，残留目录/注册表不单独证明安装；只返回绝对且存在的目录，按路径去重，不读取凭据/启动客户端或连接在线服务。自动入口仅内存保留；前端启动/刷新/激活/前台 30 秒更新，请求序号防过期，非活动/后台停止定时探测，固定/常用中的同路径只隐藏显示而不删存储。
 - [`NewTabPage.tsx`](../reader/src/components/NewTabPage.tsx) 持有每个新标签的导航历史、筛选和目录结果；请求序号与卸载清理防止旧目录响应覆盖当前目录。地址栏显示普通 Windows 路径。`DocumentView` 传递活动标签状态，只有活动、可见、聚焦目录连续停留 30 秒才提交有效访问，同一次导航刷新/恢复焦点不重复；快捷浏览不计。`FolderContextMenu` 用 portal 展示钉选/目录空白新建，提供视口限制与键盘焦点恢复；新建对话框保存打开时的目录快照。
 - [`folderLocations.ts`](../reader/src/workspace/folderLocations.ts) 沿用独立 `reader.folder-locations.v1` 键，以 version:2 保存自定义固定项、默认项隐藏状态、有效次数/rank/时间与一次初始化标志；Zustand 同步同 webview，storage 事件同步同 origin 的其他窗口。成功打开/首次保存（含原生外部打开）在父目录计分，同目录 30 分钟去重；按[决策 0003](decisions/0003-frequent-folders.md) 的 zoxide 权重和老化规则选最多 8 项，要求至少 3 次有效访问并排除根/固定/90 天旧目录。旧点击计数丢弃、旧固定保留，仅带时间的最近文件保守初始化；原最近文件 v1 键和内容不变。
 

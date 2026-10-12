@@ -1,5 +1,6 @@
 export interface LocalLocation { name: string; path: string }
-export interface LocalLocations { roots: LocalLocation[]; shortcuts: LocalLocation[] }
+export interface CloudLocation extends LocalLocation { id: string; provider: "onedrive" | "dropbox" }
+export interface LocalLocations { roots: LocalLocation[]; shortcuts: LocalLocation[]; cloud: CloudLocation[] }
 export interface LocalEntry {
   name: string; path: string; is_dir: boolean;
   file_size: number | null; modified_at: number | null;
