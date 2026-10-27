@@ -540,19 +540,21 @@ html.tab-drag-preview-document #root {
   .home-body { padding: 16px 20px 24px; }
 }
 @media (max-width: 680px) {
-  .new-tab-page { display: flex; flex-direction: column; }
-  .home-sidebar { flex: 0 0 auto; max-height: 155px; border-right: 0; border-bottom: 1px solid #eceef1; padding: 8px; }
-  .home-sidebar nav { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 12px; }
-  .home-sidebar nav > .home-nav-item { width: auto; }
-  .home-folder-links, .home-drive-links, .home-cloud-links { display: flex; flex-wrap: wrap; width: 100%; margin: 0; padding: 0; border: 0; }
-  .home-folder-links .home-nav-item, .home-drive-links .home-nav-item, .home-cloud-links .home-nav-item { width: auto; max-width: 220px; }
-  .home-workspace { flex: 1; }
-  .home-navigation { padding: 8px; }
-  .home-body { padding: 12px 8px 20px; }
+  /* Narrow windows keep navigation on the left as an icon rail; names stay available as tooltips. */
+  .new-tab-page { grid-template-columns: 52px minmax(0, 1fr); }
+  .home-sidebar { padding: 8px 6px; }
+  .home-nav-item { justify-content: center; gap: 0; padding: 8px; }
+  .home-nav-name, .home-pin { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .home-nav-item[aria-current]::before { top: 8px; bottom: 8px; }
+  .home-cloud-links, .home-folder-links { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e6e8eb; }
+  .home-drive-links { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e6e8eb; }
+  .home-navigation { padding: 8px 10px; }
+  .home-body { padding: 12px 10px 20px; }
 }
 @media (max-width: 420px) {
   .home-address { flex-basis: 100%; margin: 6px 0 0; }
-  .new-tab-list-heading { padding-left: 12px; }
+  .new-tab-list-heading { grid-template-columns: minmax(0, 1fr) 72px 50px; gap: 8px; padding: 0 8px 6px 48px; }
+  .new-tab-recent-item { grid-template-columns: 32px minmax(0, 1fr) 72px 50px; gap: 8px; padding: 7px 8px; }
 }
 
 /* ---- PDF viewer ---- */
