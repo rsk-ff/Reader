@@ -8,6 +8,7 @@
     "frame:default",
     "dialog:allow-open",
     "dialog:allow-save",
+    "dialog:allow-message",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "http://*" }, { "url": "https://*" }, { "url": "mailto:*" }]
