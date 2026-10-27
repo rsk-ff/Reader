@@ -28,4 +28,4 @@ Reader 的额外资格规则由本项目决定，不声称来自 zoxide：
 
 - 规则和存储迁移见 [`folderLocations.ts`](../../reader/src/workspace/folderLocations.ts)，资格/时间边界/老化/迁移测试见[对应单元测试](../../reader/src/workspace/folderLocations.test.ts)。
 - 前台停留与活动标签由 [`NewTabPage.tsx`](../../reader/src/components/NewTabPage.tsx) 管理，模拟时钟验证见 [`new-tab.spec.ts`](../../reader/tests/browser/new-tab.spec.ts)。
-- 原生打开/首次保存接入见 [`store.ts`](../../reader/src/workspace/store.ts)，实际验证和待验收项见[活动任务](../tasks/active/2026-10-10-local-file-home.md)。
+- 原生打开/首次保存接入见 [`store.ts`](../../reader/src/workspace/store.ts)，实际验证与验收记录见[已归档任务](../tasks/archive/2026-10-10-local-file-home.md)。

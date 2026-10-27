@@ -208,7 +208,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   const currentFolder = directory ? { path: directory.path, name: folderName(directory.path) } : null;
 
   const navItem = (folder: FolderLocation, icon: UiIconName, pinned = false, context = true) => (
-    <button type="button" className="home-nav-item" key={folder.path} title={folder.path}
+    <button type="button" className="home-nav-item" key={folder.path} title={folder.path === "home" ? folder.name : folder.path}
       aria-current={folderIdentity(location) === folderIdentity(folder.path) ? "page" : undefined}
       disabled={busy} onClick={() => navigate(folder.path)}
       onContextMenu={context ? (event) => showFolderMenu(event, folder) : undefined}

@@ -1,9 +1,9 @@
 # Fix PDF outline sidebar layout and placeholder bookmarks
 
-- Status: `waiting_user_acceptance`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-08-29`
-- Last updated: `2026-08-29`
+- Last updated: `2026-10-27`
 - Base branch: `master`
 - Base commit: `1f64cd9`
 - Implementation: `Codex`
@@ -54,9 +54,9 @@ Make the PDF outline sidebar display one bookmark per row with visible hierarchy
 
 ## Acceptance criteria
 
-- [ ] The supplied PDF shows one outline entry per row with indentation for levels 2 and 3.
-- [ ] The two `空白页面` entries are absent from the supplied PDF's outline.
-- [ ] Retained entries still navigate to their original destinations.
+- [x] The supplied PDF shows one outline entry per row with indentation for levels 2 and 3.
+- [x] The two `空白页面` entries are absent from the supplied PDF's outline.
+- [x] Retained entries still navigate to their original destinations.
 - [x] Unit tests cover ordering, depth, exact placeholder filtering, normalization, and child preservation.
 - [x] Frontend tests and production build pass.
 - [x] Required status/product/changelog documentation is current and the Git worktree is clean after commit.
@@ -84,7 +84,7 @@ Make the PDF outline sidebar display one bookmark per row with visible hierarchy
 
 ## User acceptance
 
-- Pending. Reader is running with the supplied PDF for the user to check outline layout, hierarchy, filtering, and navigation.
+- 2026-10-27：用户验收通过（目录布局、层级、空白页书签过滤与跳转）。
 
 ## Risks and remaining work
 
@@ -92,8 +92,8 @@ Make the PDF outline sidebar display one bookmark per row with visible hierarchy
 
 ## Next action
 
-Collect the user's visual and navigation acceptance result for the running Reader build.
+None; task archived.
 
 ## Outcome
 
-Implementation and automated verification are complete; visual and navigation acceptance remain pending.
+Implemented, automatically verified, and accepted by the user on 2026-10-27.
