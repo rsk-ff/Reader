@@ -1,15 +1,13 @@
 # Current status
 
-- Last updated: 2026-10-12
+- Last updated: 2026-10-27
 - Application version: `0.1.0`
 - Latest user-accepted application source baseline: `b2c1553 — Markdown resize and PDF/Markdown drag-to-collapse accepted`
 
 ## Active task
 
 - [`2026-10-10-local-file-home.md`](tasks/active/2026-10-10-local-file-home.md) — `waiting_user_acceptance`; OneDrive/Dropbox 本机自动入口及卸载/重装/路径变化更新已实现，120 项前端、52 项 Rust、18 项浏览器与类型/构建/静态检查通过；独立检查窗口已启动，实际入口与交互待用户。
-
-- [`2026-10-07-icon-consistency.md`](tasks/active/2026-10-07-icon-consistency.md) — `waiting_user_acceptance`; 用户选定 PDF B / MD D 与同饱和度配色，源码 d7c2aab 已正式构建/安装/刷新/清理。5 项浏览器、12 帧、安装程序/九项资源/五项关联核对通过；软件图标与认可尺寸保持，实际视觉待用户。
-- [`2026-08-29-pdf-outline-sidebar.md`](tasks/active/2026-08-29-pdf-outline-sidebar.md) — `waiting_user_acceptance`; PDF outline row layout and blank-page bookmark filtering are implemented and automatically verified.
+- 2026-10-27 已验收归档：[PDF 目录侧栏](tasks/archive/2026-08-29-pdf-outline-sidebar.md)与[图标统一](tasks/archive/2026-10-07-icon-consistency.md)（d7c2aab 正式安装版）。
 - Latest completed task: [`2026-10-09-sidebar-release.md`](tasks/archive/2026-10-09-sidebar-release.md)；用户已验收的侧栏 b2c1553 完成正式构建及本机覆盖安装，20 条正式历史安装/启动前后完全保留；[侧栏实现任务](tasks/archive/2026-10-09-markdown-sidebar.md)已验收归档。
 
 ## Implemented at the application baseline
