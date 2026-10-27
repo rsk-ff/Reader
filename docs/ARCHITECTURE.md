@@ -110,7 +110,7 @@ Windows / Tauri
 - 本地浏览命令只读取用户导航到的目录元数据，允许完整目录路径以支持此电脑浏览，不向 webview 返回任意文件内容；目录链接按需跟随，访问权限仍由操作系统决定。
 - PDF Range 协议只接受 `GET`、`HEAD` 和 `OPTIONS`。
 - 协议只提供已在 Rust 工作区打开的规范化 `.pdf` 路径，拒绝任意文件系统访问。
-- 外部链接通过 `tauri-plugin-opener` 打开，capability 只允许 `http://`、`https://` 和 `mailto:` URL，不在应用 webview 内导航。
+- 外部链接通过 `tauri-plugin-opener` 打开，capability 只允许 `http://`、`https://` 和 `mailto:` URL，不在应用 webview 内导航。`main.tsx` 在文档级冒泡阶段拦截所有未被处理的链接点击（PDF.js 等自行处理的链接先取消事件）：一律阻止 webview 导航，按原始 href 只放行绝对 web/mail 链接及补 https 的 `www.` 地址；可编辑正文中的链接需 Ctrl/Cmd+点击。`window.alert` 经 dialog 插件显示，capability 包含 `dialog:allow-message`。
 
 ## Decision records
 
