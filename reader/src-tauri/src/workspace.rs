@@ -10,9 +10,10 @@
 //! underlying DocumentSession (so dirty state survives, Test 10).
 
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 
@@ -66,6 +67,27 @@ pub struct DocumentSession {
     /// This is process-local state and must never leak into session snapshots.
     #[serde(skip)]
     pub pdf_working_copy: Option<PathBuf>,
+    /// The bytes one PDF.js load is reading. PDF.js fetches ranges lazily, so
+    /// a later PDFium write must not change the file under an in-flight load.
+    #[serde(skip)]
+    pub pdf_view_pin: Option<PdfViewPin>,
+}
+
+/// An open handle to the PDF source chosen for one PDF.js load token. Writes
+/// replace files by rename, so the handle keeps reading the bytes it opened.
+#[derive(Clone, Debug)]
+pub struct PdfViewPin {
+    pub token: String,
+    pub file: Arc<File>,
+}
+
+/// How a PDF mutation obtains its private working copy.
+pub enum PdfWorkingCopyPlan {
+    Existing(PathBuf),
+    Create {
+        document_id: DocumentId,
+        source: PathBuf,
+    },
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -186,6 +208,7 @@ impl AppWorkspace {
                 file_size: None,
                 untitled: true,
                 pdf_working_copy: None,
+                pdf_view_pin: None,
             },
         );
         self.attach_document(
@@ -245,6 +268,7 @@ impl AppWorkspace {
             file_size,
             untitled: false,
             pdf_working_copy: None,
+            pdf_view_pin: None,
         };
         self.documents.insert(doc_id.clone(), session);
 
@@ -478,13 +502,20 @@ impl AppWorkspace {
     }
 
     /// Called when a native window is destroyed. Removes the window; its tabs
-    /// (if any leaked) are dropped. The main window is never removed.
+    /// (if any leaked) are dropped. The main window keeps an empty slot so the
+    /// model can recreate it, but its tabs and documents go away with it:
+    /// keeping them would leave files "open" in a window nobody can see.
     pub fn remove_window(&mut self, window_id: &WindowId) {
-        if window_id == MAIN_WINDOW {
-            return;
-        }
-        if let Some(win) = self.windows.remove(window_id) {
-            for tab_id in &win.tab_ids {
+        let tab_ids = if window_id == MAIN_WINDOW {
+            self.windows.get_mut(window_id).map(|win| {
+                win.active_tab = None;
+                std::mem::take(&mut win.tab_ids)
+            })
+        } else {
+            self.windows.remove(window_id).map(|win| win.tab_ids)
+        };
+        if let Some(tab_ids) = tab_ids {
+            for tab_id in &tab_ids {
                 if let Some(tab) = self.tabs.remove(tab_id) {
                     if let Some(document_id) = &tab.document_id {
                         let still_referenced = self
@@ -521,6 +552,7 @@ impl AppWorkspace {
     /// Return the currently readable PDF source for a canonical, open path.
     /// Unsaved PDFium writes live in a private working copy; PDF.js reads that
     /// copy while the original remains untouched until an explicit save.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn pdf_source_path(&self, canonical_path: &Path) -> Option<PathBuf> {
         let document = self.documents.values().find(|document| {
             document.path == canonical_path && document.doc_type == DocumentType::Pdf
@@ -535,57 +567,100 @@ impl AppWorkspace {
         )
     }
 
-    /// Materialize a private working copy for a PDF mutation. Repeated writes
-    /// for the same open document reuse the same copy.
-    pub fn ensure_pdf_working_copy(&mut self, path: &str) -> Result<PathBuf, String> {
+    /// Return the readable PDF source for one PDF.js load. A load token pins
+    /// the file chosen on its first request; later requests with the same
+    /// token keep reading those bytes even after PDFium replaces the file.
+    /// `None` means the canonical path is not an open PDF.
+    pub fn pdf_view_file(
+        &mut self,
+        canonical_path: &Path,
+        token: Option<&str>,
+    ) -> Option<std::io::Result<Arc<File>>> {
+        let document = self.documents.values_mut().find(|document| {
+            document.path == canonical_path && document.doc_type == DocumentType::Pdf
+        })?;
+        if let (Some(token), Some(pin)) = (token, document.pdf_view_pin.as_ref()) {
+            if pin.token == token {
+                return Some(Ok(pin.file.clone()));
+            }
+        }
+        let source = document
+            .pdf_working_copy
+            .as_ref()
+            .filter(|path| path.is_file())
+            .unwrap_or(&document.path)
+            .clone();
+        let file = match File::open(&source) {
+            Ok(file) => Arc::new(file),
+            Err(error) => return Some(Err(error)),
+        };
+        if let Some(token) = token {
+            document.pdf_view_pin = Some(PdfViewPin {
+                token: token.to_string(),
+                file: file.clone(),
+            });
+        }
+        Some(Ok(file))
+    }
+
+    /// Decide how a PDF mutation gets its working copy without copying while
+    /// the workspace lock is held. Returns the document id with the plan.
+    pub fn plan_pdf_working_copy(
+        &self,
+        path: &str,
+    ) -> Result<(DocumentId, PdfWorkingCopyPlan), String> {
         let canonical = Self::canonicalize(path)?;
-        let document_id = self
+        let document = self
             .documents
             .values()
             .find(|document| document.path == canonical)
-            .map(|document| document.id.clone())
             .ok_or_else(|| format!("PDF is not open in this workspace: {path}"))?;
-
-        let document = self
-            .documents
-            .get(&document_id)
-            .ok_or_else(|| format!("document not found: {document_id}"))?;
         if document.doc_type != DocumentType::Pdf {
             return Err(format!("document is not a PDF: {path}"));
         }
-        if let Some(working_copy) = document
+        let plan = match document
             .pdf_working_copy
             .as_ref()
             .filter(|working_copy| working_copy.is_file())
         {
-            return Ok(working_copy.clone());
+            Some(working_copy) => PdfWorkingCopyPlan::Existing(working_copy.clone()),
+            None => PdfWorkingCopyPlan::Create {
+                document_id: document.id.clone(),
+                source: canonical,
+            },
+        };
+        Ok((document.id.clone(), plan))
+    }
+
+    /// Record a working copy created from a `PdfWorkingCopyPlan::Create`.
+    pub fn install_pdf_working_copy(
+        &mut self,
+        document_id: &DocumentId,
+        working_copy: PathBuf,
+    ) -> Result<(), String> {
+        let document = self.documents.get_mut(document_id).ok_or_else(|| {
+            format!("document closed while preparing its PDF copy: {document_id}")
+        })?;
+        document.pdf_working_copy = Some(working_copy);
+        Ok(())
+    }
+
+    /// Materialize a private working copy for a PDF mutation. Repeated writes
+    /// for the same open document reuse the same copy. Commands use the
+    /// plan/create/install steps directly so the copy runs outside the lock.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn ensure_pdf_working_copy(&mut self, path: &str) -> Result<PathBuf, String> {
+        match self.plan_pdf_working_copy(path)?.1 {
+            PdfWorkingCopyPlan::Existing(working_copy) => Ok(working_copy),
+            PdfWorkingCopyPlan::Create {
+                document_id,
+                source,
+            } => {
+                let working_copy = create_pdf_working_copy(&source)?;
+                self.install_pdf_working_copy(&document_id, working_copy.clone())?;
+                Ok(working_copy)
+            }
         }
-
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        canonical.hash(&mut hasher);
-        let nonce = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_nanos())
-            .unwrap_or(0);
-        let directory = std::env::temp_dir().join("reader-pdf-working");
-        std::fs::create_dir_all(&directory)
-            .map_err(|error| format!("create PDF working directory: {error}"))?;
-        let working_copy = directory.join(format!(
-            "reader-{}-{:016x}-{nonce}.pdf",
-            std::process::id(),
-            hasher.finish(),
-        ));
-        let temporary_copy = working_copy.with_extension("pdf.tmp");
-        std::fs::copy(&canonical, &temporary_copy)
-            .map_err(|error| format!("create PDF working copy: {error}"))?;
-        std::fs::rename(&temporary_copy, &working_copy)
-            .map_err(|error| format!("activate PDF working copy: {error}"))?;
-
-        self.documents
-            .get_mut(&document_id)
-            .expect("document exists while creating its PDF working copy")
-            .pdf_working_copy = Some(working_copy.clone());
-        Ok(working_copy)
     }
 
     /// Snapshot for a specific window — only that window's tabs, but all
@@ -722,6 +797,30 @@ impl AppWorkspace {
         ws.ensure_main();
         Some(ws)
     }
+}
+
+/// Copy an original PDF to a fresh private working-copy path.
+pub fn create_pdf_working_copy(source: &Path) -> Result<PathBuf, String> {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    source.hash(&mut hasher);
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let directory = std::env::temp_dir().join("reader-pdf-working");
+    std::fs::create_dir_all(&directory)
+        .map_err(|error| format!("create PDF working directory: {error}"))?;
+    let working_copy = directory.join(format!(
+        "reader-{}-{:016x}-{nonce}.pdf",
+        std::process::id(),
+        hasher.finish(),
+    ));
+    let temporary_copy = working_copy.with_extension("pdf.tmp");
+    std::fs::copy(source, &temporary_copy)
+        .map_err(|error| format!("create PDF working copy: {error}"))?;
+    std::fs::rename(&temporary_copy, &working_copy)
+        .map_err(|error| format!("activate PDF working copy: {error}"))?;
+    Ok(working_copy)
 }
 
 fn remove_pdf_working_copy(document: &DocumentSession) {
@@ -1199,5 +1298,62 @@ mod tests {
         let snapshot = restored.snapshot_for(&MAIN_WINDOW.into());
         assert_eq!(snapshot.tabs.len(), 1);
         assert_eq!(snapshot.documents.len(), 1);
+    }
+
+    #[test]
+    fn closing_main_drops_its_documents_so_they_can_open_elsewhere() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let pdf = tmp_file("closed-main.pdf", "%PDF-1.4");
+        let path = pdf.to_str().unwrap();
+        ws.open_document(path, &MAIN_WINDOW.into()).unwrap();
+        let other = ws.create_new_tab(&"win-9".into());
+
+        ws.remove_window(&MAIN_WINDOW.into());
+
+        assert!(ws.windows.contains_key(MAIN_WINDOW));
+        assert!(ws.snapshot_for(&MAIN_WINDOW.into()).tabs.is_empty());
+        assert!(ws.documents.is_empty());
+        let reopened = ws.open_document(path, &"win-9".into()).unwrap();
+        assert_eq!(reopened, other, "the detached window's new tab is reused");
+        assert_eq!(ws.tabs[&reopened].window_id, "win-9");
+        let _ = std::fs::remove_file(pdf);
+    }
+
+    #[test]
+    fn a_pdf_view_token_keeps_its_source_after_a_working_copy_appears() {
+        use std::io::Read;
+
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let pdf = tmp_file("pinned.pdf", "%PDF-original");
+        let path = pdf.to_str().unwrap();
+        ws.open_document(path, &MAIN_WINDOW.into()).unwrap();
+        let canonical = pdf.canonicalize().unwrap();
+
+        let first = ws
+            .pdf_view_file(&canonical, Some("load-a"))
+            .unwrap()
+            .unwrap();
+        let working = ws.ensure_pdf_working_copy(path).unwrap();
+        std::fs::write(&working, "%PDF-edited").unwrap();
+
+        let same_load = ws
+            .pdf_view_file(&canonical, Some("load-a"))
+            .unwrap()
+            .unwrap();
+        assert!(Arc::ptr_eq(&first, &same_load));
+        let mut next_load = String::new();
+        (&*ws
+            .pdf_view_file(&canonical, Some("load-b"))
+            .unwrap()
+            .unwrap())
+            .read_to_string(&mut next_load)
+            .unwrap();
+        assert_eq!(next_load, "%PDF-edited");
+        assert!(ws.pdf_view_file(Path::new("not-open.pdf"), None).is_none());
+
+        let _ = std::fs::remove_file(working);
+        let _ = std::fs::remove_file(pdf);
     }
 }

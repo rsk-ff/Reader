@@ -45,6 +45,8 @@ pub fn run() {
             .build(),
     );
     builder = builder.plugin(tauri_plugin_dialog::init());
+    // PDF links and outline URLs leave the webview through the system browser.
+    builder = builder.plugin(tauri_plugin_opener::init());
 
     #[cfg(desktop)]
     {
@@ -59,8 +61,8 @@ pub fn run() {
         .on_window_event(|window, event| {
             // When a window is closed by the user, drop its tab slots from the
             // workspace (so the model stays consistent) and persist the session
-            // for crash/quit recovery (§26). The main window's slots are kept
-            // (it may outlive its tabs).
+            // for crash/quit recovery (§26). The main window keeps an empty
+            // workspace slot, but its tabs and documents are dropped too.
             if let WindowEvent::Destroyed = event {
                 let app = window.app_handle();
                 let label = window.label().to_string();
@@ -71,7 +73,7 @@ pub fn run() {
                     return;
                 }
                 let ws = app.state::<workspace::SharedWorkspace>().inner();
-                // remove_window is a no-op for main.
+                // For main this keeps an empty slot but drops its tabs.
                 if let Ok(mut guard) = ws.lock() {
                     guard.remove_window(&label);
                 }
@@ -150,10 +152,7 @@ pub fn run() {
                     for url in urls {
                         if let Ok(path) = url.to_file_path() {
                             if let Some(s) = path.to_str() {
-                                let ws = app_handle.state::<workspace::SharedWorkspace>().inner();
-                                if let Err(e) = commands::open_document(app_handle, ws, s) {
-                                    log::warn!("open_document('{s}') failed: {e}");
-                                }
+                                commands::open_external_document(app_handle, s);
                             }
                         }
                     }

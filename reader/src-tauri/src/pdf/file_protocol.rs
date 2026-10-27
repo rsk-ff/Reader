@@ -6,8 +6,8 @@
 //! as one JSON payload.
 
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use http::{Method, Response, StatusCode};
 use tauri::{Manager, UriSchemeContext, UriSchemeResponder};
@@ -47,10 +47,20 @@ fn requested_path(uri: &http::Uri) -> Result<PathBuf, &'static str> {
     Ok(PathBuf::from(percent_decode(encoded)?))
 }
 
-fn canonical_open_pdf<R: tauri::Runtime>(
-    ctx: &UriSchemeContext<'_, R>,
+/// The PDF.js load token carried as `?rev=<token>` in the request URL.
+fn requested_view_token(uri: &http::Uri) -> Option<String> {
+    uri.query()?
+        .split('&')
+        .find_map(|pair| pair.strip_prefix("rev="))
+        .filter(|token| !token.is_empty())
+        .map(str::to_owned)
+}
+
+fn open_pdf_view<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
     path: &Path,
-) -> Result<PathBuf, (StatusCode, String)> {
+    token: Option<&str>,
+) -> Result<Arc<File>, (StatusCode, String)> {
     if !path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -65,20 +75,42 @@ fn canonical_open_pdf<R: tauri::Runtime>(
             format!("PDF path is unavailable: {error}"),
         )
     })?;
-    let workspace = ctx
-        .app_handle()
-        .state::<crate::workspace::SharedWorkspace>();
-    let source_path = workspace
-        .lock()
-        .ok()
-        .and_then(|guard| guard.pdf_source_path(&canonical));
-
-    source_path.ok_or_else(|| {
+    let workspace = app.state::<crate::workspace::SharedWorkspace>();
+    let mut guard = workspace.lock().map_err(|error| {
         (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("workspace lock poisoned: {error}"),
+        )
+    })?;
+    match guard.pdf_view_file(&canonical, token) {
+        Some(Ok(file)) => Ok(file),
+        Some(Err(error)) => Err((StatusCode::NOT_FOUND, format!("open PDF: {error}"))),
+        None => Err((
             StatusCode::FORBIDDEN,
             "PDF is not open in this workspace".into(),
-        )
-    })
+        )),
+    }
+}
+
+/// Read exactly `length` bytes at `offset` without touching a shared cursor,
+/// so concurrent range requests can read one pinned handle.
+fn read_exact_at(file: &File, offset: u64, length: u64) -> std::io::Result<Vec<u8>> {
+    let length = usize::try_from(length)
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "range too large"))?;
+    let mut body = vec![0; length];
+    let mut filled = 0;
+    while filled < length {
+        let position = offset + filled as u64;
+        #[cfg(windows)]
+        let read = std::os::windows::fs::FileExt::seek_read(file, &mut body[filled..], position)?;
+        #[cfg(unix)]
+        let read = std::os::unix::fs::FileExt::read_at(file, &mut body[filled..], position)?;
+        if read == 0 {
+            return Err(std::io::ErrorKind::UnexpectedEof.into());
+        }
+        filled += read;
+    }
+    Ok(body)
 }
 
 /// Parse one HTTP byte range into inclusive start/end offsets.
@@ -136,11 +168,10 @@ fn response_builder(status: StatusCode) -> http::response::Builder {
         .header("X-Content-Type-Options", "nosniff")
 }
 
-fn respond_error(responder: UriSchemeResponder, status: StatusCode, message: String) {
-    let response = response_builder(status)
+fn error_response(status: StatusCode, message: String) -> Response<Vec<u8>> {
+    response_builder(status)
         .body(message.into_bytes())
-        .expect("static PDF protocol error response");
-    responder.respond(response);
+        .expect("static PDF protocol error response")
 }
 
 pub fn handle_reader_file<R: tauri::Runtime>(
@@ -148,8 +179,20 @@ pub fn handle_reader_file<R: tauri::Runtime>(
     request: http::Request<Vec<u8>>,
     responder: UriSchemeResponder,
 ) {
+    // The protocol callback runs on the UI thread; file and workspace access
+    // happens on a blocking worker so large range reads cannot stall the UI.
+    let app = ctx.app_handle().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        responder.respond(reader_file_response(&app, &request));
+    });
+}
+
+fn reader_file_response<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    request: &http::Request<Vec<u8>>,
+) -> Response<Vec<u8>> {
     if request.method() == Method::OPTIONS {
-        let response = Response::builder()
+        return Response::builder()
             .status(StatusCode::NO_CONTENT)
             .header("Access-Control-Allow-Origin", "*")
             .header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
@@ -157,54 +200,31 @@ pub fn handle_reader_file<R: tauri::Runtime>(
             .header("Access-Control-Max-Age", "86400")
             .body(Vec::new())
             .expect("static CORS response");
-        responder.respond(response);
-        return;
     }
 
     if request.method() != Method::GET && request.method() != Method::HEAD {
-        respond_error(
-            responder,
+        return error_response(
             StatusCode::METHOD_NOT_ALLOWED,
             "only GET and HEAD are supported".into(),
         );
-        return;
     }
 
     let path = match requested_path(request.uri()) {
         Ok(path) => path,
-        Err(error) => {
-            respond_error(responder, StatusCode::BAD_REQUEST, error.into());
-            return;
-        }
+        Err(error) => return error_response(StatusCode::BAD_REQUEST, error.into()),
     };
-    let path = match canonical_open_pdf(&ctx, &path) {
-        Ok(path) => path,
-        Err((status, error)) => {
-            respond_error(responder, status, error);
-            return;
-        }
-    };
-
-    let mut file = match File::open(&path) {
+    let token = requested_view_token(request.uri());
+    let file = match open_pdf_view(app, &path, token.as_deref()) {
         Ok(file) => file,
-        Err(error) => {
-            respond_error(
-                responder,
-                StatusCode::NOT_FOUND,
-                format!("open PDF: {error}"),
-            );
-            return;
-        }
+        Err((status, error)) => return error_response(status, error),
     };
     let total = match file.metadata() {
         Ok(metadata) => metadata.len(),
         Err(error) => {
-            respond_error(
-                responder,
+            return error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("read PDF metadata: {error}"),
-            );
-            return;
+            )
         }
     };
 
@@ -217,12 +237,10 @@ pub fn handle_reader_file<R: tauri::Runtime>(
     ) {
         Ok(range) => range,
         Err(()) => {
-            let response = response_builder(StatusCode::RANGE_NOT_SATISFIABLE)
+            return response_builder(StatusCode::RANGE_NOT_SATISFIABLE)
                 .header("Content-Range", format!("bytes */{total}"))
                 .body(Vec::new())
                 .expect("static unsatisfied range response");
-            responder.respond(response);
-            return;
         }
     };
 
@@ -233,33 +251,25 @@ pub fn handle_reader_file<R: tauri::Runtime>(
     };
     let expected_length = if total == 0 { 0 } else { end - start + 1 };
 
-    let mut body = Vec::new();
-    if request.method() == Method::GET && expected_length > 0 {
-        if let Err(error) = file.seek(SeekFrom::Start(start)) {
-            respond_error(
-                responder,
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("seek PDF: {error}"),
-            );
-            return;
+    let body = if request.method() == Method::GET && expected_length > 0 {
+        match read_exact_at(&file, start, expected_length) {
+            Ok(body) => body,
+            Err(error) => {
+                return error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("read PDF: {error}"),
+                )
+            }
         }
-        let mut limited = file.take(expected_length);
-        if let Err(error) = limited.read_to_end(&mut body) {
-            respond_error(
-                responder,
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("read PDF: {error}"),
-            );
-            return;
-        }
-    }
+    } else {
+        Vec::new()
+    };
 
     let mut builder = response_builder(status).header("Content-Length", expected_length);
     if status == StatusCode::PARTIAL_CONTENT {
         builder = builder.header("Content-Range", format!("bytes {start}-{end}/{total}"));
     }
-    let response = builder.body(body).expect("PDF byte response");
-    responder.respond(response);
+    builder.body(body).expect("PDF byte response")
 }
 
 #[cfg(test)]
@@ -290,6 +300,39 @@ mod tests {
         assert!(parse_range(Some("bytes=5-4"), 1000).is_err());
         assert!(parse_range(Some("bytes=0-1,4-5"), 1000).is_err());
         assert!(parse_range(Some("bytes=-0"), 1000).is_err());
+    }
+
+    #[test]
+    fn reads_the_pdf_js_load_token_from_the_query() {
+        let uri: http::Uri = "http://reader-file.localhost/a.pdf?rev=k3f9-2"
+            .parse()
+            .unwrap();
+        assert_eq!(requested_view_token(&uri).as_deref(), Some("k3f9-2"));
+        let bare: http::Uri = "http://reader-file.localhost/a.pdf".parse().unwrap();
+        assert_eq!(requested_view_token(&bare), None);
+        let empty: http::Uri = "http://reader-file.localhost/a.pdf?rev=".parse().unwrap();
+        assert_eq!(requested_view_token(&empty), None);
+    }
+
+    #[test]
+    fn a_pinned_handle_keeps_reading_bytes_replaced_by_an_atomic_write() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+        let path = std::env::temp_dir().join(format!("reader-pin-{unique}.pdf"));
+        std::fs::write(&path, b"%PDF-old-bytes").unwrap();
+        let pinned = File::open(&path).unwrap();
+
+        // PDFium saves and explicit saves both replace the file by rename.
+        crate::pdf::pdfium::atomic_write(path.to_str().unwrap(), b"%PDF-new-longer-bytes")
+            .expect("replace a file that a PDF.js load still holds open");
+
+        assert_eq!(read_exact_at(&pinned, 5, 3).unwrap(), b"old");
+        assert_eq!(pinned.metadata().unwrap().len(), 14);
+        assert_eq!(std::fs::read(&path).unwrap(), b"%PDF-new-longer-bytes");
+        drop(pinned);
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]

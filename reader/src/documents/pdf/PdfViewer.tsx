@@ -26,7 +26,7 @@ import { registerDocumentLifecycle } from "../../workspace/documentLifecycle";
 import type { PdfAnnotation } from "./annotation-types";
 import { PdfJsAnnotationPortals } from "./PdfJsAnnotationPortals";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
-import { blankPageInsertArgs, pdfFileUrl } from "./pdfModel";
+import { blankPageInsertArgs, newPdfViewerSession, pdfFileUrl, pdfLoadToken } from "./pdfModel";
 import { flattenOutline } from "./pdfOutline";
 import { installPdfMarginSelection } from "./pdfMarginSelection";
 import { SelectionPreservingPdfViewer as PdfJsViewer } from "./SelectionPreservingPdfViewer";
@@ -175,6 +175,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
   // Workspace revision changes for every annotation. Structural reloads are
   // explicit so a completed annotation never tears down the whole PDF.js view.
   const sourceRevision = reloadVersion;
+  const viewerSessionRef = useRef(newPdfViewerSession());
   const dirty = localDirty || Boolean(workspaceDocument?.dirty);
 
   const resizeSidebar = useCallback((width: number) => {
@@ -366,7 +367,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
     setSearching(false);
 
     const loadingTask = getDocument({
-      url: pdfFileUrl(path, sourceRevision),
+      url: pdfFileUrl(path, pdfLoadToken(viewerSessionRef.current, sourceRevision)),
       cMapUrl: pdfAssetUrl("cmaps"),
       cMapPacked: true,
       iccUrl: pdfAssetUrl("iccs"),

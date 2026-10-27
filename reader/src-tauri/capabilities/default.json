@@ -8,6 +8,10 @@
     "frame:default",
     "dialog:allow-open",
     "dialog:allow-save",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "http://*" }, { "url": "https://*" }, { "url": "mailto:*" }]
+    },
     "core:window:allow-destroy",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
