@@ -2,7 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import App from "./app/App";
-import { preventBrowserContextMenu } from "./app/browserGuards";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { guardLinkNavigation, preventBrowserContextMenu } from "./app/browserGuards";
 import {
   DocumentTypeIcon,
   documentTypeFromFileName,
@@ -71,5 +72,11 @@ window.addEventListener("unhandledrejection", (e) => {
 document.addEventListener("contextmenu", preventBrowserContextMenu, {
   capture: true,
 });
+// Bubble phase: viewers with their own link handling cancel the event first.
+const openExternalLink = (url: string) => {
+  void openUrl(url).catch((error: unknown) => report("error", error));
+};
+document.addEventListener("click", (event) => guardLinkNavigation(event, openExternalLink));
+document.addEventListener("auxclick", (event) => guardLinkNavigation(event, openExternalLink));
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<Root />);

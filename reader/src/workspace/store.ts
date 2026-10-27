@@ -207,7 +207,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       ? state.documentsById[tab.document_id]
       : undefined;
     if (document?.dirty && document.doc_type === "markdown") {
-      throw new Error("Save Markdown changes before moving this tab to another window.");
+      throw new Error("请先保存 Markdown 修改，再把这个标签移到其他窗口。");
     }
     return await invoke<WindowId>("detach_tab", { tabId: id });
   },
@@ -244,7 +244,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       : undefined;
     if (document?.dirty && document.doc_type === "markdown") {
       if (detachOnMiss) {
-        throw new Error("Save Markdown changes before moving this tab to another window.");
+        throw new Error("请先保存 Markdown 修改，再把这个标签移到其他窗口。");
       }
       // A one-tab drag may still move its native window, but dirty Markdown
       // must not cross a window boundary.
