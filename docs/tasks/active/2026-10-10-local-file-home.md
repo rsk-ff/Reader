@@ -3,7 +3,7 @@
 - Status: `waiting_user_acceptance`
 - Owner: Codex
 - Created: `2026-10-10`
-- Last updated: `2026-10-12`
+- Last updated: `2026-10-27`
 - Base branch: `master`
 - Base commit: `38b016d`; feedback revision base: `7a170d5`
 - Implementation: `Codex`
@@ -112,6 +112,8 @@ ae550fa 之后同步目录实现与验证已完成：当前本机识别 OneDrive
 
 常用不会因快速浏览出现，可随真实重复打开或前台停留形成；检查版历史独立，不自动显示正式历史。筛选仅当前列表，不递归搜索。
 
+2026-10-27 用户反馈：功能可用但视觉“丑”，同意按建议方向先改。分支 `feat/new-tab-visual-polish` 仅改 `styles.css` 新标签页段：侧栏圆角胶囊项、当前项强调色细条，分组仅用间距；导航按钮去框、地址/搜索改圆角输入；内容最大 960px 居中，去掉灰底表头和行分隔线，行悬停圆角底色；磁盘改卡片；右键菜单与新建对话框改圆角加阴影。结构、文案与交互未变。`pnpm --dir reader test:browser` 90 项全部通过。检查版窗口“Reader · 新标签页视觉验收”，沿用独立标识 `com.earendil.reader.localhome20261010`。用户确认后推送并开 PR。
+
 ## Risks and remaining work
 
 实际 WebView2 菜单焦点/视觉、本机权限拒绝、可移动磁盘移除待用户；原生创建已验证真实临时目录与同名保护，受限目录写入错误未用桌面实测。正式打包安装未做，现有大 chunk 提示仍在。
@@ -120,7 +122,7 @@ ae550fa 之后同步目录实现与验证已完成：当前本机识别 OneDrive
 
 ## Next action
 
-等待用户检查 OneDrive/Dropbox 入口与本机目录浏览反馈；同一目标继续本会话。
+等待用户检查新视觉检查版；认可后推送 `feat/new-tab-visual-polish` 并开 PR，反馈继续本任务。
 
 ## Outcome
 

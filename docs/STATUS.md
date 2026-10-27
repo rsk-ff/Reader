@@ -6,7 +6,7 @@
 
 ## Active task
 
-- [`2026-10-10-local-file-home.md`](tasks/active/2026-10-10-local-file-home.md) — `waiting_user_acceptance`; OneDrive/Dropbox 本机自动入口及卸载/重装/路径变化更新已实现，120 项前端、52 项 Rust、18 项浏览器与类型/构建/静态检查通过；独立检查窗口已启动，实际入口与交互待用户。
+- [`2026-10-10-local-file-home.md`](tasks/active/2026-10-10-local-file-home.md) — `waiting_user_acceptance`; OneDrive/Dropbox 本机自动入口及卸载/重装/路径变化更新已实现，120 项前端、52 项 Rust、18 项浏览器与类型/构建/静态检查通过；独立检查窗口已启动，实际入口与交互待用户。2026-10-27 用户认为外观不佳，视觉重做在 `feat/new-tab-visual-polish` 分支，检查版待用户确认。
 - 2026-10-27 已验收归档：[PDF 目录侧栏](tasks/archive/2026-08-29-pdf-outline-sidebar.md)与[图标统一](tasks/archive/2026-10-07-icon-consistency.md)（d7c2aab 正式安装版）。
 - Latest completed task: [`2026-10-09-sidebar-release.md`](tasks/archive/2026-10-09-sidebar-release.md)；用户已验收的侧栏 b2c1553 完成正式构建及本机覆盖安装，20 条正式历史安装/启动前后完全保留；[侧栏实现任务](tasks/archive/2026-10-09-markdown-sidebar.md)已验收归档。
 
