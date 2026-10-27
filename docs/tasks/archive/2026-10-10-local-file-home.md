@@ -1,6 +1,6 @@
 # 新标签页本地文件浏览
 
-- Status: `waiting_user_acceptance`
+- Status: `done`
 - Owner: Codex
 - Created: `2026-10-10`
 - Last updated: `2026-10-27`
@@ -65,7 +65,7 @@ ae550fa 之后同步目录实现与验证已完成：当前本机识别 OneDrive
 - [x] 前端/Rust/浏览器、类型/构建/静态与文档/diff 检查通过，独立检查窗口已更新。
 - [x] 侧键单次返回/前进、两端边界、历史分支、非活动与模态保护自动化通过；硬件待用户。
 - [x] 同步客户端卸载残留、重装换目录、个人/工作账户、最新配置、无效目录和去重；focus/30 秒/刷新/激活更新、后台暂停、手动固定保留/取消回归通过，本机目录只读探测通过。
-- [ ] 实际 WebView2 布局/右键/新建及本机目录权限经用户验收。
+- [x] 实际 WebView2 布局/右键/新建及本机目录权限经用户验收（2026-10-27）。
 
 ## Progress
 
@@ -73,7 +73,7 @@ ae550fa 之后同步目录实现与验证已完成：当前本机识别 OneDrive
 - [x] 查 zoxide 官方算法，记录参考与项目额外资格决定。
 - [x] 实现精简布局、右键操作、有效访问计分和存储迁移。
 - [x] 完成相关与最终验证，更新文档，独立检查版重新编译启动。
-- [ ] 用户视觉与交互验收。
+- [x] 用户视觉与交互验收（2026-10-27）。
 
 ## Discoveries
 
@@ -124,10 +124,12 @@ ae550fa 之后同步目录实现与验证已完成：当前本机识别 OneDrive
 
 ## Next action
 
-等待用户检查新视觉检查版；认可后推送 `feat/new-tab-visual-polish` 并开 PR，反馈继续本任务。
+无；2026-10-27 用户验收通过，任务归档，分支 `feat/new-tab-visual-polish` 推送并开 PR。
 
 ## Outcome
 
 反馈修订实现与自动化验证交付完成，本地提交主题 `feat: simplify new-tab navigation and add folder context actions`，哈希见 Git；保留任务等待用户验收，未声称整体完成或正式发布。独立需求另开会话。
 
 同步目录追加提交主题 `feat: discover adaptive OneDrive and Dropbox folder entries`，哈希见 Git；仍等待用户验收，不归档任务或发布正式包。
+
+2026-10-27 用户验收通过（功能、同步目录入口、新视觉与窄窗口图标栏）。未做正式打包安装。
