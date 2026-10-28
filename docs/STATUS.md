@@ -10,6 +10,7 @@
 
 ## Pending user acceptance
 
+- Markdown 保存保真（保留换行符/BOM、检测外部修改、非 UTF-8 中文提示）：分支 `claude/project-thread-xvta0x`，PR #3 合入 `dev`。
 - 新标签页本地文件浏览（含 OneDrive/Dropbox 入口、视觉重做）已于 2026-10-27 验收，尚未正式打包安装。
 
 ## Recently merged into dev

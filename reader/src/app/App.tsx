@@ -9,6 +9,7 @@ import {
   prepareDocumentForClose,
   UnsavedChangesDialog,
 } from "../workspace/documentLifecycle";
+import { ConfirmDialog } from "../workspace/confirmDialog";
 import "../styles.css";
 
 export default function App() {
@@ -115,6 +116,7 @@ export default function App() {
         )}
       </div>
       <UnsavedChangesDialog />
+      <ConfirmDialog />
     </div>
   );
 }

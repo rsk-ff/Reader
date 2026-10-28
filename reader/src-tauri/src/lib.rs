@@ -12,6 +12,7 @@
 mod cloud_locations;
 mod commands;
 mod local_files;
+mod markdown_file;
 pub mod pdf;
 mod workspace;
 

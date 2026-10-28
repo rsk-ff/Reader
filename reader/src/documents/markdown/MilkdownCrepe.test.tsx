@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { MilkdownCrepe } from "./MilkdownCrepe";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { prepareDocumentForClose, UnsavedChangesDialog } from "../../workspace/documentLifecycle";
+import { ConfirmDialog } from "../../workspace/confirmDialog";
 
 type MarkdownListener = (ctx: unknown, markdown: string, previous: string) => void;
 
@@ -211,7 +212,36 @@ describe("Milkdown editor lifecycle", () => {
     await act(async () => instance.publish(null, "first edit\n\n第二段", "first edit"));
     expect(engine.instances).toHaveLength(1);
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
-    expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "first edit\n\n第二段" });
+    expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "first edit\n\n第二段", overwrite: false });
+    expect(host.textContent).toContain("已保存");
+  });
+
+  it("asks in the app before overwriting a file that changed outside Reader", async () => {
+    await render(<>
+      <MarkdownEditor path="test.md" fileName="test.md" docId="test" untitled={false} active />
+      <ConfirmDialog />
+    </>);
+    const instance = engine.instances[0];
+    markEditIntent(instance);
+    await act(async () => instance.publish(null, "mine", "initial text"));
+    engine.invoke.mockImplementation(async (command: string, args?: { overwrite?: boolean }) => {
+      if (command === "save_file_text" && !args?.overwrite) throw "EXTERNAL_CHANGE:changed";
+      return undefined;
+    });
+    const save = () => act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
+
+    await save();
+    expect(host.querySelector("[role=alertdialog]")?.textContent).toContain("文件已被修改");
+    // Cancel holds focus, so Enter or Escape keeps the file on disk.
+    expect(document.activeElement?.textContent).toBe("取消");
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(host.querySelector("[role=alertdialog]")).toBeNull();
+    expect(engine.invoke).not.toHaveBeenCalledWith("save_file_text", expect.objectContaining({ overwrite: true }));
+    expect(host.textContent).not.toContain("已保存");
+
+    await save();
+    await clickMode("覆盖");
+    expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "mine", overwrite: true });
     expect(host.textContent).toContain("已保存");
   });
 

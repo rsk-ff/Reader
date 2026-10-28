@@ -71,6 +71,10 @@ pub struct DocumentSession {
     /// a later PDFium write must not change the file under an in-flight load.
     #[serde(skip)]
     pub pdf_view_pin: Option<PdfViewPin>,
+    /// Markdown BOM/line-ending style and the disk stamp of the last
+    /// read or write, so saves keep the format and notice outside edits.
+    #[serde(skip)]
+    pub markdown_disk: Option<crate::markdown_file::MarkdownDiskState>,
 }
 
 /// An open handle to the PDF source chosen for one PDF.js load token. Writes
@@ -209,6 +213,7 @@ impl AppWorkspace {
                 untitled: true,
                 pdf_working_copy: None,
                 pdf_view_pin: None,
+                markdown_disk: None,
             },
         );
         self.attach_document(
@@ -272,6 +277,7 @@ impl AppWorkspace {
             untitled: false,
             pdf_working_copy: None,
             pdf_view_pin: None,
+            markdown_disk: None,
         };
         self.documents.insert(doc_id.clone(), session);
 

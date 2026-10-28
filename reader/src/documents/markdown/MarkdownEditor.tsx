@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save as showSaveDialog } from "@tauri-apps/plugin-dialog";
 
-import { useMarkdownText, useMarkdownSave } from "./useMarkdownText";
+import { isExternalChangeError, useMarkdownText, useMarkdownSave } from "./useMarkdownText";
+import { confirmInApp } from "../../workspace/confirmDialog";
 import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
 import { MarkdownToolbar } from "./MarkdownToolbar";
 import { MarkdownTools } from "./MarkdownTools";
@@ -151,7 +152,18 @@ export function MarkdownEditor({
           });
           await refreshWorkspace();
         } else {
-          await saveExisting(textToSave);
+          try {
+            await saveExisting(textToSave);
+          } catch (error) {
+            if (!isExternalChangeError(error)) throw error;
+            const overwrite = await confirmInApp({
+              title: "文件已被修改",
+              message: `“${fileName}”在 Reader 外被修改过。覆盖磁盘上的版本，用 Reader 里的内容替换它吗？`,
+              confirmLabel: "覆盖",
+            });
+            if (!overwrite) return false;
+            await saveExisting(textToSave, true);
+          }
         }
         lastSavedTextRef.current = textToSave;
         const savedLatest = saveCoversCurrentRevision(savedRevision, editRevisionRef.current);
@@ -283,8 +295,17 @@ export function MarkdownEditor({
     [mode],
   );
 
-  if (loading) return <div className="md-status">opening markdown…</div>;
-  if (error) return <div className="md-status md-status-error">failed to open: {error}</div>;
+  if (loading) return <div className="md-status">正在打开…</div>;
+  if (error) {
+    return (
+      <div className="md-status">
+        <div className="md-open-error" role="alert">
+          <div className="md-open-error-title">无法打开这个文件</div>
+          <p className="md-open-error-detail">{error}</p>
+        </div>
+      </div>
+    );
+  }
   if (workingText == null) return <div className="md-status">no content</div>;
 
   return (
