@@ -64,6 +64,9 @@ interface WorkspaceState extends WorkspaceSnapshot {
   refresh: () => Promise<void>;
 }
 
+/** Tabs whose close is waiting on the unsaved-changes prompt. */
+const closingTabs = new Set<TabId>();
+
 function indexDocuments(snapshot: WorkspaceSnapshot) {
   const documentsById: Record<string, import("./types").DocumentSession> = {};
   for (const d of snapshot.documents) documentsById[d.id] = d;
@@ -172,18 +175,25 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   },
 
   closeTab: async (id) => {
-    const state = get();
-    const tab = state.tabs.find((candidate) => candidate.id === id);
-    const document = tab?.document_id
-      ? state.documentsById[tab.document_id]
-      : undefined;
-    if (
-      document?.dirty &&
-      !(await prepareDocumentForClose(document, tab?.title ?? document.file_name))
-    ) {
-      return;
+    // A repeated Ctrl+W while the prompt is open must not queue a second one.
+    if (closingTabs.has(id)) return;
+    closingTabs.add(id);
+    try {
+      const state = get();
+      const tab = state.tabs.find((candidate) => candidate.id === id);
+      const document = tab?.document_id
+        ? state.documentsById[tab.document_id]
+        : undefined;
+      if (
+        document?.dirty &&
+        !(await prepareDocumentForClose(document, tab?.title ?? document.file_name))
+      ) {
+        return;
+      }
+      await invoke("close_tab", { tabId: id });
+    } finally {
+      closingTabs.delete(id);
     }
-    await invoke("close_tab", { tabId: id });
   },
 
   reorderTabs: async (tabIds) => {

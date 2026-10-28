@@ -132,6 +132,225 @@ fn map_annot_type(ty: PdfPageAnnotationType) -> Option<AnnotationType> {
     }
 }
 
+/// Add `ann` to a page's annotation collection and return its stable id.
+fn insert_annotation(
+    annotations: &mut PdfPageAnnotations<'_>,
+    ann: &PdfAnnotation,
+) -> Result<String, String> {
+    let stable_id = if ann.id.starts_with("reader-id:") {
+        ann.id.clone()
+    } else {
+        format!("reader-id:{}", uuid_seed())
+    };
+    let color = color_with_opacity(&ann.color, ann.opacity);
+    let bounds = PdfRect::new(
+        PdfPoints::new(ann.rect.bottom),
+        PdfPoints::new(ann.rect.left),
+        PdfPoints::new(ann.rect.top),
+        PdfPoints::new(ann.rect.right),
+    );
+
+    match ann.annotation_type {
+        AnnotationType::Highlight => {
+            let mut created = annotations
+                .create_highlight_annotation()
+                .map_err(|e| format!("create highlight: {e}"))?;
+            created
+                .set_stroke_color(color)
+                .map_err(|e| format!("set color: {e}"))?;
+            let aps = created.attachment_points_mut();
+            for q in &ann.quad_points {
+                aps.create_attachment_point_at_end(PdfQuadPoints::new(
+                    PdfPoints::new(q.x1),
+                    PdfPoints::new(q.y1),
+                    PdfPoints::new(q.x2),
+                    PdfPoints::new(q.y2),
+                    PdfPoints::new(q.x3),
+                    PdfPoints::new(q.y3),
+                    PdfPoints::new(q.x4),
+                    PdfPoints::new(q.y4),
+                ))
+                .map_err(|e| format!("add quad: {e}"))?;
+            }
+            if ann.rect.right > ann.rect.left {
+                created
+                    .set_bounds(bounds)
+                    .map_err(|e| format!("set bounds: {e}"))?;
+            }
+            if let Some(t) = &ann.text {
+                created
+                    .set_contents(t)
+                    .map_err(|e| format!("set contents: {e}"))?;
+            }
+            created
+                .set_creator(&stable_id)
+                .map_err(|e| format!("set annotation id: {e}"))?;
+        }
+        AnnotationType::Underline => {
+            let mut created = annotations
+                .create_underline_annotation()
+                .map_err(|e| format!("create underline: {e}"))?;
+            created
+                .set_stroke_color(color)
+                .map_err(|e| format!("set color: {e}"))?;
+            let aps = created.attachment_points_mut();
+            for q in &ann.quad_points {
+                aps.create_attachment_point_at_end(PdfQuadPoints::new(
+                    PdfPoints::new(q.x1),
+                    PdfPoints::new(q.y1),
+                    PdfPoints::new(q.x2),
+                    PdfPoints::new(q.y2),
+                    PdfPoints::new(q.x3),
+                    PdfPoints::new(q.y3),
+                    PdfPoints::new(q.x4),
+                    PdfPoints::new(q.y4),
+                ))
+                .map_err(|e| format!("add quad: {e}"))?;
+            }
+            if ann.rect.right > ann.rect.left {
+                created
+                    .set_bounds(bounds)
+                    .map_err(|e| format!("set bounds: {e}"))?;
+            }
+            created
+                .set_creator(&stable_id)
+                .map_err(|e| format!("set annotation id: {e}"))?;
+        }
+        AnnotationType::Strikeout => {
+            let mut created = annotations
+                .create_strikeout_annotation()
+                .map_err(|e| format!("create strikeout: {e}"))?;
+            created
+                .set_stroke_color(color)
+                .map_err(|e| format!("set color: {e}"))?;
+            let aps = created.attachment_points_mut();
+            for q in &ann.quad_points {
+                aps.create_attachment_point_at_end(PdfQuadPoints::new(
+                    PdfPoints::new(q.x1),
+                    PdfPoints::new(q.y1),
+                    PdfPoints::new(q.x2),
+                    PdfPoints::new(q.y2),
+                    PdfPoints::new(q.x3),
+                    PdfPoints::new(q.y3),
+                    PdfPoints::new(q.x4),
+                    PdfPoints::new(q.y4),
+                ))
+                .map_err(|e| format!("add quad: {e}"))?;
+            }
+            if ann.rect.right > ann.rect.left {
+                created
+                    .set_bounds(bounds)
+                    .map_err(|e| format!("set bounds: {e}"))?;
+            }
+            created
+                .set_creator(&stable_id)
+                .map_err(|e| format!("set annotation id: {e}"))?;
+        }
+        AnnotationType::Note => {
+            let mut created = annotations
+                .create_text_annotation(ann.text.as_deref().unwrap_or(""))
+                .map_err(|e| format!("create note: {e}"))?;
+            created
+                .set_fill_color(color)
+                .map_err(|e| format!("set color: {e}"))?;
+            created
+                .set_bounds(bounds)
+                .map_err(|e| format!("set bounds: {e}"))?;
+            created
+                .set_creator(&stable_id)
+                .map_err(|e| format!("set annotation id: {e}"))?;
+        }
+        AnnotationType::FreeText => {
+            let mut created = annotations
+                .create_free_text_annotation(ann.text.as_deref().unwrap_or(""))
+                .map_err(|e| format!("create free text: {e}"))?;
+            created
+                .set_fill_color(color)
+                .map_err(|e| format!("set color: {e}"))?;
+            created
+                .set_bounds(bounds)
+                .map_err(|e| format!("set bounds: {e}"))?;
+            created
+                .set_creator(&stable_id)
+                .map_err(|e| format!("set annotation id: {e}"))?;
+        }
+        AnnotationType::Ink => {
+            let mut created = annotations
+                .create_ink_annotation()
+                .map_err(|e| format!("create ink: {e}"))?;
+            created
+                .set_stroke_color(color)
+                .map_err(|e| format!("set color: {e}"))?;
+            // Ink drawn as line path objects inside the annotation.
+            for path in &ann.ink_paths {
+                for w in path.windows(2) {
+                    let p1 = &w[0];
+                    let p2 = &w[1];
+                    // create_path_object_line already adds the object to the collection.
+                    let _ = created
+                        .objects_mut()
+                        .create_path_object_line(
+                            PdfPoints::new(p1.x),
+                            PdfPoints::new(p1.y),
+                            PdfPoints::new(p2.x),
+                            PdfPoints::new(p2.y),
+                            color,
+                            PdfPoints::new(1.5),
+                        )
+                        .map_err(|e| format!("ink line: {e}"))?;
+                }
+            }
+            if ann.rect.right > ann.rect.left {
+                created
+                    .set_bounds(bounds)
+                    .map_err(|e| format!("set bounds: {e}"))?;
+            }
+            created
+                .set_creator(&stable_id)
+                .map_err(|e| format!("set annotation id: {e}"))?;
+        }
+    }
+    Ok(stable_id)
+}
+
+/// Remove the annotation with `id` (a stable `reader-id:` or a positional
+/// `page:N:idx:I` id) from a page's annotation collection.
+fn remove_annotation(annotations: &mut PdfPageAnnotations<'_>, id: &str) -> Result<(), String> {
+    let i = if id.starts_with("reader-id:") {
+        let mut found = None;
+        for index in 0..annotations.len() {
+            let matches = annotations
+                .get(index)
+                .ok()
+                .and_then(|annotation| annotation.creator())
+                .is_some_and(|creator| creator == id);
+            if matches {
+                found = Some(index);
+                break;
+            }
+        }
+        found.ok_or_else(|| format!("annotation id '{id}' was not found"))?
+    } else {
+        id.rsplit(':')
+            .next()
+            .and_then(|value| value.parse::<usize>().ok())
+            .ok_or_else(|| format!("invalid annotation id '{id}'"))?
+    };
+    if i >= annotations.len() {
+        return Err(format!(
+            "annotation index {i} out of range (0..{})",
+            annotations.len()
+        ));
+    }
+    let ann = annotations
+        .get(i)
+        .map_err(|e| format!("get annot {i}: {e}"))?;
+    annotations
+        .delete_annotation(ann)
+        .map_err(|e| format!("delete annot {i}: {e}"))?;
+    Ok(())
+}
+
 impl PdfMutationBackend for PdfiumBackend {
     fn get_annotations(&self, path: &str, page_index: usize) -> Result<Vec<PdfAnnotation>, String> {
         let doc = load_doc(Path::new(path))?;
@@ -204,180 +423,7 @@ impl PdfMutationBackend for PdfiumBackend {
             .pages_mut()
             .get(ann.page_index as i32)
             .map_err(|e| format!("page {}: {}", ann.page_index, e))?;
-        let annotations = page.annotations_mut();
-        let stable_id = if ann.id.starts_with("reader-id:") {
-            ann.id.clone()
-        } else {
-            format!("reader-id:{}", uuid_seed())
-        };
-        let color = color_with_opacity(&ann.color, ann.opacity);
-        let bounds = PdfRect::new(
-            PdfPoints::new(ann.rect.bottom),
-            PdfPoints::new(ann.rect.left),
-            PdfPoints::new(ann.rect.top),
-            PdfPoints::new(ann.rect.right),
-        );
-
-        match ann.annotation_type {
-            AnnotationType::Highlight => {
-                let mut created = annotations
-                    .create_highlight_annotation()
-                    .map_err(|e| format!("create highlight: {e}"))?;
-                created
-                    .set_stroke_color(color)
-                    .map_err(|e| format!("set color: {e}"))?;
-                let aps = created.attachment_points_mut();
-                for q in &ann.quad_points {
-                    aps.create_attachment_point_at_end(PdfQuadPoints::new(
-                        PdfPoints::new(q.x1),
-                        PdfPoints::new(q.y1),
-                        PdfPoints::new(q.x2),
-                        PdfPoints::new(q.y2),
-                        PdfPoints::new(q.x3),
-                        PdfPoints::new(q.y3),
-                        PdfPoints::new(q.x4),
-                        PdfPoints::new(q.y4),
-                    ))
-                    .map_err(|e| format!("add quad: {e}"))?;
-                }
-                if ann.rect.right > ann.rect.left {
-                    created
-                        .set_bounds(bounds)
-                        .map_err(|e| format!("set bounds: {e}"))?;
-                }
-                if let Some(t) = &ann.text {
-                    created
-                        .set_contents(t)
-                        .map_err(|e| format!("set contents: {e}"))?;
-                }
-                created
-                    .set_creator(&stable_id)
-                    .map_err(|e| format!("set annotation id: {e}"))?;
-            }
-            AnnotationType::Underline => {
-                let mut created = annotations
-                    .create_underline_annotation()
-                    .map_err(|e| format!("create underline: {e}"))?;
-                created
-                    .set_stroke_color(color)
-                    .map_err(|e| format!("set color: {e}"))?;
-                let aps = created.attachment_points_mut();
-                for q in &ann.quad_points {
-                    aps.create_attachment_point_at_end(PdfQuadPoints::new(
-                        PdfPoints::new(q.x1),
-                        PdfPoints::new(q.y1),
-                        PdfPoints::new(q.x2),
-                        PdfPoints::new(q.y2),
-                        PdfPoints::new(q.x3),
-                        PdfPoints::new(q.y3),
-                        PdfPoints::new(q.x4),
-                        PdfPoints::new(q.y4),
-                    ))
-                    .map_err(|e| format!("add quad: {e}"))?;
-                }
-                if ann.rect.right > ann.rect.left {
-                    created
-                        .set_bounds(bounds)
-                        .map_err(|e| format!("set bounds: {e}"))?;
-                }
-                created
-                    .set_creator(&stable_id)
-                    .map_err(|e| format!("set annotation id: {e}"))?;
-            }
-            AnnotationType::Strikeout => {
-                let mut created = annotations
-                    .create_strikeout_annotation()
-                    .map_err(|e| format!("create strikeout: {e}"))?;
-                created
-                    .set_stroke_color(color)
-                    .map_err(|e| format!("set color: {e}"))?;
-                let aps = created.attachment_points_mut();
-                for q in &ann.quad_points {
-                    aps.create_attachment_point_at_end(PdfQuadPoints::new(
-                        PdfPoints::new(q.x1),
-                        PdfPoints::new(q.y1),
-                        PdfPoints::new(q.x2),
-                        PdfPoints::new(q.y2),
-                        PdfPoints::new(q.x3),
-                        PdfPoints::new(q.y3),
-                        PdfPoints::new(q.x4),
-                        PdfPoints::new(q.y4),
-                    ))
-                    .map_err(|e| format!("add quad: {e}"))?;
-                }
-                if ann.rect.right > ann.rect.left {
-                    created
-                        .set_bounds(bounds)
-                        .map_err(|e| format!("set bounds: {e}"))?;
-                }
-                created
-                    .set_creator(&stable_id)
-                    .map_err(|e| format!("set annotation id: {e}"))?;
-            }
-            AnnotationType::Note => {
-                let mut created = annotations
-                    .create_text_annotation(ann.text.as_deref().unwrap_or(""))
-                    .map_err(|e| format!("create note: {e}"))?;
-                created
-                    .set_fill_color(color)
-                    .map_err(|e| format!("set color: {e}"))?;
-                created
-                    .set_bounds(bounds)
-                    .map_err(|e| format!("set bounds: {e}"))?;
-                created
-                    .set_creator(&stable_id)
-                    .map_err(|e| format!("set annotation id: {e}"))?;
-            }
-            AnnotationType::FreeText => {
-                let mut created = annotations
-                    .create_free_text_annotation(ann.text.as_deref().unwrap_or(""))
-                    .map_err(|e| format!("create free text: {e}"))?;
-                created
-                    .set_fill_color(color)
-                    .map_err(|e| format!("set color: {e}"))?;
-                created
-                    .set_bounds(bounds)
-                    .map_err(|e| format!("set bounds: {e}"))?;
-                created
-                    .set_creator(&stable_id)
-                    .map_err(|e| format!("set annotation id: {e}"))?;
-            }
-            AnnotationType::Ink => {
-                let mut created = annotations
-                    .create_ink_annotation()
-                    .map_err(|e| format!("create ink: {e}"))?;
-                created
-                    .set_stroke_color(color)
-                    .map_err(|e| format!("set color: {e}"))?;
-                // Ink drawn as line path objects inside the annotation.
-                for path in &ann.ink_paths {
-                    for w in path.windows(2) {
-                        let p1 = &w[0];
-                        let p2 = &w[1];
-                        // create_path_object_line already adds the object to the collection.
-                        let _ = created
-                            .objects_mut()
-                            .create_path_object_line(
-                                PdfPoints::new(p1.x),
-                                PdfPoints::new(p1.y),
-                                PdfPoints::new(p2.x),
-                                PdfPoints::new(p2.y),
-                                color,
-                                PdfPoints::new(1.5),
-                            )
-                            .map_err(|e| format!("ink line: {e}"))?;
-                    }
-                }
-                if ann.rect.right > ann.rect.left {
-                    created
-                        .set_bounds(bounds)
-                        .map_err(|e| format!("set bounds: {e}"))?;
-                }
-                created
-                    .set_creator(&stable_id)
-                    .map_err(|e| format!("set annotation id: {e}"))?;
-            }
-        }
+        let stable_id = insert_annotation(page.annotations_mut(), &ann)?;
         drop(page);
         let bytes = save_doc_bytes(&doc)?;
         atomic_write(path, &bytes)?;
@@ -387,9 +433,18 @@ impl PdfMutationBackend for PdfiumBackend {
     }
 
     fn update_annotation(&self, path: &str, ann: PdfAnnotation) -> Result<(), String> {
-        // §5: read old → remove → recreate.
-        self.delete_annotation(path, ann.page_index, &ann.id)?;
-        self.create_annotation(path, ann)?;
+        // §5: remove → recreate, in one loaded document and one write, so a
+        // failed recreate cannot leave the annotation deleted on disk.
+        let mut doc = load_doc(Path::new(path))?;
+        let mut page = doc
+            .pages_mut()
+            .get(ann.page_index as i32)
+            .map_err(|e| format!("page {}: {}", ann.page_index, e))?;
+        remove_annotation(page.annotations_mut(), &ann.id)?;
+        insert_annotation(page.annotations_mut(), &ann)?;
+        drop(page);
+        let bytes = save_doc_bytes(&doc)?;
+        atomic_write(path, &bytes)?;
         Ok(())
     }
 
@@ -399,39 +454,7 @@ impl PdfMutationBackend for PdfiumBackend {
             .pages_mut()
             .get(page_index as i32)
             .map_err(|e| format!("page {page_index}: {e}"))?;
-        let annotations = page.annotations_mut();
-        let i = if id.starts_with("reader-id:") {
-            let mut found = None;
-            for index in 0..annotations.len() {
-                let matches = annotations
-                    .get(index)
-                    .ok()
-                    .and_then(|annotation| annotation.creator())
-                    .is_some_and(|creator| creator == id);
-                if matches {
-                    found = Some(index);
-                    break;
-                }
-            }
-            found.ok_or_else(|| format!("annotation id '{id}' was not found"))?
-        } else {
-            id.rsplit(':')
-                .next()
-                .and_then(|value| value.parse::<usize>().ok())
-                .ok_or_else(|| format!("invalid annotation id '{id}'"))?
-        };
-        if i >= annotations.len() {
-            return Err(format!(
-                "annotation index {i} out of range (0..{})",
-                annotations.len()
-            ));
-        }
-        let ann = annotations
-            .get(i)
-            .map_err(|e| format!("get annot {i}: {e}"))?;
-        annotations
-            .delete_annotation(ann)
-            .map_err(|e| format!("delete annot {i}: {e}"))?;
+        remove_annotation(page.annotations_mut(), id)?;
         drop(page);
         let bytes = save_doc_bytes(&doc)?;
         atomic_write(path, &bytes)?;
@@ -605,6 +628,52 @@ mod tests {
         let size = fs::metadata(&dst).map(|m| m.len()).unwrap_or(0);
         assert!(size > 0, "file should exist after save");
 
+        let _ = fs::remove_file(&dst);
+    }
+
+    #[test]
+    fn update_replaces_in_one_write_and_a_failed_update_changes_nothing() {
+        let _g = pdfium_lock();
+        let (_src, dst) = fixture("text-3.pdf");
+        let backend = PdfiumBackend::new();
+        let path = dst.to_str().unwrap();
+        let ann = PdfAnnotation {
+            id: "test".into(),
+            page_index: 0,
+            annotation_type: AnnotationType::Note,
+            rect: Rect {
+                bottom: 700.0,
+                left: 70.0,
+                top: 740.0,
+                right: 110.0,
+            },
+            quad_points: vec![],
+            ink_paths: vec![],
+            color: "#ffd54f".into(),
+            opacity: 1.0,
+            text: Some("before".into()),
+            created_at: None,
+            modified_at: None,
+        };
+        let created = backend.create_annotation(path, ann).expect("create note");
+
+        let mut edited = created.clone();
+        edited.text = Some("after".into());
+        backend
+            .update_annotation(path, edited)
+            .expect("update note");
+        let after = backend.get_annotations(path, 0).expect("get after update");
+        assert_eq!(after.len(), 1);
+        assert_eq!(after[0].id, created.id);
+        assert_eq!(after[0].text.as_deref(), Some("after"));
+
+        let before_failure = fs::read(&dst).unwrap();
+        let mut missing = created;
+        missing.id = "reader-id:missing".into();
+        backend
+            .update_annotation(path, missing)
+            .expect_err("unknown id should fail");
+        assert_eq!(fs::read(&dst).unwrap(), before_failure);
         let _ = fs::remove_file(&dst);
     }
 

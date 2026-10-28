@@ -229,6 +229,9 @@ impl AppWorkspace {
     pub fn open_document(&mut self, path: &str, target_window: &WindowId) -> Result<TabId, String> {
         self.ensure_main();
         let canon = Self::canonicalize(path)?;
+        if canon.is_dir() {
+            return Err(format!("cannot open a folder as a document: {path}"));
+        }
 
         // Already open anywhere? Focus that tab's window + tab (§16 dedupe).
         if let Some(tab) = self
@@ -439,8 +442,13 @@ impl AppWorkspace {
             .windows
             .get_mut(window_id)
             .ok_or_else(|| format!("window not found: {window_id}"))?;
-        if win.tab_ids.len() != tab_ids.len() {
-            return Err("reorder length mismatch".into());
+        // The new order must be a permutation of this window's own tabs.
+        let mut current: Vec<&TabId> = win.tab_ids.iter().collect();
+        let mut requested: Vec<&TabId> = tab_ids.iter().collect();
+        current.sort();
+        requested.sort();
+        if current != requested {
+            return Err("reorder must list exactly this window's tabs".into());
         }
         win.tab_ids = tab_ids.to_vec();
         Ok(())
@@ -1176,6 +1184,26 @@ mod tests {
             snap.tabs.iter().map(|t| t.position).collect::<Vec<_>>(),
             vec![0, 1, 2]
         );
+
+        // Duplicates or tabs from elsewhere must not corrupt the strip.
+        assert!(ws
+            .reorder_tabs(&MAIN_WINDOW.into(), &[ta.clone(), ta.clone(), tb.clone()])
+            .is_err());
+        assert!(ws
+            .reorder_tabs(&MAIN_WINDOW.into(), &[ta, tb, "tab-999".into()])
+            .is_err());
+        assert_eq!(ws.snapshot_for(&MAIN_WINDOW.into()).tabs[0].id, tc);
+    }
+
+    #[test]
+    fn a_folder_cannot_be_opened_as_a_document() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let folder = std::env::temp_dir();
+        assert!(ws
+            .open_document(folder.to_str().unwrap(), &MAIN_WINDOW.into())
+            .is_err());
+        assert!(ws.documents.is_empty());
     }
 
     #[test]

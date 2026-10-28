@@ -107,6 +107,7 @@ Windows / Tauri
 ## Security boundary
 
 - 生产 webview 使用 Content Security Policy。
+- Markdown 文本读写命令 `read_file_text` / `save_file_text` 先规范化路径，只接受工作区中已打开、非未命名的 Markdown 文档；首次保存仍走 `save_markdown_document_as` 的独立校验。
 - 本地浏览命令只读取用户导航到的目录元数据，允许完整目录路径以支持此电脑浏览，不向 webview 返回任意文件内容；目录链接按需跟随，访问权限仍由操作系统决定。
 - PDF Range 协议只接受 `GET`、`HEAD` 和 `OPTIONS`。
 - 协议只提供已在 Rust 工作区打开的规范化 `.pdf` 路径，拒绝任意文件系统访问。

@@ -903,36 +903,22 @@ pub fn close_tab(
     app: AppHandle,
     ws: State<'_, SharedWorkspace>,
 ) -> Result<(), String> {
-    let close_window = {
+    let empty_window = {
         let mut guard = ws
             .lock()
             .map_err(|e| format!("workspace lock poisoned: {e}"))?;
         let owner = guard.close_tab(&tab_id)?;
-        // Non-main window with no tabs left → close the native window.
-        owner != MAIN_WINDOW
+        // Non-main window with no tabs left → close that native window.
+        (owner != MAIN_WINDOW
             && guard
                 .windows
                 .get(&owner)
-                .map(|w| w.tab_ids.is_empty())
-                .unwrap_or(false)
+                .is_some_and(|w| w.tab_ids.is_empty()))
+        .then_some(owner)
     };
-    if close_window {
-        // Determine which window to close by re-reading; simplest: the tab's
-        // owning window is gone now, so find the empty non-main window.
-        let empty_win = {
-            let guard = ws
-                .lock()
-                .map_err(|e| format!("workspace lock poisoned: {e}"))?;
-            guard
-                .windows
-                .iter()
-                .find(|(id, w)| *id != MAIN_WINDOW && w.tab_ids.is_empty())
-                .map(|(id, _)| id.clone())
-        };
-        if let Some(label) = empty_win {
-            if let Some(win) = app.get_webview_window(&label) {
-                let _ = win.close();
-            }
+    if let Some(label) = empty_window {
+        if let Some(win) = app.get_webview_window(&label) {
+            let _ = win.close();
         }
         return Ok(());
     }
@@ -1002,11 +988,20 @@ fn detach_tab_at(
     ws: &SharedWorkspace,
     position: Option<(f64, f64)>,
 ) -> Result<WindowId, String> {
-    let new_window = {
+    let (new_window, origin) = {
         let mut guard = ws
             .lock()
             .map_err(|e| format!("workspace lock poisoned: {e}"))?;
-        guard.detach_tab(&tab_id)?
+        let origin = guard.tabs.get(&tab_id).and_then(|tab| {
+            let position = guard
+                .windows
+                .get(&tab.window_id)?
+                .tab_ids
+                .iter()
+                .position(|id| id == &tab_id)?;
+            Some((tab.window_id.clone(), position))
+        });
+        (guard.detach_tab(&tab_id)?, origin)
     };
 
     // Create the native window with the same label the workspace just minted.
@@ -1018,9 +1013,17 @@ fn detach_tab_at(
             .decorations(false);
     let (x, y) = position.unwrap_or((120.0, 120.0));
     builder = builder.position(x, y);
-    builder
-        .build()
-        .map_err(|e| format!("create window '{new_window}': {e}"))?;
+    if let Err(error) = builder.build() {
+        // Without a native window the tab would be stranded; put it back.
+        if let Ok(mut guard) = ws.lock() {
+            if let Some((window, position)) = &origin {
+                let _ = guard.move_tab(&tab_id, window, *position);
+            }
+            guard.windows.remove(&new_window);
+        }
+        broadcast(app, ws);
+        return Err(format!("create window '{new_window}': {error}"));
+    }
     broadcast(app, ws);
     Ok(new_window)
 }
@@ -1051,6 +1054,10 @@ pub fn move_tab(
     let mut guard = ws
         .lock()
         .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    // Only an existing window can receive a tab; detaching mints its own.
+    if !guard.windows.contains_key(&target_window) {
+        return Err(format!("window not found: {target_window}"));
+    }
     guard.move_tab(&tab_id, &target_window, position)?;
     drop(guard);
     broadcast(&app, &ws);
@@ -1218,11 +1225,36 @@ pub fn log_frontend(level: String, message: String) {
     }
 }
 
-/// Read a text file as UTF-8. Used by the Markdown adapter.
+/// The canonical path of a saved Markdown document open in the workspace.
+/// Text read/write commands only reach these files, never arbitrary paths.
+fn open_markdown_path(ws: &SharedWorkspace, path: &str) -> Result<PathBuf, String> {
+    let canonical =
+        std::fs::canonicalize(path).map_err(|e| format!("canonicalize '{path}': {e}"))?;
+    let guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    guard
+        .documents
+        .values()
+        .any(|document| {
+            !document.untitled
+                && document.doc_type == DocumentType::Markdown
+                && document.path == canonical
+        })
+        .then_some(canonical)
+        .ok_or_else(|| format!("Markdown document is not open in this workspace: {path}"))
+}
+
+fn read_file_text_impl(path: &Path) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("read '{}': {e}", path.display()))?;
+    String::from_utf8(bytes)
+        .map_err(|e| format!("file '{}' is not valid UTF-8: {e}", path.display()))
+}
+
+/// Read an open Markdown document as UTF-8. Used by the Markdown adapter.
 #[tauri::command]
-pub fn read_file_text(path: String) -> Result<String, String> {
-    let bytes = std::fs::read(&path).map_err(|e| format!("read '{path}': {e}"))?;
-    String::from_utf8(bytes).map_err(|e| format!("file '{path}' is not valid UTF-8: {e}"))
+pub fn read_file_text(path: String, ws: State<'_, SharedWorkspace>) -> Result<String, String> {
+    read_file_text_impl(&open_markdown_path(&ws, &path)?)
 }
 
 fn save_file_text_impl(path: &Path, content: &str) -> Result<(), String> {
@@ -1244,8 +1276,12 @@ fn save_file_text_impl(path: &Path, content: &str) -> Result<(), String> {
 /// Atomically write `content` to `path` (§7 transactional save):
 ///   foo.md → foo.md.tmp → fsync → rename → foo.md
 #[tauri::command]
-pub fn save_file_text(path: String, content: String) -> Result<(), String> {
-    save_file_text_impl(Path::new(&path), &content)
+pub fn save_file_text(
+    path: String,
+    content: String,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    save_file_text_impl(&open_markdown_path(&ws, &path)?, &content)
 }
 
 fn canonical_markdown_target(path: &str) -> Result<PathBuf, String> {
@@ -1307,13 +1343,6 @@ pub fn save_markdown_document_as(
     drop(guard);
     broadcast(&app, &ws);
     Ok(canonical.to_string_lossy().into_owned())
-}
-
-#[tauri::command]
-pub fn canonicalize_path(path: String) -> Result<String, String> {
-    std::fs::canonicalize(&path)
-        .map(|p| p.to_string_lossy().into_owned())
-        .map_err(|e| format!("canonicalize '{path}': {e}"))
 }
 
 /// Flip a document's dirty flag (§7).
@@ -1604,8 +1633,9 @@ mod tests {
     use super::{
         canonical_markdown_target, commit_pdf_working_copy, cursor_moved_enough,
         detached_window_position_from_cursor, drag_carrier_window, encode_query_component,
-        first_titlebar_candidate_by_z_order, point_in_titlebar_zone, read_file_text,
-        save_file_text, should_detach_on_miss, temporary_topmost_insert_after,
+        first_titlebar_candidate_by_z_order, open_markdown_path, point_in_titlebar_zone,
+        read_file_text_impl, save_file_text_impl, should_detach_on_miss,
+        temporary_topmost_insert_after,
     };
 
     #[test]
@@ -1708,16 +1738,52 @@ mod tests {
         std::fs::write(&path, "old").expect("seed markdown file");
         let path_string = path.to_string_lossy().into_owned();
 
-        save_file_text(path_string.clone(), "first".into()).expect("first save");
-        save_file_text(path_string.clone(), "second".into()).expect("replacement save");
+        save_file_text_impl(&path, "first").expect("first save");
+        save_file_text_impl(&path, "second").expect("replacement save");
 
         assert_eq!(
-            read_file_text(path_string.clone()).expect("read saved file"),
+            read_file_text_impl(&path).expect("read saved file"),
             "second"
         );
         assert!(!std::path::Path::new(&format!("{path_string}.tmp")).exists());
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn text_commands_only_reach_open_markdown_documents() {
+        use crate::workspace::{AppWorkspace, MAIN_WINDOW};
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+        let open = std::env::temp_dir().join(format!("reader-open-{unique}.md"));
+        let closed = std::env::temp_dir().join(format!("reader-closed-{unique}.md"));
+        let pdf = std::env::temp_dir().join(format!("reader-open-{unique}.pdf"));
+        for path in [&open, &closed, &pdf] {
+            std::fs::write(path, "x").unwrap();
+        }
+        let ws = std::sync::Mutex::new(AppWorkspace::default());
+        {
+            let mut guard = ws.lock().unwrap();
+            guard.ensure_main();
+            guard
+                .open_document(open.to_str().unwrap(), &MAIN_WINDOW.into())
+                .unwrap();
+            guard
+                .open_document(pdf.to_str().unwrap(), &MAIN_WINDOW.into())
+                .unwrap();
+        }
+
+        assert_eq!(
+            open_markdown_path(&ws, open.to_str().unwrap()).unwrap(),
+            open.canonicalize().unwrap()
+        );
+        assert!(open_markdown_path(&ws, closed.to_str().unwrap()).is_err());
+        assert!(open_markdown_path(&ws, pdf.to_str().unwrap()).is_err());
+        for path in [open, closed, pdf] {
+            let _ = std::fs::remove_file(path);
+        }
     }
 
     #[test]
