@@ -36,18 +36,16 @@ pub fn disk_stamp(path: &Path) -> Option<DiskStamp> {
 }
 
 /// Decode file bytes into editor text (LF, no BOM) plus the format to restore.
-pub fn decode_markdown(bytes: Vec<u8>, path: &Path) -> Result<(String, bool, bool), String> {
+pub fn decode_markdown(bytes: Vec<u8>) -> Result<(String, bool, bool), String> {
     let bom = bytes.starts_with(UTF8_BOM);
     let body = if bom {
         bytes[UTF8_BOM.len()..].to_vec()
     } else {
         bytes
     };
+    // The tab already names the file; the canonical path would only add noise.
     let text = String::from_utf8(body).map_err(|_| {
-        format!(
-            "“{}”不是 UTF-8 编码（可能是 GBK 等旧编码）。Reader 目前只能打开 UTF-8 的 Markdown，请先用其他编辑器另存为 UTF-8。",
-            path.display()
-        )
+        "这个文件不是 UTF-8 编码，可能是 GBK 等旧编码。Reader 目前只能打开 UTF-8 的 Markdown，请先用其他编辑器把它另存为 UTF-8。".to_owned()
     })?;
     // The first line break decides the file's style.
     let crlf = text
@@ -79,7 +77,7 @@ mod tests {
     #[test]
     fn a_crlf_bom_file_round_trips_through_lf_editor_text() {
         let original = b"\xEF\xBB\xBF# T\r\n\r\n- a\r\n".to_vec();
-        let (text, bom, crlf) = decode_markdown(original.clone(), Path::new("a.md")).unwrap();
+        let (text, bom, crlf) = decode_markdown(original.clone()).unwrap();
         assert_eq!(text, "# T\n\n- a\n");
         assert!(bom && crlf);
         assert_eq!(encode_markdown(&text, bom, crlf), original);
@@ -87,7 +85,7 @@ mod tests {
 
     #[test]
     fn an_lf_file_stays_lf_and_gains_no_bom() {
-        let (text, bom, crlf) = decode_markdown(b"a\nb".to_vec(), Path::new("a.md")).unwrap();
+        let (text, bom, crlf) = decode_markdown(b"a\nb".to_vec()).unwrap();
         assert!(!bom && !crlf);
         assert_eq!(
             encode_markdown(&format!("{text}\nc"), bom, crlf),
@@ -98,7 +96,7 @@ mod tests {
     #[test]
     fn a_gbk_file_reports_its_encoding_in_chinese() {
         // "中文" in GBK.
-        let error = decode_markdown(vec![0xD6, 0xD0, 0xCE, 0xC4], Path::new("gbk.md")).unwrap_err();
+        let error = decode_markdown(vec![0xD6, 0xD0, 0xCE, 0xC4]).unwrap_err();
         assert!(error.contains("UTF-8") && error.contains("GBK"));
     }
 }

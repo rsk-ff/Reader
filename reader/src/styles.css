@@ -1125,8 +1125,28 @@ body.md-sidebar-resizing * {
   color: var(--text-faint);
 }
 
-.md-status-error {
-  color: #b42318;
+.md-open-error {
+  max-width: 420px;
+  margin: 0 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  color: var(--text);
+  text-align: center;
+}
+
+.md-open-error-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.md-open-error-detail {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .md-toolbar {

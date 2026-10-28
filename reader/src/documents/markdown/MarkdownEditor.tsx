@@ -293,8 +293,17 @@ export function MarkdownEditor({
     [mode],
   );
 
-  if (loading) return <div className="md-status">opening markdown…</div>;
-  if (error) return <div className="md-status md-status-error">failed to open: {error}</div>;
+  if (loading) return <div className="md-status">正在打开…</div>;
+  if (error) {
+    return (
+      <div className="md-status">
+        <div className="md-open-error" role="alert">
+          <div className="md-open-error-title">无法打开这个文件</div>
+          <p className="md-open-error-detail">{error}</p>
+        </div>
+      </div>
+    );
+  }
   if (workingText == null) return <div className="md-status">no content</div>;
 
   return (

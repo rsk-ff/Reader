@@ -1252,7 +1252,7 @@ fn open_markdown_path(ws: &SharedWorkspace, path: &str) -> Result<PathBuf, Strin
 fn read_markdown_file(path: &Path) -> Result<(String, MarkdownDiskState), String> {
     let stamp = disk_stamp(path);
     let bytes = std::fs::read(path).map_err(|e| format!("read '{}': {e}", path.display()))?;
-    let (text, bom, crlf) = decode_markdown(bytes, path)?;
+    let (text, bom, crlf) = decode_markdown(bytes)?;
     Ok((text, MarkdownDiskState { stamp, bom, crlf }))
 }
 
