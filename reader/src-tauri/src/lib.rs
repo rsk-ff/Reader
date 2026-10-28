@@ -103,7 +103,6 @@ pub fn run() {
             commands::read_file_text,
             commands::save_file_text,
             commands::save_markdown_document_as,
-            commands::canonicalize_path,
             commands::set_dirty,
             commands::create_annotation,
             commands::update_annotation,
