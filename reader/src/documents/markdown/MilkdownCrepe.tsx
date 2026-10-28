@@ -7,6 +7,7 @@ import { addBlockTypeCommand, setBlockTypeCommand, wrapInBlockTypeCommand, selec
   codeBlockSchema, hrSchema, inlineCodeSchema, toggleStrongCommand, toggleEmphasisCommand, toggleInlineCodeCommand } from "@milkdown/kit/preset/commonmark";
 import { createTable, toggleStrikethroughCommand } from "@milkdown/kit/preset/gfm";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
+import { markdownImageUrl } from "./markdownImages";
 import { toggleLinkCommand } from "@milkdown/kit/component/link-tooltip";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
@@ -39,6 +40,8 @@ interface MilkdownCrepeProps {
   /** Fired once the editor is mounted and ready. */
   onReady?: () => void;
   onCommands?: (commands: MarkdownCommands | null) => void;
+  /** Path of the Markdown file, used to resolve relative image paths. */
+  documentPath?: string;
 }
 
 /**
@@ -49,9 +52,11 @@ interface MilkdownCrepeProps {
  * React without replacing the live editor, its selection or undo history.
  * The parent explicitly re-mounts when loading source edits or discarding edits.
  */
-export function MilkdownCrepe({ value, onChange, onReady, onCommands }: MilkdownCrepeProps) {
+export function MilkdownCrepe({ value, onChange, onReady, onCommands, documentPath }: MilkdownCrepeProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const initialValueRef = useRef(value);
+  const documentPathRef = useRef(documentPath);
+  documentPathRef.current = documentPath;
   const callbacksRef = useRef({ onChange, onReady, onCommands });
   const lifecycleRef = useRef<Promise<void>>(Promise.resolve());
 
@@ -155,6 +160,7 @@ export function MilkdownCrepe({ value, onChange, onReady, onCommands }: Milkdown
                 reader.onabort = () => reject(new Error("图片读取已取消"));
                 reader.readAsDataURL(file);
               }),
+              proxyDomURL: (url) => documentPathRef.current ? markdownImageUrl(documentPathRef.current, url) : url,
               blockUploadButton: "选择图片", blockConfirmButton: "确认",
               blockUploadPlaceholderText: "或粘贴图片地址", blockCaptionPlaceholderText: "图片说明",
             },

@@ -35,7 +35,7 @@ Windows / Tauri
 - [`MilkdownCrepe.tsx`](../reader/src/documents/markdown/MilkdownCrepe.tsx) 使用官方 common 样式与 Frame 浅色主题为基线，局部 `milkdownTheme.css` 只做字体、宽度和间距适配。Crepe 的 BlockEdit 与 Toolbar 被禁用，格式命令由右侧 `MarkdownTools` 通过命令桥调用。
 - Crepe 实例只随组件挂载/卸载创建与销毁，编辑回传不替换实例，以保留焦点、选区和撤销历史；源码返回和放弃修改通过显式重挂载加载内容。异步创建/销毁串行化，旧实例不再发布修改。
 - `flush()` 在保存和切换源码前补发实时内容，防止延迟监听漏掉刚输入的内容。保存使用临时文件加原子替换，并以修订号避免并发编辑被误标为已保存。
-- 本地图片经 FileReader 内嵌为 data URL，不引入文件协议或外部存储。
+- 新插入的本地图片经 FileReader 内嵌为 data URL。文档中已有的图片地址由 Crepe `proxyDomURL` 经 [`markdownImages.ts`](../reader/src/documents/markdown/markdownImages.ts) 映射：相对路径按 .md 所在目录解析，绝对路径和 `file:` 地址原样取路径，都改走 `reader-image` 协议；`https:`、`data:`、`blob:` 原样加载。打印前对 `getHTML` 结果做同样替换。Markdown 源文本中的地址不变。
 - 目录从标题模型生成；[`printMarkdown.ts`](../reader/src/documents/markdown/printMarkdown.ts) 用临时 Crepe 生成静态 HTML 并在隔离 iframe 中打印，不影响活动编辑器。
 - 目录空白右键新建 Markdown：`NewMarkdownDialog` 收集文件名，`create_local_markdown` 在当前目录独占创建空文件后走普通打开流程。
 
@@ -73,6 +73,7 @@ Windows / Tauri
 
 ## Security boundary
 
+- [`markdown_image.rs`](../reader/src-tauri/src/markdown_image.rs) 的 `reader-image` 协议只返回图片扩展名的文件，且规范化后的路径必须位于某个已打开 Markdown 文档所在目录或其子目录；单张上限 64 MB，SVG 响应附带禁止脚本的 CSP。CSP `img-src` 允许 `reader-image` 与 `https:`（用户决定网络图片直接加载，打开文档会访问图片所在服务器）。
 - 生产 webview 使用 Content Security Policy。
 - Markdown 文本读写命令 `read_file_text` / `save_file_text` 先规范化路径，只接受工作区中已打开、非未命名的 Markdown 文档；首次保存仍走 `save_markdown_document_as` 的独立校验。
 - [`markdown_file.rs`](../reader/src-tauri/src/markdown_file.rs) 负责 Markdown 磁盘格式：读取时去掉 UTF-8 BOM、CRLF 归一为 LF 交给编辑器，并在 `DocumentSession.markdown_disk`（不序列化）记下 BOM、首个换行的风格和文件大小/修改时间；保存时按原格式写回。`save_file_text` 在大小或修改时间与记录不符时返回 `EXTERNAL_CHANGE:` 前缀错误，前端用应用内的 [`confirmDialog.tsx`](../reader/src/workspace/confirmDialog.tsx) 询问（默认焦点在“取消”，Esc 取消），确认后以 `overwrite: true` 重试；不用系统原生对话框，因为它在无边框窗口上会让鼠标指针消失、无法点击。非 UTF-8 文件给出中文错误，不做编码猜测。Milkdown 渲染模式保存时仍会按其序列化规则统一列表符号、强调和标题写法，这是已知限制；源码模式保存原样写回。

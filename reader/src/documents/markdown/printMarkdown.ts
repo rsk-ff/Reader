@@ -1,4 +1,5 @@
 import { Crepe } from "@milkdown/crepe";
+import { rewriteImageSources } from "./markdownImages";
 import { getHTML } from "@milkdown/kit/utils";
 
 const printStyles = `
@@ -18,7 +19,7 @@ const printStyles = `
 `;
 
 /** Render a snapshot, including source edits, without touching the live editor. */
-export async function printMarkdown(markdown: string, title: string): Promise<void> {
+export async function printMarkdown(markdown: string, title: string, documentPath?: string): Promise<void> {
   const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const source = document.createElement("div");
   source.className = "markdown-print-source";
@@ -38,6 +39,7 @@ export async function printMarkdown(markdown: string, title: string): Promise<vo
   try {
     await renderer.create();
     html = renderer.editor.action(getHTML());
+    if (documentPath) html = rewriteImageSources(html, documentPath);
   } finally {
     try { await renderer.destroy(); } finally { source.remove(); }
   }

@@ -10,13 +10,14 @@
 
 ## Pending user acceptance
 
-- Markdown 保存保真（保留换行符/BOM、检测外部修改、非 UTF-8 中文提示）：分支 `claude/project-thread-xvta0x`，PR #3 合入 `dev`。
+- Markdown 图片显示（本地图片经受限协议显示，网络图片直接加载）：分支 `claude/project-thread-xvta0x`，PR #5 合入 `dev`。
 - 新标签页本地文件浏览（含 OneDrive/Dropbox 入口、视觉重做）已于 2026-10-27 验收，尚未正式打包安装。
 
 ## Recently merged into dev
 
 - 2026-10-27（PR #1）：全仓审查 P0 修复，Markdown 链接与错误提示框修复。
 - 2026-10-28（PR #2）：审查 P1/P2 修复（Markdown 读写限制在已打开文档、批注更新单次写入、标签/窗口健壮性）。
+- 2026-10-28（PR #3）：Markdown 保存保真（保留换行符/BOM、检测外部修改并用应用内对话框确认、非 UTF-8 中文提示卡片）。
 
 ## Open follow-ups
 
