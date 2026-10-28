@@ -12,7 +12,7 @@ use std::sync::Arc;
 use http::{Method, Response, StatusCode};
 use tauri::{Manager, UriSchemeContext, UriSchemeResponder};
 
-fn percent_decode(value: &str) -> Result<String, &'static str> {
+pub(crate) fn percent_decode(value: &str) -> Result<String, &'static str> {
     let bytes = value.as_bytes();
     let mut decoded = Vec::with_capacity(bytes.len());
     let mut index = 0;

@@ -6,6 +6,7 @@
 
 ### Fixed
 
+- Markdown 中引用的本地图片（如 `![](img/a.png)`）现在能显示，范围限于文档所在文件夹及其子文件夹；`https` 网络图片也会显示。打印同样包含这些图片。
 - Markdown 保存保留文件原有的换行符（CRLF/LF）和 UTF-8 BOM，不再把 Windows 文件整体改成 LF。
 - 保存 Markdown 前检查文件是否在 Reader 外被修改过；被改过时先询问是否覆盖，取消则不写入。
 - 打开非 UTF-8（如 GBK）的 Markdown 时给出中文说明，而不是英文解码错误。

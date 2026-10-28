@@ -13,6 +13,7 @@ mod cloud_locations;
 mod commands;
 mod local_files;
 mod markdown_file;
+mod markdown_image;
 pub mod pdf;
 mod workspace;
 
@@ -31,7 +32,11 @@ pub fn run() {
     // PDF.js streams only documents already opened in the workspace. All PDF
     // mutations remain behind explicit PDFium commands below.
     builder = builder
-        .register_asynchronous_uri_scheme_protocol("reader-file", crate::pdf::handle_reader_file);
+        .register_asynchronous_uri_scheme_protocol("reader-file", crate::pdf::handle_reader_file)
+        .register_asynchronous_uri_scheme_protocol(
+            "reader-image",
+            crate::markdown_image::handle_reader_image,
+        );
 
     // Custom frame controls + native Windows 11 Snap Layout overlay for the
     // frameless titlebar. The plugin's page-load hook covers every webview

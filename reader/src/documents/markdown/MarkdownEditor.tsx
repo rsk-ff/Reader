@@ -240,7 +240,7 @@ export function MarkdownEditor({
     printingRef.current = true;
     setPrinting(true);
     const snapshot = mode === "wysiwyg" ? commandsRef.current?.getMarkdown() ?? workingText : workingText;
-    void printMarkdown(snapshot, fileName).catch((error: unknown) => {
+    void printMarkdown(snapshot, fileName, untitled ? undefined : path).catch((error: unknown) => {
       window.alert(`Markdown 打印失败：${String(error)}`);
     }).finally(() => {
       printingRef.current = false;
@@ -333,6 +333,7 @@ export function MarkdownEditor({
                 value={workingText}
                 onChange={onChange}
                 onCommands={onCommands}
+                documentPath={untitled ? undefined : path}
               />
             ) : (
               <textarea
