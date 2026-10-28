@@ -18,6 +18,8 @@ Windows / Tauri
     └── Zustand workspace mirror
 ```
 
+Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`mod.rs` 放工作区、标签与窗口生命周期命令和共享的 `broadcast`/`open_document`；`tab_drag.rs` 放标签拖动、停靠与拆出窗口；`markdown.rs` 放 Markdown 读写；`pdf.rs` 放批注、页面与保存。
+
 ## PDF path
 
 - PDF.js 负责解析、渲染、文字层、批注层、搜索、链接、目录、缩略图、缩放和打印渲染；页面几何（尺寸、裁剪框、旋转、坐标变换）以 PDF.js `PageViewport` 为唯一来源。
@@ -27,7 +29,7 @@ Windows / Tauri
 - PDFium 操作在阻塞线程上执行并由进程级锁串行化；工作副本创建、写入与标脏、保存提交和放弃修改都在同一把锁内完成，工作区锁只在记账时短暂持有。
 - 删页使用原生 HTML `dialog` 模态，不依赖 Tauri `dialog.confirm` 权限。
 
-主要代码：[`reader/src/documents/pdf/`](../reader/src/documents/pdf/)、[`reader/src-tauri/src/pdf/`](../reader/src-tauri/src/pdf/)、[`commands.rs`](../reader/src-tauri/src/commands.rs)。
+主要代码：[`reader/src/documents/pdf/`](../reader/src/documents/pdf/)、[`reader/src-tauri/src/pdf/`](../reader/src-tauri/src/pdf/)、[`commands/pdf.rs`](../reader/src-tauri/src/commands/pdf.rs)。
 
 ## Markdown path
 

@@ -40,6 +40,8 @@ cargo fmt --manifest-path reader/src-tauri/Cargo.toml -- --check
 cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 ```
 
+GitHub Actions 的 [`ci.yml`](../.github/workflows/ci.yml) 在 `windows-latest` 上对 `dev`/`master` 的推送和合入它们的 PR 依次执行 `pnpm install --frozen-lockfile`、`pnpm build`、`pnpm test`、`cargo fmt --check`、上面的 clippy 和 `cargo test`（使用仓库中的 PDFium）。浏览器回归测试和视觉验收不在 CI 中。
+
 只改文档时不重复运行应用测试；需要检查 Markdown 链接、Git diff 和工作树状态。
 
 如果直接 Cargo 构建提示找不到 RC.EXE，先查当前 Windows SDK 的 x64 资源编译器，再仅为当前终端设置 `$env:RC` 为其绝对路径。本机 2026-10-12 验证路径为 `C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/rc.exe`；不修改全局 PATH 或 SDK。Tauri CLI 的开发启动另有工具链环境探测。
@@ -113,6 +115,7 @@ Reader/
 ├── AGENTS.md / CLAUDE.md
 ├── README.md
 ├── CHANGELOG.md
+├── .github/workflows/ci.yml  Windows CI
 ├── scripts/
 │   └── check-docs.ps1
 ├── releases/                  Ignored local installers and release evidence
