@@ -19,9 +19,11 @@ const engine = vi.hoisted(() => ({
   }>,
   create: vi.fn<() => Promise<void>>(),
   invoke: vi.fn(),
+  ask: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: engine.invoke }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: engine.ask, save: vi.fn() }));
 vi.mock("./MarkdownScrollbar", () => ({ MarkdownScrollbar: () => null }));
 vi.mock("@milkdown/crepe", () => ({
   Crepe: class {
@@ -67,6 +69,7 @@ beforeEach(() => {
   engine.instances.length = 0;
   engine.create.mockReset().mockResolvedValue();
   engine.invoke.mockReset().mockResolvedValue("initial text");
+  engine.ask.mockReset();
   registrations = vi.spyOn(EventTarget.prototype, "addEventListener");
   host = document.createElement("div");
   document.body.append(host);
@@ -211,7 +214,29 @@ describe("Milkdown editor lifecycle", () => {
     await act(async () => instance.publish(null, "first edit\n\n第二段", "first edit"));
     expect(engine.instances).toHaveLength(1);
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
-    expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "first edit\n\n第二段" });
+    expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "first edit\n\n第二段", overwrite: false });
+    expect(host.textContent).toContain("已保存");
+  });
+
+  it("asks before overwriting a file that changed outside Reader", async () => {
+    await render(<MarkdownEditor path="test.md" fileName="test.md" docId="test" untitled={false} active />);
+    const instance = engine.instances[0];
+    markEditIntent(instance);
+    await act(async () => instance.publish(null, "mine", "initial text"));
+    engine.invoke.mockImplementation(async (command: string, args?: { overwrite?: boolean }) => {
+      if (command === "save_file_text" && !args?.overwrite) throw "EXTERNAL_CHANGE:changed";
+      return undefined;
+    });
+
+    engine.ask.mockResolvedValueOnce(false);
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
+    expect(engine.ask).toHaveBeenCalledTimes(1);
+    expect(engine.invoke).not.toHaveBeenCalledWith("save_file_text", expect.objectContaining({ overwrite: true }));
+    expect(host.textContent).not.toContain("已保存");
+
+    engine.ask.mockResolvedValueOnce(true);
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
+    expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "mine", overwrite: true });
     expect(host.textContent).toContain("已保存");
   });
 
