@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ask, save as showSaveDialog } from "@tauri-apps/plugin-dialog";
+import { save as showSaveDialog } from "@tauri-apps/plugin-dialog";
 
 import { isExternalChangeError, useMarkdownText, useMarkdownSave } from "./useMarkdownText";
+import { confirmInApp } from "../../workspace/confirmDialog";
 import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
 import { MarkdownToolbar } from "./MarkdownToolbar";
 import { MarkdownTools } from "./MarkdownTools";
@@ -155,10 +156,11 @@ export function MarkdownEditor({
             await saveExisting(textToSave);
           } catch (error) {
             if (!isExternalChangeError(error)) throw error;
-            const overwrite = await ask(
-              `“${fileName}”已在 Reader 外被修改。\n\n覆盖磁盘上的版本，用 Reader 里的内容替换它吗？`,
-              { title: "文件已被修改", kind: "warning", okLabel: "覆盖", cancelLabel: "取消" },
-            );
+            const overwrite = await confirmInApp({
+              title: "文件已被修改",
+              message: `“${fileName}”在 Reader 外被修改过。覆盖磁盘上的版本，用 Reader 里的内容替换它吗？`,
+              confirmLabel: "覆盖",
+            });
             if (!overwrite) return false;
             await saveExisting(textToSave, true);
           }

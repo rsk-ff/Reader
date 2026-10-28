@@ -75,7 +75,7 @@ Windows / Tauri
 
 - 生产 webview 使用 Content Security Policy。
 - Markdown 文本读写命令 `read_file_text` / `save_file_text` 先规范化路径，只接受工作区中已打开、非未命名的 Markdown 文档；首次保存仍走 `save_markdown_document_as` 的独立校验。
-- [`markdown_file.rs`](../reader/src-tauri/src/markdown_file.rs) 负责 Markdown 磁盘格式：读取时去掉 UTF-8 BOM、CRLF 归一为 LF 交给编辑器，并在 `DocumentSession.markdown_disk`（不序列化）记下 BOM、首个换行的风格和文件大小/修改时间；保存时按原格式写回。`save_file_text` 在大小或修改时间与记录不符时返回 `EXTERNAL_CHANGE:` 前缀错误，前端用 dialog `ask` 询问后以 `overwrite: true` 重试。非 UTF-8 文件给出中文错误，不做编码猜测。Milkdown 渲染模式保存时仍会按其序列化规则统一列表符号、强调和标题写法，这是已知限制；源码模式保存原样写回。
+- [`markdown_file.rs`](../reader/src-tauri/src/markdown_file.rs) 负责 Markdown 磁盘格式：读取时去掉 UTF-8 BOM、CRLF 归一为 LF 交给编辑器，并在 `DocumentSession.markdown_disk`（不序列化）记下 BOM、首个换行的风格和文件大小/修改时间；保存时按原格式写回。`save_file_text` 在大小或修改时间与记录不符时返回 `EXTERNAL_CHANGE:` 前缀错误，前端用应用内的 [`confirmDialog.tsx`](../reader/src/workspace/confirmDialog.tsx) 询问（默认焦点在“取消”，Esc 取消），确认后以 `overwrite: true` 重试；不用系统原生对话框，因为它在无边框窗口上会让鼠标指针消失、无法点击。非 UTF-8 文件给出中文错误，不做编码猜测。Milkdown 渲染模式保存时仍会按其序列化规则统一列表符号、强调和标题写法，这是已知限制；源码模式保存原样写回。
 - 本地浏览命令只读取用户导航到的目录元数据，允许完整目录路径以支持此电脑浏览，不向 webview 返回任意文件内容；目录链接按需跟随，访问权限仍由操作系统决定。
 - PDF Range 协议只接受 `GET`、`HEAD` 和 `OPTIONS`。
 - 协议只提供已在 Rust 工作区打开的规范化 `.pdf` 路径，拒绝任意文件系统访问。

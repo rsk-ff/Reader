@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { MilkdownCrepe } from "./MilkdownCrepe";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { prepareDocumentForClose, UnsavedChangesDialog } from "../../workspace/documentLifecycle";
+import { ConfirmDialog } from "../../workspace/confirmDialog";
 
 type MarkdownListener = (ctx: unknown, markdown: string, previous: string) => void;
 
@@ -19,11 +20,9 @@ const engine = vi.hoisted(() => ({
   }>,
   create: vi.fn<() => Promise<void>>(),
   invoke: vi.fn(),
-  ask: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: engine.invoke }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: engine.ask, save: vi.fn() }));
 vi.mock("./MarkdownScrollbar", () => ({ MarkdownScrollbar: () => null }));
 vi.mock("@milkdown/crepe", () => ({
   Crepe: class {
@@ -69,7 +68,6 @@ beforeEach(() => {
   engine.instances.length = 0;
   engine.create.mockReset().mockResolvedValue();
   engine.invoke.mockReset().mockResolvedValue("initial text");
-  engine.ask.mockReset();
   registrations = vi.spyOn(EventTarget.prototype, "addEventListener");
   host = document.createElement("div");
   document.body.append(host);
@@ -218,8 +216,11 @@ describe("Milkdown editor lifecycle", () => {
     expect(host.textContent).toContain("已保存");
   });
 
-  it("asks before overwriting a file that changed outside Reader", async () => {
-    await render(<MarkdownEditor path="test.md" fileName="test.md" docId="test" untitled={false} active />);
+  it("asks in the app before overwriting a file that changed outside Reader", async () => {
+    await render(<>
+      <MarkdownEditor path="test.md" fileName="test.md" docId="test" untitled={false} active />
+      <ConfirmDialog />
+    </>);
     const instance = engine.instances[0];
     markEditIntent(instance);
     await act(async () => instance.publish(null, "mine", "initial text"));
@@ -227,15 +228,19 @@ describe("Milkdown editor lifecycle", () => {
       if (command === "save_file_text" && !args?.overwrite) throw "EXTERNAL_CHANGE:changed";
       return undefined;
     });
+    const save = () => act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
 
-    engine.ask.mockResolvedValueOnce(false);
-    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
-    expect(engine.ask).toHaveBeenCalledTimes(1);
+    await save();
+    expect(host.querySelector("[role=alertdialog]")?.textContent).toContain("文件已被修改");
+    // Cancel holds focus, so Enter or Escape keeps the file on disk.
+    expect(document.activeElement?.textContent).toBe("取消");
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    expect(host.querySelector("[role=alertdialog]")).toBeNull();
     expect(engine.invoke).not.toHaveBeenCalledWith("save_file_text", expect.objectContaining({ overwrite: true }));
     expect(host.textContent).not.toContain("已保存");
 
-    engine.ask.mockResolvedValueOnce(true);
-    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
+    await save();
+    await clickMode("覆盖");
     expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "mine", overwrite: true });
     expect(host.textContent).toContain("已保存");
   });

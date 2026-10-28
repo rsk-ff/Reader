@@ -1130,7 +1130,7 @@ body.md-sidebar-resizing * {
   margin: 0 24px;
   padding: 20px 24px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 2px;
   background: var(--bg-elev);
   color: var(--text);
   text-align: center;
