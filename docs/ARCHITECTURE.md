@@ -20,89 +20,56 @@ Windows / Tauri
 
 ## PDF path
 
-- PDF.js 负责解析、页面渲染、文字层、批注层、搜索、链接、目录、缩略图、缩放和打印渲染。
-- PDF 文字层启用原生文字选择；`pdfMarginSelection.ts` 在页面空白处按下时定位同一行最近的文字边缘，文字内部按下时记录浏览器原生起点，在本次拖动期间保持该起点。终点仍由浏览器命中文字；仅当指针落在 PDF 文字层空白时校正到当前行的边缘，向下越过末行时取行尾，反向越过首行时取行首，同一行的邻接字体片段按引擎 DOM 顺序合并并在显式换行处停止。`pointermove` 后的延迟校正处理原生 caret 没变、未发 selectionchange 的情况，`pointerup` 捕获阶段校正后供文字批注读取原生 Range。浏览器/PDF.js 继续负责复制、选区绘制和几何；链接、表单和绘图覆盖层不参与校正。非活动标签、卸载、释放、取消和失焦清理拖动状态与定时器。
-- `SelectionPreservingPdfViewer.ts` 在 PDF.js 的公开缩放入口内保留原生选区，其他操作继续使用引擎原有的清选行为。缩放前记录文字 span 内的字符偏移及选区覆盖的文字层，缩放及 `textlayerrendered` 后按当前节点恢复；这处理搜索高亮对文字子节点的替换，并保留反向选区。缩放和延迟 `refresh` 后用 PDF.js 的新 viewport 立即更新已选页面的缓存文字层，避免画布重绘期间隐藏文字使复制失效；画布仍延迟重绘，选区仍由浏览器/PDF.js 绘制。所有选中页面完成引擎文字层重绘后释放快照，无关页面事件不提前释放。新指针操作、非缩放按键、失焦或普通清选取消待恢复状态，卸载时解除监听；不改 PDF.js 依赖文件。
-- Rust 的异步 `reader-file` Range 协议只允许访问已在工作区打开的规范化 PDF 路径，读文件和取工作区锁在阻塞线程上完成，不占 UI 线程。PDF.js 每次加载使用唯一的 `?rev=` 令牌（每个查看器挂载的随机前缀加重载计数）；Rust 在令牌首次请求时固定当时的源文件句柄，同一令牌的后续 Range 请求按偏移读取该句柄。PDFium 写入和保存都以改名替换文件，所以固定句柄继续读到加载开始时的字节，批注写入后无需重载也不会混读新旧文件。
-- 页面尺寸、裁剪框、旋转和 PDF 到视口的坐标变换以 PDF.js `PageViewport` 为唯一几何来源。
-- PDFium 只负责写操作：批注增删改、插入空白页、删除页面和原子保存。
-- PDFium 操作在阻塞线程上执行，并通过进程级锁串行化。工作副本的创建、每次写入及标脏、保存提交及清理、放弃修改都在同一把 PDFium 锁内完成，保存不会清掉提交之后才落地的批注；工作区锁只在记账时短暂持有，复制工作副本时不持有。页面增删后前端递增重载计数，使 PDF.js 用新令牌重新打开最新文件。
+- PDF.js 负责解析、渲染、文字层、批注层、搜索、链接、目录、缩略图、缩放和打印渲染；页面几何（尺寸、裁剪框、旋转、坐标变换）以 PDF.js `PageViewport` 为唯一来源。
+- PDFium 只负责写操作：批注增删改、插入/删除页面和原子保存（见[决策 0001](decisions/0001-document-engine-split.md)）。
+- 选字增强不改 PDF.js 依赖文件：[`pdfMarginSelection.ts`](../reader/src/documents/pdf/pdfMarginSelection.ts) 校正从行侧空白开始或越过首末行的拖动起止点；[`SelectionPreservingPdfViewer.ts`](../reader/src/documents/pdf/SelectionPreservingPdfViewer.ts) 在缩放和延迟重绘期间保存并恢复原生选区。复制、选区绘制仍由浏览器/PDF.js 负责。
+- 异步 `reader-file` Range 协议只提供已在工作区打开的规范化 PDF 路径。每次加载使用唯一 `?rev=` 令牌，Rust 在令牌首次请求时固定源文件句柄；由于 PDFium 以改名替换写文件，同一次加载不会混读新旧字节。页面增删后前端递增令牌重新打开。
+- PDFium 操作在阻塞线程上执行并由进程级锁串行化；工作副本创建、写入与标脏、保存提交和放弃修改都在同一把锁内完成，工作区锁只在记账时短暂持有。
+- 删页使用原生 HTML `dialog` 模态，不依赖 Tauri `dialog.confirm` 权限。
 
-主要代码：
-
-- [`reader/src/documents/pdf/`](../reader/src/documents/pdf/)
-- [`reader/src-tauri/src/pdf/`](../reader/src-tauri/src/pdf/)
-- [`reader/src-tauri/src/commands.rs`](../reader/src-tauri/src/commands.rs)
+主要代码：[`reader/src/documents/pdf/`](../reader/src/documents/pdf/)、[`reader/src-tauri/src/pdf/`](../reader/src-tauri/src/pdf/)、[`commands.rs`](../reader/src-tauri/src/commands.rs)。
 
 ## Markdown path
 
-- Milkdown/Crepe 提供所见即所得编辑，源码模式通过 `Ctrl+/` 切换。
-- `MilkdownCrepe.tsx` 按顺序导入官方 common 样式、Frame 浅色主题和局部 `milkdownTheme.css`。官方样式是正文、列表、表格和编辑控件的基线；局部适配负责字体、文档宽度/边距、紧凑标题、引用/代码/公式间距和代码折叠标记对齐，不混用 GitHub Markdown CSS。`Crepe.Feature.BlockEdit` 与 `Toolbar` 被禁用，块控件及选字格式浮层不挂载；`MarkdownTools` 通过挂载后注册的命令桥操作当前编辑器，保留选区、格式命令、撤销与 CodeMirror 折叠。外置命令覆盖行内与常用块结构，图标采用同一 Bootstrap SVG 集合；遮罩地址使用带引号的 CSS url，兼容 Vite 内联 SVG data URL 中的单引号。命令的内容即时回传，监听器按最后已发布文本去重；`flush()` 在保存/切换源码前补发实时内容，保留初始化不变脏和修订号保护，避免输入或图片属性更新的延迟通知造成内容丢失。
-- 两种模式共享同一个内存 Markdown 字符串。
-- ImageBlock 的本地上传经 FileReader 生成内嵌 data URL，使用既有图片 schema 和原子保存，不引入文件协议/权限或外部存储；避免 Crepe 默认临时 blob URL 无法跨启动读取。
-- Crepe 实例只随组件挂载/卸载创建与销毁；编辑内容回传不替换实例，以保留焦点、选区和撤销历史。源码返回及放弃修改通过父组件的显式重挂载加载内容，重复选择当前模式不重置编辑器。异步创建和销毁串行化，旧实例不再向当前文档发布修改。
-- 首个标题的顶部间距按首个文档内容元素判断，排除 ProseMirror widget 和虚拟光标；选区变化会增删这些装饰节点，不能直接使用 `:first-child` 判断首个标题。
-- 保存使用临时文件、刷新和原子替换；保存过程使用修订号，避免并发编辑被错误标记为已保存。
-- 目录空白右键的新建 Markdown 由 `NewMarkdownDialog` 收集单个文件名，`create_local_markdown` 在当前目录独占创建空文件，然后沿用 `open_document` 与原子保存。原有 Rust `untitled` 内存文档及首次保存绑定路径协议仍保留，当前新标签页不提供该入口。
-- Markdown 目录从标题模型生成，并驱动源码或渲染视图导航。
-- `printMarkdown.ts` 用独立临时 Crepe 解析打印快照，通过 `getHTML` 生成静态正文，再在隔离 iframe 中打印；保留 CodeMirror 以满足 LaTeX 依赖，打印 HTML 不含编辑控件。渲染模式直接读取活动编辑器避免监听延迟，源码模式读取工作文本；临时解析器销毁，打印后移除 iframe 并恢复焦点，不替换活动编辑器或调用保存。
-- `DocumentActions` 统一 PDF/Markdown 输出入口；`DocumentToolRail` 统一右侧竖栏。`PdfTools` 只调用既有批注与页面操作回调。
-- [`SidebarResizer`](../reader/src/components/SidebarResizer.tsx) 共用 PDF/Markdown 的 168–560px 调宽边界、50.4px 拖动收起阈值（从最小宽度继续向左拖 70%）、指针捕获清理及键盘调宽。分隔条记录拖动起点与展开偏好宽度，按未截断累计位移判断收起；侧栏宽度/可见状态仍由各文档容器持有，不进入 Rust 工作区或文档内容。Markdown 的 ResizeObserver 只限制显示宽度，收起/展开及窗口放宽后保留原偏好。
-- PDF 删页使用原生 HTML `dialog` 模态与页码快照，避免 `window.confirm` 经 Tauri 注入后要求未授予的 `dialog.confirm` 权限；取消不调用变更命令，确认后仍使用既有 PDFium 删页路径。
+- Milkdown/Crepe 提供所见即所得编辑，`Ctrl+/` 切换源码模式；两种模式共享同一个内存 Markdown 字符串。
+- [`MilkdownCrepe.tsx`](../reader/src/documents/markdown/MilkdownCrepe.tsx) 使用官方 common 样式与 Frame 浅色主题为基线，局部 `milkdownTheme.css` 只做字体、宽度和间距适配。Crepe 的 BlockEdit 与 Toolbar 被禁用，格式命令由右侧 `MarkdownTools` 通过命令桥调用。
+- Crepe 实例只随组件挂载/卸载创建与销毁，编辑回传不替换实例，以保留焦点、选区和撤销历史；源码返回和放弃修改通过显式重挂载加载内容。异步创建/销毁串行化，旧实例不再发布修改。
+- `flush()` 在保存和切换源码前补发实时内容，防止延迟监听漏掉刚输入的内容。保存使用临时文件加原子替换，并以修订号避免并发编辑被误标为已保存。
+- 本地图片经 FileReader 内嵌为 data URL，不引入文件协议或外部存储。
+- 目录从标题模型生成；[`printMarkdown.ts`](../reader/src/documents/markdown/printMarkdown.ts) 用临时 Crepe 生成静态 HTML 并在隔离 iframe 中打印，不影响活动编辑器。
+- 目录空白右键新建 Markdown：`NewMarkdownDialog` 收集文件名，`create_local_markdown` 在当前目录独占创建空文件后走普通打开流程。
 
-主要代码：
+主要代码：[`reader/src/documents/markdown/`](../reader/src/documents/markdown/)。
 
-- [`reader/src/documents/markdown/`](../reader/src/documents/markdown/)
+## Shared document UI
+
+- `DocumentActions` 统一 PDF/Markdown 的打印/保存入口；`DocumentToolRail` 统一右侧竖栏。
+- [`SidebarResizer`](../reader/src/components/SidebarResizer.tsx) 共用侧栏调宽与拖动收起逻辑（数值见 PRODUCT）；侧栏宽度和可见状态由各文档容器持有，不进入 Rust 工作区。
 
 ## Workspace, tabs and windows
 
-- [`local_files.rs`](../reader/src-tauri/src/local_files.rs) 提供 `get_local_locations` 与异步 `list_local_directory`：系统位置来自 Tauri PathResolver，本地磁盘来自 Windows 逻辑磁盘位图/类型（排除网络盘），目录读取放在阻塞线程，要求绝对路径并规范化，只返回当前目录下的文件夹、PDF/MD/Markdown 及大小/修改时间/不可读项目数。不扫描子树或读取内容。唯一新增写操作 `create_local_markdown` 校验单个文件名、Windows 保留名称和扩展名，再用 `create_new` 创建，已有文件和链接不能覆盖；文件打开仍进入现有工作区命令。
-- [`cloud_locations.rs`](../reader/src-tauri/src/cloud_locations.rs) 在 `get_local_locations` 阻塞线程中只读发现本机同步目录：OneDrive 从当前用户 Accounts/UserFolder 取当前账户路径；Dropbox 从官方 APPDATA/LOCALAPPDATA 的 info.json 取最新有效配置，工作空间可使用 Windows SyncRootManager 中当前用户、且包含当前配置目录的注册根。客户端二进制由标准安装位置及 App Paths/InstallPath（64/32 位注册表视图）验证存在，残留目录/注册表不单独证明安装；只返回绝对且存在的目录，按路径去重，不读取凭据/启动客户端或连接在线服务。自动入口仅内存保留；前端启动/刷新/激活/前台 30 秒更新，请求序号防过期，非活动/后台停止定时探测，固定/常用中的同路径只隐藏显示而不删存储。
-- [`NewTabPage.tsx`](../reader/src/components/NewTabPage.tsx) 持有每个新标签的导航历史、筛选和目录结果；请求序号与卸载清理防止旧目录响应覆盖当前目录。地址栏显示普通 Windows 路径。`DocumentView` 传递活动标签状态，只有活动、可见、聚焦目录连续停留 30 秒才提交有效访问，同一次导航刷新/恢复焦点不重复；快捷浏览不计。`FolderContextMenu` 用 portal 展示钉选/目录空白新建，提供视口限制与键盘焦点恢复；新建对话框保存打开时的目录快照。
-- [`folderLocations.ts`](../reader/src/workspace/folderLocations.ts) 沿用独立 `reader.folder-locations.v1` 键，以 version:2 保存自定义固定项、默认项隐藏状态、有效次数/rank/时间与一次初始化标志；Zustand 同步同 webview，storage 事件同步同 origin 的其他窗口。成功打开/首次保存（含原生外部打开）在父目录计分，同目录 30 分钟去重；按[决策 0003](decisions/0003-frequent-folders.md) 的 zoxide 权重和老化规则选最多 8 项，要求至少 3 次有效访问并排除根/固定/90 天旧目录。旧点击计数丢弃、旧固定保留，仅带时间的最近文件保守初始化；原最近文件 v1 键和内容不变。
+- Rust 全局工作区拥有 `DocumentSession`、`WindowTab` 和每个窗口的标签顺序；前端 Zustand store 是其镜像。打开的规范化路径会去重。
+- `WindowTab.document_id = None` 表示新标签页：它参与聚焦、排序、拖动和序列化；打开文件时活动新标签原位转换为文件标签，关闭最后一个标签时由工作区补位。
+- 主窗口被关闭而拆出窗口仍在时，外部打开（单实例转发）投递到存活窗口；已打开的文件聚焦其所在窗口。
+- 同一窗口内切换标签时组件保持挂载，以保留阅读器和编辑器状态。未保存 Markdown 不能跨 webview 迁移，因此相关跨窗口移动被阻止。
+- 标签拖动：窗口内用 Pointer Events 和 React 预览；离开标题栏后改用不接收鼠标的原生预览窗口。Rust 监测器读取真实左键状态，按原生 Z 序命中目标标签栏，并用同步 `SetWindowPos` 管理 topmost 顺序。预览窗口不拥有标签，不参与持久化。
+- 会话元数据保存在应用数据目录，普通启动不自动恢复。
 
-- 最近列表按应用标识对应的用户数据目录及页面 origin 隔离；独立标识/localhost 开发检查版与正式 com.earendil.reader / http://tauri.localhost 各有自己的列表。普通 MSI 覆盖升级不迁移检查版历史，不删除正式 profile；不能把切换两种版本后列表不同判定为历史删除。
-- Rust 全局工作区拥有 `DocumentSession`、`WindowTab` 和每个窗口的标签顺序；`WindowTab.document_id = None` 表示不绑定文件但仍参与聚焦、排序、拖动和序列化的真实新标签页。
-- 打开的规范化路径会去重；前端 Zustand store 是 Rust 工作区的镜像。
-- 无文件启动时 Rust 为主窗口创建新标签；关闭主窗口最后一个标签会由工作区模型立即补位。打开文件时若目标窗口的活动标签是新标签，则原位转换为文件标签。
-- 主窗口被关闭（其他拆出窗口仍在）时，工作区保留空的 `main` 槽位但移除它的标签和文档。单实例转发和 macOS 打开事件经 `external_open_window` 投递：主窗口存在则用主窗口，否则用存活的拆出窗口；已打开的文件聚焦并置前其所在窗口。首次启动参数仍进入主窗口。单标签窗口（含主窗口）停靠到其他窗口后被销毁。
-- 新标签页通过目录列表打开文件和在当前目录创建 Markdown；既有未命名 Markdown 首次保存仍可用 Tauri dialog plugin 的原生保存对话框，文件读取和原子写入由 Rust 命令执行。
-- 最近文件由前端工作区层维护在 webview `localStorage`，只记录成功打开或首次保存后的规范文件，不记录未命名文档；列表按最近使用去重，不设条数上限；v1 加载使用按规范路径索引的 Map 保持最新记录顺序，并从较旧重复记录补齐缺少的元数据，避免重复复制整个列表。记录可选 `opened_at`（本地成功打开的 epoch 毫秒）和 `file_size`（已有工作区元数据），保持 v1 存储键并兼容旧记录；快照更新大小不改变打开时间或列表顺序，首次保存建立文件记录。大小是已有快照缓存，不主动轮询磁盘或检测外部修改。Windows `\\?\` / `\\?\UNC\` 扩展长度前缀在身份比较和显示前转换为普通盘符或 UNC 路径，加载旧记录时同步迁移并合并重复项。
-- 同一窗口内切换标签时组件保持挂载，从而保留阅读器和编辑器状态。
-- 标签使用 Pointer Events 在同一窗口内排序；拖动时先由 React 显示标签预览，离开来源标题栏后改用忽略鼠标事件的短生命周期原生预览窗口，使反馈能跨出 webview 边界。
-- Rust 拖动监测器在 Windows 上读取真实左键状态；单标签原生窗口移动在鼠标释放时完成停靠检测，不依赖 `startDragging()` Promise 的完成时序。
-- 拖动进入可见 Reader 窗口的标签页栏时，监测器按 Windows 原生 Z 序选择最上层命中窗口并临时置顶；多标签来源窗口也参与命中，因此返回来源标签页栏可重新抬升来源。经过文档内容区不触发上浮，离开、取消、超时或完成后撤销。
-- Windows 拖动会话通过同步 `SetWindowPos` 依次把目标、跨窗口原生标签预览或随鼠标移动的单标签来源窗口放入 topmost 层，保证拖动载体最后进入且不被目标遮挡；不使用 TAO 的异步 `always_on_top` 状态更新。释放时命中目标标签页栏则移动标签，否则多标签来源按释放点创建新窗口。
-- 拖动预览窗口不拥有工作区标签，不参与会话持久化和窗口销毁广播。
-- 未保存 Markdown 的编辑状态无法在 webview 间安全迁移，因此相关移动被阻止。
-- 会话元数据保存在应用数据目录供潜在恢复使用；当前普通启动明确不自动恢复旧会话。
+主要代码：[`reader/src/workspace/`](../reader/src/workspace/)、[`TabStrip.tsx`](../reader/src/components/TabStrip.tsx)、[`tabPointerDrag.ts`](../reader/src/components/tabPointerDrag.ts)、[`workspace.rs`](../reader/src-tauri/src/workspace.rs)、[`lib.rs`](../reader/src-tauri/src/lib.rs)。
 
-主要代码：
+## New tab page and local files
 
-- [`reader/src/workspace/`](../reader/src/workspace/)
-- [`reader/src/components/TabStrip.tsx`](../reader/src/components/TabStrip.tsx)
-- [`reader/src/components/tabPointerDrag.ts`](../reader/src/components/tabPointerDrag.ts)
-- [`reader/src/components/WindowTitleBar.tsx`](../reader/src/components/WindowTitleBar.tsx)
-- [`reader/src-tauri/src/commands.rs`](../reader/src-tauri/src/commands.rs)
-- [`reader/src-tauri/src/workspace.rs`](../reader/src-tauri/src/workspace.rs)
-- [`reader/src-tauri/src/lib.rs`](../reader/src-tauri/src/lib.rs)
+- [`local_files.rs`](../reader/src-tauri/src/local_files.rs)：系统位置、本地磁盘（排除网络盘）和单层目录列表（只返回文件夹与 PDF/MD 的元数据，不读内容、不递归）；`create_local_markdown` 是唯一写操作，校验文件名并以 `create_new` 创建，不覆盖已有文件。
+- [`cloud_locations.rs`](../reader/src-tauri/src/cloud_locations.rs)：只读发现 OneDrive/Dropbox 本机同步目录，要求客户端确实已安装且目录存在；不读凭据、不连接在线服务，结果只保存在内存。
+- [`NewTabPage.tsx`](../reader/src/components/NewTabPage.tsx) 持有每个新标签的导航历史、筛选和目录结果，用请求序号丢弃过期响应，并负责“有效访问”计时。
+- [`folderLocations.ts`](../reader/src/workspace/folderLocations.ts) 在 `localStorage` 的 `reader.folder-locations.v1` 保存固定项与常用文件夹统计，排序规则见[决策 0003](decisions/0003-frequent-folders.md)。
+- 最近文件保存在 `localStorage` 的 `reader.recent-files.v1`，按规范路径去重、不设上限；加载时把 Windows `\\?\` 扩展长度路径迁移为普通路径。存储按应用标识和页面 origin 隔离，开发/检查版与正式版互不可见。
 
 ## Windows file associations and bundle
 
-- [`brandIcons.ts`](../reader/src/components/brandIcons.ts) 将软件/PDF/Markdown/通用文件 SVG 母版映射到应用组件；标题栏、首页、标签、最近记录及两种拖拽预览共用此入口。原生图标生成器读取同一软件/PDF/Markdown 母版，HTML favicon 读取软件母版，避免维护第二套设计。
-- 文件母版的 UI 画布保持 22×22，列表和标签分别选择显示尺寸；原生生成器在临时副本中仅将外围裁为居中的 viewBox `2 2 18 18` 后转换 ICO。选定的 Material Icon Theme PDF 和 Material Design Icons Markdown 原路径不变，最长可见维度统一为 16 单位、保持宽高比；同一母版加入不透明白色背衬与同饱和度/明度红蓝配色，同时供 UI 和原生使用。软件图标转换不变。
-- `reader/src-tauri/tauri.conf.json` 声明 `.pdf`、`.md` 和 `.markdown` 的打开关联；通用关联定义继续由 Tauri 生成。
-- `bundle.resources` 将 `file-pdf.ico` 与 `file-markdown.ico` 放入安装目录，使注册表中的 `DefaultIcon` 在安装后保持有效。
-- `bundle.resources` 携带 Fluent Emoji、Bootstrap Icons、Material Icon Theme、Pictogrammers 的版权/许可、Apache 2.0 全文和文件图标修改 notice 至 licenses 目录。
-- NSIS 通过 [`installer-hooks.nsh`](../reader/src-tauri/windows/installer-hooks.nsh) 在 Tauri 关联创建后为 `PDF Document`、`Markdown Document` 以及 WiX 使用的 `Reader.*` ProgID 覆写 `DefaultIcon`，卸载后通知 Windows 刷新关联。
-- WiX 通过 [`file-association-icons.wxs`](../reader/src-tauri/windows/file-association-icons.wxs) 为 `Reader.pdf`、`Reader.md`、`Reader.markdown` 及 NSIS 使用的 `PDF Document`、`Markdown Document` 添加注册表组件；组件随 MSI 卸载而移除。双集合是为了让 MSI/NSIS 交叉升级时，当前生效的关联类仍能找到专用图标。
-
-主要代码和资源：
-
-- [`reader/src-tauri/tauri.conf.json`](../reader/src-tauri/tauri.conf.json)
-- [`reader/src-tauri/windows/`](../reader/src-tauri/windows/)
-- [`reader/src-tauri/icons/file-pdf.ico`](../reader/src-tauri/icons/file-pdf.ico)
-- [`reader/src-tauri/icons/file-markdown.ico`](../reader/src-tauri/icons/file-markdown.ico)
+- [`brandIcons.ts`](../reader/src/components/brandIcons.ts) 与原生图标生成器共用同一套 SVG 母版（细节见 DEVELOPMENT 的 Icons 一节）。
+- `tauri.conf.json` 声明 `.pdf`、`.md`、`.markdown` 关联；`bundle.resources` 携带两个文件 ICO 和第三方图标许可。
+- NSIS（[`installer-hooks.nsh`](../reader/src-tauri/windows/installer-hooks.nsh)）和 WiX（[`file-association-icons.wxs`](../reader/src-tauri/windows/file-association-icons.wxs)）都同时为两套 ProgID 写 `DefaultIcon`，使 MSI/NSIS 交叉升级后生效的关联类仍能找到专用图标。
 
 ## Security boundary
 
@@ -115,4 +82,4 @@ Windows / Tauri
 
 ## Decision records
 
-架构选择的长期理由记录在 [`decisions/`](decisions/)；PDF 双引擎边界见 [`0001-document-engine-split.md`](decisions/0001-document-engine-split.md)。原始设想保存在 [`archive/`](archive/)，但不作为当前实现依据。
+架构选择的长期理由记录在 [`decisions/`](decisions/)。

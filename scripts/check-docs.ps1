@@ -45,10 +45,8 @@ $requiredFiles = @(
     "docs/ARCHITECTURE.md",
     "docs/DEVELOPMENT.md",
     "docs/STATUS.md",
-    "docs/PI_WORKFLOW.md",
-    "docs/PI_EXECUTOR_PROTOCOL.md",
+    "CLAUDE.md",
     "docs/decisions/README.md",
-    "docs/tasks/README.md",
     "docs/tasks/TEMPLATE.md"
 )
 
@@ -112,7 +110,6 @@ $entryPoints = @(
     "docs/DEVELOPMENT.md",
     "docs/decisions/",
     "docs/tasks/",
-    "docs/PI_WORKFLOW.md",
     "CHANGELOG.md"
 )
 
@@ -129,29 +126,15 @@ $activeTasks = @(Get-ChildItem -LiteralPath $activeDirectory -File -Filter "*.md
 $requiredTaskHeadings = @(
     "Goal",
     "Related context",
-    "Current behavior",
-    "Expected behavior",
-    "Scope",
-    "Out of scope",
-    "Constraints and decisions",
-    "Acceptance criteria",
-    "Progress",
-    "Discoveries",
-    "Verification",
+    "Scope and acceptance",
+    "Progress and verification",
     "User acceptance",
-    "Risks and remaining work",
-    "Next action",
-    "Outcome"
+    "Next action"
 )
 $requiredTaskMetadata = @(
     "Status",
-    "Owner",
     "Created",
-    "Last updated",
-    "Base branch",
-    "Base commit",
-    "Implementation",
-    "Pi session ID"
+    "Base"
 )
 
 if ($activeTasks.Count -eq 0) {
@@ -196,27 +179,6 @@ else {
     }
 }
 
-$archivedTasks = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot "docs/tasks/archive") -File -Filter "*.md")
-foreach ($task in $archivedTasks) {
-    $taskContent = Get-Content -Raw -LiteralPath $task.FullName
-    if ($taskContent -notmatch '(?m)^- Status: `(done|cancelled)`\s*$') {
-        $errors.Add("Archived task is not done or cancelled: $($task.Name)")
-    }
-    foreach ($field in $requiredTaskMetadata) {
-        if ($taskContent -notmatch "(?m)^- $([regex]::Escape($field)):\s+.+$") {
-            $errors.Add("Archived task lacks '$field' metadata: $($task.Name)")
-        }
-    }
-    foreach ($heading in $requiredTaskHeadings) {
-        if ($taskContent -notmatch "(?m)^## $([regex]::Escape($heading))\s*$") {
-            $errors.Add("Archived task lacks '$heading': $($task.Name)")
-        }
-    }
-    if ($taskContent -notmatch '(?ms)^## Related context\s+.*?\[[^\]]+\]\([^\)]+\).*?^## ') {
-        $errors.Add("Archived task Related context has no document or code link: $($task.Name)")
-    }
-}
-
 $decisionIndex = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "docs/decisions/README.md")
 $decisionFiles = @(
     Get-ChildItem -LiteralPath (Join-Path $repoRoot "docs/decisions") -File -Filter "*.md" |
@@ -245,4 +207,4 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-Write-Output "Documentation check passed: $($managedFiles.Count) Markdown files, $($activeTasks.Count) active task(s), $($archivedTasks.Count) archived task(s), $($decisionFiles.Count) decision record(s)."
+Write-Output "Documentation check passed: $($managedFiles.Count) Markdown files, $($activeTasks.Count) active task(s), $($decisionFiles.Count) decision record(s)."

@@ -44,14 +44,9 @@ cargo clippy --manifest-path reader/src-tauri/Cargo.toml --all-targets --all-fea
 
 如果直接 Cargo 构建提示找不到 RC.EXE，先查当前 Windows SDK 的 x64 资源编译器，再仅为当前终端设置 `$env:RC` 为其绝对路径。本机 2026-10-12 验证路径为 `C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/rc.exe`；不修改全局 PATH 或 SDK。Tauri CLI 的开发启动另有工具链环境探测。
 
-同步目录发现回归在 `cloud_locations` Rust 测试中用真实临时目录和配置验证卸载残留、重装换路径、个人/工作账户、最新配置、无效路径和去重；本机只读探测可运行 `cargo test --manifest-path reader/src-tauri/Cargo.toml cloud_locations -- --nocapture`，仅输出识别的提供方与目录。浏览器 `new-tab.spec.ts` 用模拟配置/时钟检查焦点、30 秒和刷新更新，并保留既有右键/侧键回归。不会实际卸载/重装用户的同步软件，真实客户端变更后的桌面体验由用户验收。
+浏览器回归测试（`pnpm --dir reader test:browser`）使用开发依赖 `@playwright/test` 和已安装的 Microsoft Edge，启动独立的 `127.0.0.1:1422` 服务，入口为 `reader/playwright.config.ts` 和 `reader/tests/browser/`。单独运行某个文件：`pnpm --dir reader test:browser -- pdf-selection.spec.ts`。Vitest 只发现 `src/**/*.test.{ts,tsx}`。
 
-Markdown 编辑器生命周期回归测试使用开发依赖 `jsdom` 挂载真实 React 组件，并模拟 Crepe 引擎与 Tauri 边界；覆盖实例稳定、模式切换、异步清理、保存及放弃修改。运行 `pnpm --dir reader test src/documents/markdown/MilkdownCrepe.test.tsx` 可单独检查；这不替代真实桌面中文输入法与交互验收。
-
-浏览器功能回归测试运行 `pnpm --dir reader test:browser`，使用开发依赖 `@playwright/test` 和已安装的 Microsoft Edge，无需另行下载浏览器。测试启动独立的 `127.0.0.1:1422` 服务，不生成截图、视频或 trace。入口为 `reader/playwright.config.ts` 和 `reader/tests/browser/`。Vitest 仅发现 `src/**/*.test.{ts,tsx}`，避免混跑 Playwright 用例。此测试仍不替代用户在真实 Reader 中的中文输入法和交互验收。
-
-- Markdown：加载真实 React/Crepe/CSS，仅模拟原生文件接口；以坐标和内容断言验证选区稳定、连续输入及撤销。`markdown-blocks.spec.ts` 覆盖新增结构工具的保存/撤销、上传图片的持久化、立即保存/模式切换、引用/代码/公式间距；`new-tab.spec.ts` 检查近期元数据、330/620/1100px 紧凑布局与超过 8 条后的滚动/点击；`markdown-tools.spec.ts` 检查 16 个 SVG 遮罩的 CSS 解析与实际图片解码，避免只测操作而漏掉资源显示。
-- PDF：加载真实 `PdfViewer`、PDF.js、文字层和应用 CSS，仅把原生文件协议映射到 `tests/fixtures/text-3.pdf` 并模拟批注写入；通过真实鼠标拖动检查空白起点、文字内部、反向、跨行、缩放/滚动及文字高亮的选区几何。终点回归检查向下拖过末行、反向拖过首行、右侧空白、拖回文字恢复精确终点、释放后稳定及完整末行批注几何。另检查已有选区经按钮/快捷键/Ctrl＋滚轮/适合模式缩放后的内容、方向和几何，以及搜索高亮重绘和取消选区时的行为。连续滚轮回归在重绘期间立即断言文字内容、选区绘制层与文字范围重叠，并检查跨页文字层；复制回归用独立事件剪贴板触发真实 PDF.js copy 处理器，不读写 Windows 剪贴板。单独运行：`pnpm --dir reader test:browser -- pdf-selection.spec.ts`。模拟批注写入不证明 PDFium 文件写入结果，事件剪贴板测试不替代桌面 Ctrl+C 验收。
+这些测试模拟 Tauri 原生接口（文件读写、PDFium 写入、目录列表、剪贴板），不替代真实桌面中的中文输入法、PDFium 写盘、系统位置和交互验收。
 
 文档结构与内部链接检查：
 
@@ -61,70 +56,61 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Visual acceptance
 
-新标签页回归运行 `pnpm --dir reader test:browser -- new-tab.spec.ts`，模拟原生目录/新建接口，检查精简布局、连续钉选列表、右键固定持久化、菜单键盘/边界/关闭、目录空白新建/取消/重名恢复、导航/筛选/旧响应抑制及近期元数据；模拟时钟检查前台 30 秒停留、活动标签切换、刷新不计次和至少 3 次有效访问。`folderLocations.test.ts` 检查资格、时间权重/30 分钟去重、老化、迁移和默认项隐藏。Rust `local_files` 测试用真实临时目录验证读取、过滤、排序、父级、错误及独占创建/已有内容不覆盖/无效名称。两者不代替本机系统位置、磁盘权限、原生 WebView2 菜单和可移动设备的用户验收。
+视觉与交互在真实 Windows 桌面中由用户验收，规则见 [`AGENTS.md`](../AGENTS.md#用户视觉验收)。
 
-视觉与交互必须在真实 Windows 桌面环境中验收；职责、启动方式和反馈记录遵循 [`AGENTS.md`](../AGENTS.md#user-visual-acceptance)，检查项保存在对应活动任务文件中。
+## Icons
 
-## Release build
-
-软件与文件图标的 SVG 母版在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)：软件采用 Microsoft Fluent Emoji、工具采用 Bootstrap Icons 1.13.1；文件采用用户选定的 Material Icon Theme PDF、Material Design Icons Markdown，保留原路径/许可与修改 notice。应用内 `brandIcons.ts` 与原生生成器共用 `shell-reader.svg`、`shell-pdf.svg`、`shell-markdown.svg`；未知文件使用 shell-file.svg。软件 SVG 保留 Fluent 原有的渐变和过滤器，在 40×40 画布里放置原始 32×32 图形以调整占比；上游固定提交与许可见图标来源文档。修改母版后必须重新生成原生资源并重新打包安装，以同步软件内部和 Windows：
+软件与文件图标的 SVG 母版及许可在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)；应用内 [`brandIcons.ts`](../reader/src/components/brandIcons.ts) 与原生生成器共用这些母版。修改母版后重新生成原生资源，并重新打包安装才能同步到 Windows：
 
 ```powershell
 pnpm --dir reader generate:file-icons
 ```
 
-该命令使用项目已有的 Tauri 图标转换器生成应用 PNG/ICO/ICNS 与两种文件 ICO，不新增依赖；在系统临时目录转换，仅将受管理的资源复制到 `src-tauri/icons`。虽然保留原命令名称，它现在覆盖软件和文件两类图标。应用 ICO 的 256px 帧排在首位，避免 Tauri 解码第一帧时选中 32px 后放大；其余多尺寸帧保留。标题栏直接使用 SVG。
+- 该命令生成应用 PNG/ICO/ICNS 与 `file-pdf.ico`、`file-markdown.ico`，只复制受管理资源到 `src-tauri/icons`；应用 ICO 的 256px 帧排在首位。
+- 文件图标 UI 母版为 22×22 画布；Windows 生成器裁掉外围留边（viewBox `2 2 18 18`），宽高比不变。
+- 只替换已安装目录中的 ICO 仅适用于本机临时测试；Explorer 可能缓存旧图标。
+- 图标选型资料见 [`design/icon-options/2026-10-07/`](../design/icon-options/2026-10-07/README.md)。
 
-缓存清理后的临时开发验收可在启动前设置 `$env:CARGO_PROFILE_DEV_DEBUG='0'`、`$env:CARGO_INCREMENTAL='0'`，减少调试符号和增量缓存；变量仅作用于该终端启动的进程，不改全局配置或 release profile。临时独立标识和验收标题通过 Tauri `--config <临时 JSON>` 传入，以免干扰正式安装版的单实例和存储。
-
-最近打开列表保存在 WebView2 localStorage，独立检查标识与正式标识、localhost 开发地址与正式页面地址互相隔离。交付时告知用户检查版历史不会自动出现在正式版；覆盖安装前后应比较正式 com.earendil.reader / http://tauri.localhost 的 reader.recent-files.v1，不能用检查版列表代替升级保留验证。保留正式用户数据，不为统一显示直接覆盖正式 profile 或合并验收样本历史。
-
-正式更换 PDF/Markdown 文件关联图标时，保持 `file-pdf.ico` 和 `file-markdown.ico` 文件名不变即可；如果使用外部设计工具制作 ICO，则直接替换这两个生成文件，再重新构建安装包。仅替换已安装目录中的 ICO 只能用于本机临时测试，正式交付仍需重新打包并安装，因为安装器会把资源复制到安装目录，Explorer 也可能缓存旧图标。
-
-文件 UI 母版保持 22×22 画布，标签图片为 24px、最近列表图片为 32px。Windows 生成器只裁外围留边，使用居中的 viewBox `2 2 18 18`；文件最长维度保持 16 单位，宽高比不变。两文件使用同饱和度/明度红蓝配色，白色背衬只填原图内部镂空。调整后检查六帧 ICO 的透明外角、内部不透明白色/实色、最长维度和无裁切，以及窄窗口行高/溢出；采样避开抗锯齿边界。软件图标生成不受此裁边影响。
-
-图标资源变更后重新生成 Windows bundle：
+## Release build
 
 ```powershell
 pnpm --dir reader tauri build
 ```
 
-生成全部 Windows bundle：
-
-```powershell
-pnpm --dir reader tauri build
-```
-
-典型输出：
+输出：
 
 ```text
 reader/src-tauri/target/release/bundle/nsis/Reader_<version>_x64-setup.exe
 reader/src-tauri/target/release/bundle/msi/Reader_<version>_x64_en-US.msi
 ```
 
-发布前至少记录：源提交、版本、构建退出码、安装包大小、SHA-256、签名状态，以及安装/升级/卸载是否实际验证。Windows 文件关联图标还应检查生成的 NSIS `installer.nsi` 和 WiX `main.wxs` 是否分别包含图标资源与 `DefaultIcon` 注册表项。证据写入对应发布任务，仍影响当前使用的限制同步到 `docs/STATUS.md`。
+发布前记录源提交、版本、构建退出码、安装包大小、SHA-256、签名状态，以及安装/升级/卸载是否实际验证；最新包登记到 `docs/STATUS.md`。
 
-核对安装后的可执行文件时，注意 Tauri 会向 MSI 内的二进制写入 `__TAURI_BUNDLE_TYPE_VAR_MSI`，而构建目录的标记可在打包结束后恢复为 `UNK`；这会导致 SHA-256 不同。应检查包内文件或逐字节确认差异仅限包类型标记，不能仅据这两个哈希不同判定安装保留了旧程序。
+发布注意事项：
 
-已安装 MSI 若属于需要管理员权限的上下文，普通终端的 `/qn` 覆盖升级可能退出 1603，详细日志显示卸载旧版错误 1730。保留失败日志；按已授权安装范围通过 Windows `Start-Process msiexec.exe -Verb RunAs -WindowStyle Hidden` 发起系统 UAC 提示，由用户在 Windows 中允许后继续。不能因静默安装禁止提权提示而反复重试，也不修改机器权限策略或绕过旧版卸载。
+- 文件关联图标：检查生成的 NSIS `installer.nsi` 与 WiX `main.wxs` 包含图标资源和 `DefaultIcon` 注册表项。
+- Tauri 会向 MSI 内的二进制写入 `__TAURI_BUNDLE_TYPE_VAR_MSI` 标记，所以安装后 exe 与构建目录 exe 的 SHA-256 不同；比较时应确认差异仅限该标记。
+- 普通终端 `/qn` 覆盖升级可能因旧版卸载需要管理员权限而退出 1603（日志错误 1730）。用 `Start-Process msiexec.exe -Verb RunAs` 发起 UAC 提示由用户允许，不要反复重试或修改权限策略。
+- 最近文件保存在 WebView2 localStorage，检查版（独立标识或 localhost）与正式版 `com.earendil.reader` / `http://tauri.localhost` 互相隔离；升级保留验证要比较正式版的 `reader.recent-files.v1`。
+- 临时检查版可通过 Tauri `--config <临时 JSON>` 设置独立标识和标题，避免干扰正式安装版的单实例和存储；`$env:CARGO_PROFILE_DEV_DEBUG='0'`、`$env:CARGO_INCREMENTAL='0'` 可减少缓存占用。
 
 ## Local publication and cleanup
 
-发布完成后，把 MSI/NSIS、SHA-256、包结构核对、构建及安装日志保存到仓库根目录的 `releases/<日期>-<版本>-<源码提交>/`。该目录忽略 Git；当前目录与校验值记录在 `docs/STATUS.md`，任务保存安装登记及核对结果。发布包不会因清理 `target` 丢失。需要分发时使用这里保留的包；本地发布不等于已上传外部平台。
+发布包与构建/安装证据保存在仓库根目录的 `releases/<日期>-<版本>-<源码提交>/`，该目录不纳入 Git，清理 `target` 不会影响它。
 
-清理前先核对发布副本和安装结果，正常关闭开发版（未保存编辑不能强杀），停止本项目的 Tauri/Vite 服务。只删除明确可生成且已确认绝对路径位于当前仓库内的目录，避开目录联接及任何受 Git 跟踪的文件：
+清理前先核对发布副本，正常关闭开发版（有未保存编辑时不能强杀），停止 Tauri/Vite 服务。只删除可重新生成的目录：
 
-- `reader/src-tauri/target/`：Rust 开发/发布编译缓存和临时安装包；删除后首次原生构建会重新编译。
-- `reader/dist/`：前端构建产物，`pnpm --dir reader build` 可重新生成。
-- `reader/test-results/`、`reader/playwright-report/`、`reader/node_modules/.vite/`：测试和 Vite 缓存，重新运行对应命令生成。
+- `reader/src-tauri/target/`（Rust 编译缓存，可用 `cargo clean`）
+- `reader/dist/`
+- `reader/test-results/`、`reader/playwright-report/`、`reader/node_modules/.vite/`
 
-保留源码、Git 历史、锁文件、`node_modules`、受跟踪的 PDFium、`releases/` 和用户安装数据；不清理全局 pnpm/Cargo 缓存。占用统计以仓库内普通文件长度汇总，不跟随目录联接，前后使用同一口径。清理不会影响已安装版本启动。
+保留源码、锁文件、`node_modules`、受跟踪的 PDFium、`releases/` 和用户安装数据；不清理全局 pnpm/Cargo 缓存。
 
 ## Repository layout
 
 ```text
 Reader/
-├── AGENTS.md
+├── AGENTS.md / CLAUDE.md
 ├── README.md
 ├── CHANGELOG.md
 ├── scripts/
@@ -135,13 +121,11 @@ Reader/
 │   ├── ARCHITECTURE.md
 │   ├── DEVELOPMENT.md
 │   ├── STATUS.md
-│   ├── PI_WORKFLOW.md
-│   ├── PI_EXECUTOR_PROTOCOL.md
 │   ├── decisions/
-│   ├── tasks/
-│   └── archive/
+│   └── tasks/
 └── reader/
     ├── src/                    React/TypeScript frontend
+    │   └── assets/icons/       SVG icon masters and licenses
     ├── src-tauri/              Rust/Tauri backend and bundle config
     │   ├── icons/              Application and file association icons
     │   └── windows/            NSIS hooks and WiX fragments
