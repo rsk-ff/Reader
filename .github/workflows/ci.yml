@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, master]
+  push:
+    branches: [dev, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows checks
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: reader
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: reader/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Type-checks and produces ../dist, which the Tauri build script needs.
+      - name: Type-check and build frontend
+        run: pnpm build
+
+      - name: Frontend unit tests
+        run: pnpm test
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: reader/src-tauri
+
+      - name: Rust format
+        working-directory: reader/src-tauri
+        run: cargo fmt --check
+
+      - name: Rust lint
+        working-directory: reader/src-tauri
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      # Uses the PDFium runtime tracked in src-tauri/lib/bin.
+      - name: Rust tests
+        working-directory: reader/src-tauri
+        run: cargo test
