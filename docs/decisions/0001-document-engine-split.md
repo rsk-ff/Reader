@@ -23,4 +23,3 @@ Reader 同时需要成熟的 PDF 阅读体验和可控的本地文件修改。PD
 ## Evidence
 
 - 当前实现：[`reader/src/documents/pdf/`](../../reader/src/documents/pdf/) 与 [`reader/src-tauri/src/pdf/`](../../reader/src-tauri/src/pdf/)。
-- 原始背景：[`initial-technical-plan.zh-CN.md`](../archive/initial-technical-plan.zh-CN.md)。

@@ -1,72 +1,40 @@
 # <Task title>
 
+<!--
+任务文件用于多回合任务和跨会话交接，由代理创建和维护，用户不需要编辑。
+放在 docs/tasks/active/YYYY-MM-DD-short-name.md，并在 docs/STATUS.md 的 Active task 中索引。
+状态：in_progress（可继续）、waiting_user_acceptance（等用户验收）、blocked（写明解除条件）。
+完成或取消后，把结果写入 STATUS.md / CHANGELOG.md，再删除本文件。
+文件必须自包含：新会话只读本文件、Related context 和代码就能继续。
+-->
+
 - Status: `in_progress`
-- Owner: Codex
 - Created: `<YYYY-MM-DD>`
-- Last updated: `<YYYY-MM-DD>`
-- Base branch: `<branch>`
-- Base commit: `<hash>`
-- Implementation: `<Codex/Pi/not started>`
-- Pi session ID: `<not used/session-id>`
+- Base: `<branch>@<commit>`
 
 ## Goal
 
-说明用户完成后可以做什么，以及为什么需要这项变化。
+完成后用户可以做什么，为什么需要。
 
 ## Related context
 
-- 列出新会话继续本任务必须读取的产品、架构、开发、决策文档和主要代码入口；不要列无关资料或依赖旧聊天。
+- 继续本任务必须读的文档和代码入口（至少一个链接）。
 
-## Current behavior
+## Scope and acceptance
 
-写出可复现的当前现象、输入和结果。
+- 现状 → 期望行为。
+- 允许修改的范围；明确不处理的相邻问题。
+- [ ] 用户可见的验收标准。
+- [ ] 自动化验证命令。
 
-## Expected behavior
+## Progress and verification
 
-用用户可观察的行为描述完成状态。
-
-## Scope
-
-允许修改的模块、文件或能力。
-
-## Out of scope
-
-明确本任务不处理的相邻问题。
-
-## Constraints and decisions
-
-记录已经确定、执行代理不应自行改变的约束和决定。
-
-## Acceptance criteria
-
-- [ ] 用户可见行为标准。
-- [ ] 自动化验证标准。
-- [ ] 文档和工作树完成标准。
-
-## Progress
-
-- [ ] 当前步骤。
-
-## Discoveries
-
-- 记录会影响实现或后续任务的事实，并附简短证据。
-
-## Verification
-
-- `<command>` — `<not run/passed/failed and concise evidence>`
+- 已完成的步骤、关键发现和决定，以及实际运行的验证及结果。
 
 ## User acceptance
 
-记录需要用户检查的项目和反馈。没有用户反馈时明确写 `waiting`。
-
-## Risks and remaining work
-
-只记录真实未解决或未验证事项。
+需要用户检查的项目和反馈；未反馈时写 `waiting`。
 
 ## Next action
 
-写出新会话应执行的第一个具体动作。
-
-## Outcome
-
-完成或取消时填写实际结果、最终提交（如有）和未解决项；随后移动到 `archive/`。归档文件与最终提交同批时记录提交主题，提交哈希以 Git 历史为准，避免文档自引用哈希。
+新会话应执行的第一个具体动作。
