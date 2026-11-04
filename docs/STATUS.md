@@ -1,12 +1,12 @@
 # Current status
 
-- Last updated: 2026-10-28
+- Last updated: 2026-11-04
 - Application version: `0.1.0`
 - Latest user-accepted source baseline: `b2c1553` — Markdown 侧栏调宽与 PDF/Markdown 拖动收起
 
 ## Active task
 
-- None.
+- [界面改版（浅色，方向 A）](tasks/active/2026-11-04-ui-redesign.md): `waiting_user_acceptance`, 分支 `claude/project-thread-gsfh7v`。
 
 ## Pending user acceptance
 
