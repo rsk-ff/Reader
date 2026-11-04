@@ -1,15 +1,96 @@
+/* Design tokens. Components read these variables only; a theme changes the
+   values here (light now, dark later) without touching component rules. */
 :root {
-  --bg: #f5f5f5;
-  --bg-elev: #ffffff;
-  --bg-active: #edf1f8;
+  /* Surfaces */
+  --bg: #f5f5f5;               /* app background, quiet hover */
+  --bg-elev: #ffffff;          /* documents, toolbars, menus */
+  --bg-chrome: #eeeeee;        /* title bar */
+  --bg-sidebar: #fafafa;       /* side panels and the tool rail */
+  --bg-active: #edf1f8;        /* selected row or pressed tool */
+  --stage: #e5e5e5;            /* area behind PDF pages */
+  --page-placeholder: #e8e8e8;
+  --overlay-veil: rgba(250, 250, 250, 0.94);
+
+  /* Lines */
   --border: #dedede;
+  --border-strong: #d2d2d2;
+  --border-active: #c7d2e4;
+
+  /* Text */
   --text: #222222;
   --text-dim: #606060;
   --text-faint: #727272;
   --text-muted: #606060;
+  --text-placeholder: #888888;
+
+  /* Accent: focus, current item, primary action */
   --accent: #3b5f9d;
   --accent-hover: #294b85;
-  --stage: #e5e5e5;
+  --on-accent: #ffffff;
+
+  /* Strong neutral action (save with changes, confirm delete) */
+  --strong: #292929;
+  --strong-hover: #111111;
+  --on-strong: #ffffff;
+
+  /* Status */
+  --danger: #b42318;
+
+  /* File types */
+  --file-pdf: #b64b3f;
+  --file-markdown: var(--accent);
+
+  /* Scrollbars */
+  --scrollbar: #bbbbbb;
+  --scrollbar-hover: #999999;
+
+  /* Selection and search inside documents */
+  --text-selection: rgba(68, 138, 255, 0.36);
+  --text-selection-legacy: rgba(122, 162, 247, 0.5);
+  --search-hit: rgba(255, 213, 79, 0.5);
+
+  /* Small neutral overlays */
+  --tab-close-hover: rgba(30, 44, 64, 0.08);
+  --winctl-hover: rgba(0, 0, 0, 0.09);
+  --winctl-pressed: rgba(0, 0, 0, 0.16);
+
+  /* Floating layers */
+  --backdrop: rgba(0, 0, 0, 0.28);
+  --backdrop-light: rgb(0 0 0 / 24%);
+  --dialog-backdrop: rgb(0 0 0 / 18%);
+  --menu-line: #dfe2e6;
+  --menu-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+  --dialog-line: #e3e5e8;
+  --dialog-shadow: 0 12px 36px rgb(0 0 0 / 16%);
+
+  /* Form controls */
+  --input-line: #c8cdd3;
+  --button-bg: #fafafa;
+
+  /* Shape */
+  --radius-control: 2px;       /* buttons, inputs, tabs, rows */
+  --radius-panel: 0;           /* dialogs and cards */
+
+  /* Type */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, "SFMono-Regular",
+    "SF Mono", Menlo, "Liberation Mono", monospace;
+  --font-doc: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --font-doc-heading: var(--font-doc);
+
+  /* Markdown editor surfaces */
+  --md-surface-low: #ededed;
+  --md-inverse: #f0f0f0;
+  --md-hover: #eeeeee;
+  --md-selected: #dde5f3;
+  --md-inline-area: #dddddd;
+  --md-quote-rule: #c7cbd1;
+  --md-code-tools: #f0f0f0;
+  --md-code-tools-line: #e3e3e3;
+  --md-code-tools-hover: #e4e4e4;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -30,8 +111,7 @@ body,
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: var(--font-ui);
   font-size: 13px;
   user-select: none;
 }
@@ -99,7 +179,7 @@ html.tab-drag-preview-document #root {
   color: var(--text);
   background: var(--bg-active);
   border: 1px solid var(--accent);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   box-shadow: none;
   white-space: nowrap;
 }
@@ -116,7 +196,7 @@ html.tab-drag-preview-document #root {
   align-items: stretch;
   height: 36px;
   min-height: 36px;
-  background: #eeeeee;
+  background: var(--bg-chrome);
   border-bottom: 1px solid var(--border);
   user-select: none;
 }
@@ -168,12 +248,12 @@ html.tab-drag-preview-document #root {
 }
 
 .winctl:hover {
-  background: rgba(0, 0, 0, 0.09);
+  background: var(--winctl-hover);
   color: var(--text);
 }
 
 .winctl:active {
-  background: rgba(0, 0, 0, 0.16);
+  background: var(--winctl-pressed);
   color: var(--text);
 }
 
@@ -191,12 +271,12 @@ html.tab-drag-preview-document #root {
    maximize button on Windows, so the webview :hover/:active never fire there.
    These explicit classes mirror that feedback while the overlay is active. */
 .winctl-maximize.winctl-snap-hover {
-  background: rgba(0, 0, 0, 0.09);
+  background: var(--winctl-hover);
   color: var(--text);
 }
 
 .winctl-maximize.winctl-snap-pressed {
-  background: rgba(0, 0, 0, 0.16);
+  background: var(--winctl-pressed);
   color: var(--text);
 }
 
@@ -228,7 +308,7 @@ html.tab-drag-preview-document #root {
   container: tab / inline-size;
   padding: 0 8px 0 10px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-dim);
   cursor: default;
@@ -244,7 +324,7 @@ html.tab-drag-preview-document #root {
 .tab-active {
   background: var(--bg-elev);
   color: var(--text);
-  border-color: #d2d2d2;
+  border-color: var(--border-strong);
   border-bottom-color: transparent;
 }
 
@@ -279,11 +359,11 @@ html.tab-drag-preview-document #root {
 }
 
 .tab-icon-pdf {
-  color: #b64b3f;
+  color: var(--file-pdf);
 }
 
 .tab-icon-markdown {
-  color: var(--accent);
+  color: var(--file-markdown);
 }
 
 .tab-icon-unknown {
@@ -300,7 +380,7 @@ html.tab-drag-preview-document #root {
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   color: var(--text-faint);
   font-size: 11px;
   cursor: default;
@@ -310,7 +390,7 @@ html.tab-drag-preview-document #root {
 }
 
 .tab-close:hover {
-  background: rgba(30, 44, 64, 0.08);
+  background: var(--tab-close-hover);
   color: var(--text);
 }
 
@@ -361,7 +441,7 @@ html.tab-drag-preview-document #root {
   margin: 0 4px;
   padding: 0 0 2px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-dim);
   cursor: default;
@@ -405,7 +485,7 @@ html.tab-drag-preview-document #root {
   max-width: 560px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-panel);
   padding: 28px 32px;
 }
 
@@ -417,7 +497,7 @@ html.tab-drag-preview-document #root {
   color: var(--accent);
   background: var(--bg-active);
   padding: 2px 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   margin-bottom: 14px;
 }
 
@@ -463,17 +543,23 @@ html.tab-drag-preview-document #root {
 
 /* ---- Start workspace: local file browser ---- */
 
-.new-tab-page { --home-radius: 6px; --home-hover: #f0f2f5; --home-selected: #e8eef8; height: 100%; display: grid; grid-template-columns: 228px minmax(0, 1fr); overflow: hidden; background: var(--bg-elev); }
-.home-sidebar { min-height: 0; overflow: auto; padding: 12px 10px; background: #f7f8fa; border-right: 1px solid #eceef1; }
+.new-tab-page {
+  --home-radius: 6px; --home-hover: #f0f2f5; --home-selected: #e8eef8; --home-selected-text: #1f4778;
+  --home-sidebar: #f7f8fa; --home-sidebar-line: #eceef1; --home-nav-hover: #eaedf1; --home-icon: #6f7680; --home-pin: #a3a8ae;
+  --home-field: #f3f4f6; --home-field-hover: #eef0f3; --home-field-icon: #80868e; --home-field-placeholder: #8b9097;
+  --home-card-line: #e8eaed; --home-card-hover: #f7f9fc; --home-card-hover-line: #cfd8e6; --home-folder: #c49a3c;
+  --home-error: #a2342c; --home-error-bg: #fff3f2; --home-divider: #e6e8eb;
+  height: 100%; display: grid; grid-template-columns: 228px minmax(0, 1fr); overflow: hidden; background: var(--bg-elev); }
+.home-sidebar { min-height: 0; overflow: auto; padding: 12px 10px; background: var(--home-sidebar); border-right: 1px solid var(--home-sidebar-line); }
 .home-nav-item { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 34px; margin: 1px 0; padding: 7px 10px 7px 12px; border: 0; border-radius: var(--home-radius); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease; }
 .home-nav-item > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.home-nav-item > .ui-icon { flex-shrink: 0; width: 18px; height: 18px; color: #6f7680; }
-.home-nav-item:hover:not(:disabled) { background: #eaedf1; }
-.home-nav-item[aria-current] { background: var(--home-selected); color: #1f4778; font-weight: 500; }
+.home-nav-item > .ui-icon { flex-shrink: 0; width: 18px; height: 18px; color: var(--home-icon); }
+.home-nav-item:hover:not(:disabled) { background: var(--home-nav-hover); }
+.home-nav-item[aria-current] { background: var(--home-selected); color: var(--home-selected-text); font-weight: 500; }
 .home-nav-item[aria-current] > .ui-icon { color: var(--accent); }
 .home-nav-item[aria-current]::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 2px; background: var(--accent); }
 .home-nav-name { flex: 1; }
-.home-pin { display: flex; flex: 0 0 16px; color: #a3a8ae; }
+.home-pin { display: flex; flex: 0 0 16px; color: var(--home-pin); }
 .home-pin .ui-icon { width: 14px; height: 14px; }
 .home-cloud-links, .home-folder-links { margin-top: 10px; }
 .home-drive-links { margin-top: 18px; }
@@ -483,14 +569,14 @@ html.tab-drag-preview-document #root {
 .home-icon-button[hidden] { display: none; }
 .home-icon-button .ui-icon { width: 17px; height: 17px; }
 .home-icon-button:hover:not(:disabled) { background: var(--home-hover); }
-.home-address, .home-search { display: flex; align-items: center; gap: 8px; min-width: 0; height: 34px; padding: 0 12px; background: #f3f4f6; border: 1px solid transparent; border-radius: 17px; transition: background-color 120ms ease, border-color 120ms ease; }
+.home-address, .home-search { display: flex; align-items: center; gap: 8px; min-width: 0; height: 34px; padding: 0 12px; background: var(--home-field); border: 1px solid transparent; border-radius: 17px; transition: background-color 120ms ease, border-color 120ms ease; }
 .home-address { flex: 1 1 170px; margin-left: 8px; }
 .home-search { flex: 0 1 260px; margin-left: 8px; padding-right: 2px; }
 .home-search .home-icon-button { width: 28px; height: 28px; padding: 6px; border-radius: 14px; }
-.home-address:hover, .home-search:hover { background: #eef0f3; }
-.home-address > .ui-icon, .home-search > .ui-icon { flex-shrink: 0; width: 16px; height: 16px; color: #80868e; }
+.home-address:hover, .home-search:hover { background: var(--home-field-hover); }
+.home-address > .ui-icon, .home-search > .ui-icon { flex-shrink: 0; width: 16px; height: 16px; color: var(--home-field-icon); }
 .home-address input, .home-search input { min-width: 0; width: 100%; border: 0; padding: 0; background: transparent; color: var(--text); font: inherit; outline: none; }
-.home-search input::placeholder { color: #8b9097; }
+.home-search input::placeholder { color: var(--home-field-placeholder); }
 .home-address:focus-within, .home-search:focus-within { background: var(--bg-elev); border-color: var(--accent); outline: none; }
 .home-body { flex: 1; min-height: 0; overflow: auto; padding: 18px 32px 32px; }
 .home-body > section { max-width: 960px; margin: 0 auto; }
@@ -500,15 +586,15 @@ html.tab-drag-preview-document #root {
 .new-tab-recent > header > span, .home-directory-title > span { flex-shrink: 0; color: var(--text-faint); font-size: 12px; }
 .home-directory-title h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .home-drive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 8px; }
-.home-drive { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 16px; border: 1px solid #e8eaed; border-radius: 10px; background: var(--bg-elev); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; }
-.home-drive:hover:not(:disabled) { background: #f7f9fc; border-color: #cfd8e6; }
+.home-drive { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 16px; border: 1px solid var(--home-card-line); border-radius: 10px; background: var(--bg-elev); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; }
+.home-drive:hover:not(:disabled) { background: var(--home-card-hover); border-color: var(--home-card-hover-line); }
 .home-drive > .ui-icon { width: 30px; height: 30px; flex-shrink: 0; color: var(--accent); }
 .home-drive > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .home-drive strong, .home-drive small { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-drive small { font-size: 11px; font-weight: 400; color: var(--text-faint); }
-.home-directory-entry .new-tab-recent-icon > .ui-icon { color: #c49a3c; }
+.home-directory-entry .new-tab-recent-icon > .ui-icon { color: var(--home-folder); }
 .home-empty-note { color: var(--text-faint); padding: 28px 8px; font-size: 13px; line-height: 1.6; text-align: center; }
-.new-tab-error { margin: 0 20px 4px; padding: 10px 14px; border-radius: var(--home-radius); color: #a2342c; background: #fff3f2; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.new-tab-error { margin: 0 20px 4px; padding: 10px 14px; border-radius: var(--home-radius); color: var(--home-error); background: var(--home-error-bg); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .new-tab-list-heading { display: grid; grid-template-columns: minmax(0, 1fr) 94px 62px; gap: 12px; padding: 0 12px 6px 56px; color: var(--text-faint); font-size: 11px; }
 .new-tab-list-heading > span:not(:first-child) { text-align: right; }
 .new-tab-recent-item { display: grid; grid-template-columns: 32px minmax(0, 1fr) 94px 62px; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 7px 12px; border: 0; border-radius: var(--home-radius); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease; }
@@ -521,18 +607,18 @@ html.tab-drag-preview-document #root {
 .new-tab-recent-time, .new-tab-recent-size { color: var(--text-faint); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
 .new-tab-page button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .new-tab-page button:disabled { opacity: 0.45; cursor: default; }
-.folder-context-menu { position: fixed; z-index: 1000; min-width: 174px; padding: 4px; border: 1px solid #dfe2e6; border-radius: 8px; background: var(--bg-elev); color: var(--text); box-shadow: 0 6px 20px rgb(0 0 0 / 12%); }
+.folder-context-menu { position: fixed; z-index: 1000; min-width: 174px; padding: 4px; border: 1px solid var(--menu-line); border-radius: 8px; background: var(--bg-elev); color: var(--text); box-shadow: var(--menu-shadow); }
 .folder-context-menu button { display: block; width: 100%; border: 0; border-radius: 4px; padding: 8px 12px; background: transparent; text-align: left; color: inherit; font: inherit; cursor: pointer; }
 .folder-context-menu button:hover, .folder-context-menu button:focus-visible { background: var(--bg-active); outline: none; }
-.new-markdown-dialog { width: min(400px, calc(100vw - 32px)); border: 1px solid #e3e5e8; border-radius: 10px; padding: 22px; background: var(--bg-elev); color: var(--text); box-shadow: 0 12px 36px rgb(0 0 0 / 16%); }
-.new-markdown-dialog::backdrop { background: rgb(0 0 0 / 18%); }
+.new-markdown-dialog { width: min(400px, calc(100vw - 32px)); border: 1px solid var(--dialog-line); border-radius: 10px; padding: 22px; background: var(--bg-elev); color: var(--text); box-shadow: var(--dialog-shadow); }
+.new-markdown-dialog::backdrop { background: var(--dialog-backdrop); }
 .new-markdown-dialog h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .new-markdown-location { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-faint); font-size: 12px; }
 .new-markdown-dialog label { display: flex; flex-direction: column; gap: 8px; }
-.new-markdown-dialog input { width: 100%; padding: 8px 10px; border: 1px solid #c8cdd3; border-radius: 6px; font: inherit; }
+.new-markdown-dialog input { width: 100%; padding: 8px 10px; border: 1px solid var(--input-line); border-radius: 6px; font: inherit; }
 .new-markdown-dialog input:focus { border-color: var(--accent); outline: 1px solid var(--accent); }
 .new-markdown-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
-.new-markdown-dialog-actions button { border: 1px solid #c8cdd3; border-radius: 6px; padding: 7px 14px; background: #fafafa; color: inherit; font: inherit; cursor: pointer; }
+.new-markdown-dialog-actions button { border: 1px solid var(--input-line); border-radius: 6px; padding: 7px 14px; background: var(--button-bg); color: inherit; font: inherit; cursor: pointer; }
 .new-markdown-dialog-actions button:disabled { opacity: .5; cursor: default; }
 @media (max-width: 1000px) {
   .new-tab-page { grid-template-columns: 196px minmax(0, 1fr); }
@@ -546,8 +632,8 @@ html.tab-drag-preview-document #root {
   .home-nav-item { justify-content: center; gap: 0; padding: 8px; }
   .home-nav-name, .home-pin { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .home-nav-item[aria-current]::before { top: 8px; bottom: 8px; }
-  .home-cloud-links, .home-folder-links { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e6e8eb; }
-  .home-drive-links { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e6e8eb; }
+  .home-cloud-links, .home-folder-links { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--home-divider); }
+  .home-drive-links { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--home-divider); }
   .home-navigation { padding: 8px 10px; }
   .home-body { padding: 12px 10px 20px; }
 }
@@ -592,7 +678,7 @@ html.tab-drag-preview-document #root {
 }
 
 .pdf-status-error {
-  color: #b42318;
+  color: var(--danger);
 }
 
 /* toolbar */
@@ -618,7 +704,7 @@ html.tab-drag-preview-document #root {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #bbb transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 .pdf-toolbar-row::-webkit-scrollbar {
@@ -626,7 +712,7 @@ html.tab-drag-preview-document #root {
 }
 
 .pdf-toolbar-row::-webkit-scrollbar-thumb {
-  background: #bbb;
+  background: var(--scrollbar);
   border-radius: 2px;
 }
 
@@ -657,7 +743,7 @@ html.tab-drag-preview-document #root {
   height: 32px;
   padding: 0 6px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-dim);
   font: inherit;
@@ -675,7 +761,7 @@ html.tab-drag-preview-document #root {
 .pdf-tbtn-active {
   background: var(--bg-active);
   color: var(--accent);
-  border-color: #c7d2e4;
+  border-color: var(--border-active);
 }
 
 .pdf-tbtn-active:hover:not(:disabled) {
@@ -700,7 +786,7 @@ html.tab-drag-preview-document #root {
   text-align: center;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   color: var(--text);
   font: inherit;
   font-size: 12px;
@@ -751,7 +837,7 @@ html.tab-drag-preview-document #root {
   padding: 0 8px 0 30px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   color: var(--text);
   font: inherit;
   font-size: 12px;
@@ -793,7 +879,7 @@ html.tab-drag-preview-document #root {
   min-width: 68px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-dim);
   font: inherit;
@@ -803,8 +889,8 @@ html.tab-drag-preview-document #root {
 
 .document-action:hover:not(:disabled) { background: var(--bg); color: var(--text); }
 .document-action:disabled { color: var(--text-faint); }
-.document-action-dirty { background: #292929; border-color: #292929; color: #fff; }
-.document-action-dirty:hover:not(:disabled) { background: #111; color: #fff; }
+.document-action-dirty { background: var(--strong); border-color: var(--strong); color: var(--on-strong); }
+.document-action-dirty:hover:not(:disabled) { background: var(--strong-hover); color: var(--on-strong); }
 .document-action:focus-visible, .rail-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .document-tool-rail {
@@ -817,7 +903,7 @@ html.tab-drag-preview-document #root {
   overflow-y: auto;
   overflow-x: hidden;
   border-left: 1px solid var(--border);
-  background: #fafafa;
+  background: var(--bg-sidebar);
   scrollbar-width: thin;
 }
 
@@ -832,34 +918,34 @@ html.tab-drag-preview-document #root {
   height: 32px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-dim);
 }
 .rail-button:hover:not(:disabled) { background: var(--bg); color: var(--text); }
-.rail-button[aria-pressed="true"] { background: var(--bg-active); color: var(--accent); border-color: #c7d2e4; }
+.rail-button[aria-pressed="true"] { background: var(--bg-active); color: var(--accent); border-color: var(--border-active); }
 .rail-button:disabled { opacity: .35; }
 
 .pdf-delete-dialog {
   width: min(360px, calc(100vw - 32px));
   padding: 24px;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-panel);
   background: var(--bg-elev);
   color: var(--text);
 }
-.pdf-delete-dialog::backdrop { background: rgb(0 0 0 / 24%); }
+.pdf-delete-dialog::backdrop { background: var(--backdrop-light); }
 .pdf-delete-dialog h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
 .pdf-delete-dialog p { margin: 0; font-size: 12px; color: var(--text-dim); }
 .pdf-delete-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .pdf-delete-actions button {
   min-width: 64px; height: 30px; padding: 0 12px;
-  border: 1px solid var(--border); border-radius: 2px;
+  border: 1px solid var(--border); border-radius: var(--radius-control);
   background: var(--bg-elev); color: var(--text); font: inherit;
 }
 .pdf-delete-actions button:hover { background: var(--bg); }
-.pdf-delete-actions .pdf-delete-confirm { background: #292929; color: #fff; border-color: #292929; }
-.pdf-delete-actions .pdf-delete-confirm:hover { background: #111; }
+.pdf-delete-actions .pdf-delete-confirm { background: var(--strong); color: var(--on-strong); border-color: var(--strong); }
+.pdf-delete-actions .pdf-delete-confirm:hover { background: var(--strong-hover); }
 .pdf-delete-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* body: sidebar + scroll area */
@@ -887,10 +973,10 @@ html.tab-drag-preview-document #root {
   min-height: 0;
   box-sizing: border-box;
   overflow-y: auto;
-  background: #fafafa;
+  background: var(--bg-sidebar);
   padding: 10px 8px;
   scrollbar-width: thin;
-  scrollbar-color: #bbb transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 .pdf-sidebar-title {
@@ -983,8 +1069,8 @@ body.md-sidebar-resizing * {
 
 .thumb-canvas-wrap {
   width: 130px;
-  background: #fff;
-  border-radius: 2px;
+  background: var(--bg-elev);
+  border-radius: var(--radius-control);
   box-shadow: none;
   overflow: hidden;
   position: relative;
@@ -1024,7 +1110,7 @@ body.md-sidebar-resizing * {
   font: inherit;
   font-size: 12px;
   line-height: 1.3;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   cursor: default;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1075,9 +1161,9 @@ body.md-sidebar-resizing * {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888;
+  color: var(--text-placeholder);
   font-size: 13px;
-  background: #e8e8e8;
+  background: var(--page-placeholder);
 }
 
 .pdf-canvas {
@@ -1103,7 +1189,7 @@ body.md-sidebar-resizing * {
 }
 
 .pdf-text-layer ::selection {
-  background: rgba(122, 162, 247, 0.5);
+  background: var(--text-selection-legacy);
 }
 
 /* ---- Markdown editor ---- */
@@ -1130,7 +1216,7 @@ body.md-sidebar-resizing * {
   margin: 0 24px;
   padding: 20px 24px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: var(--bg-elev);
   color: var(--text);
   text-align: center;
@@ -1186,7 +1272,7 @@ body.md-sidebar-resizing * {
   height: 30px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-dim);
   font: inherit;
@@ -1230,10 +1316,10 @@ body.md-sidebar-resizing * {
   width: 100%;
   min-width: 0;
   overflow: auto;
-  background: #fafafa;
+  background: var(--bg-sidebar);
   color: var(--text-dim);
   scrollbar-width: thin;
-  scrollbar-color: #bbb transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 .md-outline-title {
@@ -1275,7 +1361,7 @@ body.md-sidebar-resizing * {
   padding-right: 8px;
   padding-bottom: 0;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1352,15 +1438,15 @@ body.md-sidebar-resizing * {
   right: 0;
   left: 0;
   border: 3px solid var(--bg-elev);
-  border-radius: 2px;
-  background: #bbb;
+  border-radius: var(--radius-control);
+  background: var(--scrollbar);
   background-clip: padding-box;
   will-change: transform;
 }
 
 .md-scrollbar:hover .md-scrollbar-thumb,
 .md-scrollbar:focus-visible .md-scrollbar-thumb {
-  background-color: #999;
+  background-color: var(--scrollbar-hover);
 }
 
 /* Source mode */
@@ -1376,8 +1462,7 @@ body.md-sidebar-resizing * {
   scrollbar-width: none;
   background: var(--bg-elev);
   color: var(--text);
-  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SFMono-Regular",
-    "SF Mono", Menlo, "Liberation Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-ligatures: none;
   font-size: 13px;
   line-height: 1.6;
@@ -1472,7 +1557,7 @@ body.md-sidebar-resizing * {
   white-space: pre;
 }
 .pdf-text-hit {
-  background: rgba(255, 213, 79, 0.5) !important;
+  background: var(--search-hit) !important;
 }
 .pdf-page-spacer {
   background: transparent;
@@ -1516,7 +1601,7 @@ body.md-sidebar-resizing * {
 }
 
 .pdfjs-viewer-container .textLayer ::selection {
-  background: rgba(68, 138, 255, 0.36);
+  background: var(--text-selection);
 }
 
 .pdf-loading-overlay,
@@ -1527,7 +1612,7 @@ body.md-sidebar-resizing * {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(250, 250, 250, 0.94);
+  background: var(--overlay-veil);
 }
 
 .pdf-loading-overlay {
@@ -1539,7 +1624,7 @@ body.md-sidebar-resizing * {
   flex-direction: column;
   gap: 8px;
   padding: 24px;
-  color: #b42318;
+  color: var(--danger);
   text-align: center;
 }
 
@@ -1611,14 +1696,14 @@ body.md-sidebar-resizing * {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--backdrop);
 }
 
 .unsaved-dialog {
   width: min(430px, calc(100vw - 48px));
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: var(--bg-elev);
   color: var(--text);
   box-shadow: none;
@@ -1650,7 +1735,7 @@ body.md-sidebar-resizing * {
   min-width: 82px;
   padding: 7px 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   color: var(--text);
   font: inherit;
   font-size: 12px;
@@ -1664,7 +1749,7 @@ body.md-sidebar-resizing * {
 .unsaved-dialog-actions button.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .unsaved-dialog-actions button:hover {
@@ -1692,7 +1777,7 @@ body.md-sidebar-resizing * {
 }
 
 .document-tool-icon { display: block; width: 18px; height: 18px; background: currentColor; mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
-.rail-heading { display: flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; margin-bottom: 6px; position: relative; color: var(--text-dim); border-radius: 2px; }
+.rail-heading { display: flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; margin-bottom: 6px; position: relative; color: var(--text-dim); border-radius: var(--radius-control); }
 .rail-heading select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .rail-heading:has(select:disabled) { opacity: .35; }
 .rail-heading:hover:has(select:enabled) { background: var(--bg); color: var(--text); }
