@@ -37,7 +37,7 @@
 
 ## User acceptance
 
-- 阶段 2（配色、圆角、字体）：waiting
+- 阶段 2（配色、圆角、字体）：2026-11-04 用户检查新标签页、Markdown、弹窗“没问题”；PDF 第一次误用占位文件未打开，已换真实 PDF 重开，waiting。
 
 ## Next action
 
