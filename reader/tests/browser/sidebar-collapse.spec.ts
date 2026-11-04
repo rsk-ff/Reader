@@ -11,7 +11,7 @@ test.afterEach(({ page }) => expect(errors.get(page)).toEqual([]));
 
 for (const variant of ["md", "pdf-thumbnails", "pdf-outline"] as const) {
   const kind = variant === "md" ? "md" : "pdf";
-  const pdfToggle = variant === "pdf-outline" ? "Outline" : "Thumbnails";
+  const pdfToggle = "展开侧栏";
   test(`${variant}: minimum, 70% extra-left-drag boundary, capture cleanup and restored width`, async ({ page }) => {
     if (kind === "pdf") {
       await page.route("http://reader-file.localhost/**", (route) => route.fulfill({
@@ -21,11 +21,14 @@ for (const variant of ["md", "pdf-thumbnails", "pdf-outline"] as const) {
       await page.goto("/tests/browser/pdf-viewer.html");
       await expect(page.locator('.page[data-page-number="1"] .textLayer')).toBeVisible();
       await page.getByRole("button", { name: pdfToggle, exact: true }).click();
-      if (variant === "pdf-outline") await expect(page.locator(".outline-item").first()).toBeVisible();
+      if (variant === "pdf-outline") {
+        await page.getByRole("tab", { name: "目录", exact: true }).click();
+        await expect(page.locator(".outline-item").first()).toBeVisible();
+      }
     } else {
       await page.goto("/tests/browser/markdown-editor.html");
       await expect(page.locator(".ProseMirror")).toBeVisible();
-      await page.getByRole("button", { name: "Source", exact: true }).click();
+      await page.getByRole("button", { name: "源码视图", exact: true }).click();
       await page.locator(".md-source").fill("# Collapse draft\n\nUnsaved text.");
     }
     const shell = page.locator(kind === "md" ? ".md-outline-shell" : ".pdf-sidebar-shell");

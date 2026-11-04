@@ -1,35 +1,52 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ZoomMode } from "./types";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
-import { UiIcon } from "../../components/UiIcon";
+import { UiIcon, type UiIconName } from "../../components/UiIcon";
 import { DocumentActions } from "../../components/DocumentActions";
-import { DocumentToolRail, RailButton } from "../../components/DocumentToolRail";
-import selectIcon from "../../assets/icons/cursor.svg";
-import highlightIcon from "../../assets/icons/highlighter.svg";
-import underlineIcon from "../../assets/icons/type-underline.svg";
-import strikeoutIcon from "../../assets/icons/type-strikethrough.svg";
-import noteIcon from "../../assets/icons/sticky.svg";
-import textIcon from "../../assets/icons/type.svg";
-import penIcon from "../../assets/icons/pen.svg";
-import pageBeforeIcon from "../../assets/icons/file-earmark-plus-before.svg";
-import pageAfterIcon from "../../assets/icons/file-earmark-plus-after.svg";
-import pageDeleteIcon from "../../assets/icons/file-earmark-minus.svg";
+
+/** Text markup tools share one toolbar button and a style popover. */
+export type MarkTool = "highlight" | "underline" | "strikeout";
+
+export const MARK_COLORS = [
+  { label: "黄色", fill: "#ffd84d", line: "#d9a400" },
+  { label: "绿色", fill: "#8fd99b", line: "#2e9e5b" },
+  { label: "粉色", fill: "#f4a3c0", line: "#d6457a" },
+  { label: "蓝色", fill: "#9cc8f4", line: "#3d7fd1" },
+  { label: "灰色", fill: "#c9c9c4", line: "#55554f" },
+] as const;
+
+/** The stored annotation color for a markup tool and palette entry. */
+export function markColor(tool: AnnotationTool, index: number): string | undefined {
+  const entry = MARK_COLORS[index] ?? MARK_COLORS[0];
+  if (tool === "highlight") return entry.fill;
+  if (tool === "underline" || tool === "strikeout") return entry.line;
+  return undefined;
+}
+
+export function isMarkTool(tool: AnnotationTool): tool is MarkTool {
+  return tool === "highlight" || tool === "underline" || tool === "strikeout";
+}
 
 interface PdfToolbarProps {
   currentPage: number;
   totalPages: number;
   scale: number;
   zoomMode: ZoomMode;
-  sidebarMode: "thumbnails" | "outline" | null;
-  hasOutline: boolean;
+  sidebarOpen: boolean;
   searchHits: number;
   searchIdx: number;
   searching: boolean;
   dirty: boolean;
+  annotTool: AnnotationTool;
+  markTool: MarkTool;
+  markColorIndex: number;
+  onAnnotTool: (tool: AnnotationTool) => void;
+  onMarkColor: (index: number) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: (m: "fit-width" | "fit-page") => void;
-  onSidebarToggle: (m: "thumbnails" | "outline") => void;
+  onSidebarToggle: () => void;
   onSearch: (q: string) => void;
   onSearchNav: (dir: 1 | -1) => void;
   onPrint: () => void;
@@ -37,31 +54,25 @@ interface PdfToolbarProps {
   onSave: () => void;
 }
 
+const MARKS: [MarkTool, UiIconName, string][] = [
+  ["highlight", "highlight", "高亮"],
+  ["underline", "underline", "下划线"],
+  ["strikeout", "strikeout", "删除线"],
+];
+
 export function PdfToolbar(props: PdfToolbarProps) {
   const {
-    currentPage,
-    totalPages,
-    scale,
-    zoomMode,
-    sidebarMode,
-    hasOutline,
-    searchHits,
-    searchIdx,
-    searching,
-    onZoomIn,
-    onZoomOut,
-    onFit,
-    onSidebarToggle,
-    onSearch,
-    onSearchNav,
-    onPrint,
-    onJumpPage,
-    dirty,
-    onSave,
+    currentPage, totalPages, scale, zoomMode, sidebarOpen, searchHits, searchIdx, searching,
+    annotTool, markTool, markColorIndex, onAnnotTool, onMarkColor,
+    onZoomIn, onZoomOut, onFit, onSidebarToggle, onSearch, onSearchNav, onPrint, onJumpPage, dirty, onSave,
   } = props;
 
   const [searchInput, setSearchInput] = useState("");
+  const [markMenuOpen, setMarkMenuOpen] = useState(false);
   const pageInputRef = useRef<HTMLInputElement>(null);
+  const toolsRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverAt, setPopoverAt] = useState<{ left: number; top: number } | null>(null);
 
   // keep the page field in sync with the current page
   useEffect(() => {
@@ -69,6 +80,37 @@ export function PdfToolbar(props: PdfToolbarProps) {
       pageInputRef.current.value = String(currentPage);
     }
   }, [currentPage]);
+
+  // The style popover closes on an outside press or Escape.
+  useEffect(() => {
+    if (!markMenuOpen) return;
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!toolsRef.current?.contains(target) && !popoverRef.current?.contains(target)) setMarkMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setMarkMenuOpen(false); };
+    const dismiss = () => setMarkMenuOpen(false);
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("keydown", escape);
+    window.addEventListener("resize", dismiss);
+    window.addEventListener("blur", dismiss);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("keydown", escape);
+      window.removeEventListener("resize", dismiss);
+      window.removeEventListener("blur", dismiss);
+    };
+  }, [markMenuOpen]);
+
+  // The toolbar row scrolls horizontally, so the popover lives in a portal and
+  // is placed under the tool group.
+  useLayoutEffect(() => {
+    if (!markMenuOpen || !toolsRef.current) { setPopoverAt(null); return; }
+    const rect = toolsRef.current.getBoundingClientRect();
+    setPopoverAt({ left: Math.max(8, Math.min(rect.left, innerWidth - 176)), top: rect.bottom + 6 });
+  }, [markMenuOpen]);
+
+  useEffect(() => { if (!isMarkTool(annotTool)) setMarkMenuOpen(false); }, [annotTool]);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -83,29 +125,24 @@ export function PdfToolbar(props: PdfToolbarProps) {
   }
 
   const pct = Math.round(scale * 100);
+  const markActive = isMarkTool(annotTool);
+  const markIcon = MARKS.find(([tool]) => tool === markTool)![1];
+  const swatch = MARK_COLORS[markColorIndex] ?? MARK_COLORS[0];
 
   return (
     <div className="pdf-toolbar" role="toolbar" aria-label="PDF tools">
       <div className="pdf-toolbar-row pdf-reading-toolbar">
         <div className="pdf-toolbar-group">
-          <ToolbarButton
-            active={sidebarMode === "thumbnails"}
-            onClick={() => onSidebarToggle("thumbnails")}
-            title="Thumbnails"
-          >
-            <UiIcon name="thumbnails" />
-          </ToolbarButton>
-          <ToolbarButton
-            active={sidebarMode === "outline"}
-            onClick={() => onSidebarToggle("outline")}
-            title="Outline"
-            disabled={!hasOutline}
-          >
-            <UiIcon name="outline" />
+          <ToolbarButton active={sidebarOpen} onClick={onSidebarToggle}
+            title={sidebarOpen ? "收起侧栏" : "展开侧栏"}>
+            <UiIcon name="panelLeft" />
           </ToolbarButton>
         </div>
 
         <div className="pdf-toolbar-group">
+          <ToolbarButton onClick={() => onJumpPage(currentPage - 1)} title="上一页" disabled={currentPage <= 1}>
+            <UiIcon name="prev" />
+          </ToolbarButton>
           <form className="pdf-page-form" onSubmit={submitPage}>
             <input
               ref={pageInputRef}
@@ -118,35 +155,86 @@ export function PdfToolbar(props: PdfToolbarProps) {
             />
             <span className="pdf-page-count">/ {totalPages}</span>
           </form>
+          <ToolbarButton onClick={() => onJumpPage(currentPage + 1)} title="下一页" disabled={currentPage >= totalPages}>
+            <UiIcon name="next" />
+          </ToolbarButton>
         </div>
 
         <div className="pdf-toolbar-group">
           <ToolbarButton onClick={onZoomOut} title="Zoom out">
-            <UiIcon name="minus" />
+            <UiIcon name="zoomOut" />
           </ToolbarButton>
           <span className="pdf-zoom-pct" title="zoom level">
             {pct}%
           </span>
           <ToolbarButton onClick={onZoomIn} title="Zoom in">
-            <UiIcon name="plus" />
+            <UiIcon name="zoomIn" />
           </ToolbarButton>
-          <ToolbarButton
-            active={zoomMode === "fit-width"}
-            onClick={() => onFit("fit-width")}
-            title="Fit width"
-          >
+          <ToolbarButton active={zoomMode === "fit-width"} onClick={() => onFit("fit-width")} title="Fit width">
             <UiIcon name="fitWidth" />
-            <span>适宽</span>
           </ToolbarButton>
-          <ToolbarButton
-            active={zoomMode === "fit-page"}
-            onClick={() => onFit("fit-page")}
-            title="Fit page"
-          >
+          <ToolbarButton active={zoomMode === "fit-page"} onClick={() => onFit("fit-page")} title="Fit page">
             <UiIcon name="fitPage" />
-            <span>适页</span>
           </ToolbarButton>
         </div>
+
+        <div className="pdf-toolbar-spacer" />
+
+        <div className="pdf-tool-group" ref={toolsRef} role="group" aria-label="批注工具">
+          <ToolButton active={annotTool === "select"} title="选择" icon="select"
+            onClick={() => onAnnotTool("select")} />
+          <button
+            type="button"
+            className={"pdf-tool" + (markActive ? " pdf-tool-active" : "")}
+            title="标记文字（选中文字后生效）"
+            aria-label="标记文字"
+            aria-pressed={markActive}
+            aria-haspopup="dialog"
+            aria-expanded={markMenuOpen}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              if (markActive) setMarkMenuOpen((open) => !open);
+              else { onAnnotTool(markTool); setMarkMenuOpen(true); }
+            }}
+          >
+            <UiIcon name={markIcon} />
+            <span className="pdf-tool-swatch" style={{ background: markTool === "highlight" ? swatch.fill : swatch.line }} />
+          </button>
+          <ToolButton active={annotTool === "note"} title="注释（点击页面放置）" icon="note"
+            onClick={() => onAnnotTool("note")} />
+          <ToolButton active={annotTool === "freetext"} title="文本框（点击页面放置）" icon="text"
+            onClick={() => onAnnotTool("freetext")} />
+          <ToolButton active={annotTool === "ink"} title="画笔" icon="pen"
+            onClick={() => onAnnotTool("ink")} />
+          {markMenuOpen && popoverAt && createPortal(
+            <div className="pdf-mark-popover" role="dialog" aria-label="标记样式" ref={popoverRef}
+              style={{ left: popoverAt.left, top: popoverAt.top }}>
+              <div className="segmented" role="radiogroup" aria-label="标记方式">
+                {MARKS.map(([tool, icon, label]) => (
+                  <button key={tool} type="button" role="radio" aria-checked={markTool === tool}
+                    aria-label={label} title={label}
+                    className={"segmented-item" + (markTool === tool ? " segmented-item-on" : "")}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onAnnotTool(tool)}>
+                    <UiIcon name={icon} />
+                  </button>
+                ))}
+              </div>
+              <div className="pdf-mark-swatches" role="radiogroup" aria-label="颜色">
+                {MARK_COLORS.map((color, index) => (
+                  <button key={color.label} type="button" role="radio" aria-checked={index === markColorIndex}
+                    aria-label={color.label} title={color.label}
+                    className={"pdf-mark-swatch" + (index === markColorIndex ? " pdf-mark-swatch-on" : "")}
+                    style={{ background: markTool === "highlight" ? color.fill : color.line }}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onMarkColor(index)} />
+                ))}
+              </div>
+            </div>, document.body,
+          )}
+        </div>
+
+        <div className="pdf-toolbar-spacer" />
 
         <div className="pdf-toolbar-group pdf-search-group">
           <form className="pdf-search-form" onSubmit={submitSearch}>
@@ -174,49 +262,31 @@ export function PdfToolbar(props: PdfToolbarProps) {
                   : ""}
           </span>
           <ToolbarButton onClick={() => onSearchNav(-1)} title="Previous" disabled={searchHits === 0}>
-            <UiIcon name="up" />
+            <UiIcon name="chevronUp" />
           </ToolbarButton>
           <ToolbarButton onClick={() => onSearchNav(1)} title="Next" disabled={searchHits === 0}>
-            <UiIcon name="down" />
+            <UiIcon name="chevronDown" />
           </ToolbarButton>
         </div>
-
       </div>
       <DocumentActions dirty={dirty} onPrint={onPrint} onSave={onSave} />
     </div>
   );
 }
 
-interface PdfToolsProps {
-  annotTool: AnnotationTool;
-  onAnnotTool: (tool: AnnotationTool) => void;
-  onInsertBlankBefore: () => void;
-  onInsertBlankAfter: () => void;
-  onDeletePage: () => void;
-  canDelete: boolean;
-}
-
-export function PdfTools(props: PdfToolsProps) {
-  const tools = [
-    ["select", selectIcon, "Select"],
-    ["highlight", highlightIcon, "Highlight (select text)"],
-    ["underline", underlineIcon, "Underline (select text)"],
-    ["strikeout", strikeoutIcon, "Strikeout (select text)"],
-    ["note", noteIcon, "Note (click to place)"],
-    ["freetext", textIcon, "Free text (click to place)"],
-    ["ink", penIcon, "Ink (draw)"],
-  ] as const;
-  return <DocumentToolRail label="PDF 标注与页面操作">
-    <div className="rail-group">
-      {tools.map(([tool, iconUrl, title]) => <RailButton key={tool} iconUrl={iconUrl} title={title}
-        active={props.annotTool === tool} onClick={() => props.onAnnotTool(tool)} />)}
-    </div>
-    <div className="rail-group">
-      <RailButton iconUrl={pageBeforeIcon} title="Insert blank page before current" onClick={props.onInsertBlankBefore} />
-      <RailButton iconUrl={pageAfterIcon} title="Insert blank page after current" onClick={props.onInsertBlankAfter} />
-      <RailButton iconUrl={pageDeleteIcon} title="Delete current page" disabled={!props.canDelete} onClick={props.onDeletePage} />
-    </div>
-  </DocumentToolRail>;
+function ToolButton({ active, title, icon, onClick }: {
+  active: boolean;
+  title: string;
+  icon: UiIconName;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={"pdf-tool" + (active ? " pdf-tool-active" : "")}
+      title={title} aria-label={title} aria-pressed={active}
+      onMouseDown={(event) => event.preventDefault()} onClick={onClick}>
+      <UiIcon name={icon} />
+    </button>
+  );
 }
 
 function ToolbarButton({

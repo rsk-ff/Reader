@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 
 import type { OutlineNode } from "./types";
 import { SidebarResizer } from "../../components/SidebarResizer";
+import { FolderContextMenu, type FolderMenuState } from "../../components/FolderContextMenu";
 
 interface PdfSidebarProps {
   mode: "thumbnails" | "outline";
@@ -15,9 +16,33 @@ interface PdfSidebarProps {
   width: number;
   onWidthChange: (width: number) => void;
   onCollapse: (restoreWidth: number) => void;
+  onModeChange: (mode: "thumbnails" | "outline") => void;
+  hasOutline: boolean;
+  canDelete: boolean;
+  onInsertBlank: (pageNumber: number, position: "before" | "after") => void;
+  onDeletePage: (pageNumber: number) => void;
 }
 
 export function PdfSidebar(props: PdfSidebarProps) {
+  const [menu, setMenu] = useState<FolderMenuState | null>(null);
+  const closeMenu = useCallback((restoreFocus: boolean) => {
+    setMenu((current) => {
+      if (restoreFocus) current?.owner.focus();
+      return null;
+    });
+  }, []);
+  const openPageMenu = (pageNumber: number, owner: HTMLElement, x: number, y: number) => {
+    const { onInsertBlank, onDeletePage, canDelete } = props;
+    setMenu({
+      x, y, owner,
+      items: [
+        { label: "在前面插入空白页", action: () => onInsertBlank(pageNumber, "before") },
+        { label: "在后面插入空白页", action: () => onInsertBlank(pageNumber, "after") },
+        { label: "删除这一页", danger: true, disabled: !canDelete, action: () => onDeletePage(pageNumber) },
+      ],
+    });
+  };
+
   const content = props.mode === "outline" ? (
     <OutlineList outline={props.outline} onClick={props.onOutlineClick} />
   ) : (
@@ -31,6 +56,7 @@ export function PdfSidebar(props: PdfSidebarProps) {
             pageNumber={pageNumber}
             active={pageNumber === props.currentPage}
             onClick={() => props.onThumbClick(pageNumber)}
+            onMenu={(owner, x, y) => openPageMenu(pageNumber, owner, x, y)}
           />
         );
       })}
@@ -39,19 +65,32 @@ export function PdfSidebar(props: PdfSidebarProps) {
 
   return (
     <aside className="pdf-sidebar-shell" style={{ width: props.width }}>
-      <header className="pdf-sidebar-title">{props.mode === "outline" ? "文档目录" : "页面缩略图"}<span>{props.mode === "outline" ? props.outline.length : props.totalPages}</span></header>
+      <header className="pdf-sidebar-title">
+        <div className="segmented segmented-wide" role="tablist" aria-label="侧栏视图">
+          <button type="button" role="tab" aria-selected={props.mode === "thumbnails"}
+            className={"segmented-item" + (props.mode === "thumbnails" ? " segmented-item-on" : "")}
+            onClick={() => props.onModeChange("thumbnails")}>缩略图</button>
+          <button type="button" role="tab" aria-selected={props.mode === "outline"} disabled={!props.hasOutline}
+            title={props.hasOutline ? undefined : "此文档没有目录"}
+            className={"segmented-item" + (props.mode === "outline" ? " segmented-item-on" : "")}
+            onClick={() => props.onModeChange("outline")}>目录</button>
+        </div>
+      </header>
       {content}
+      {menu && <FolderContextMenu state={menu} close={closeMenu} label="页面操作" />}
       <SidebarResizer kind="pdf" label="Resize PDF sidebar" width={props.width}
         onWidthChange={props.onWidthChange} onCollapse={props.onCollapse} />
     </aside>
   );
 }
 
-function PdfThumbnail({ pdfDocument, pageNumber, active, onClick }: {
+function PdfThumbnail({ pdfDocument, pageNumber, active, onClick, onMenu }: {
   pdfDocument: PDFDocumentProxy | null;
   pageNumber: number;
   active: boolean;
   onClick: () => void;
+  /** Opens the page menu (right click or the context-menu key). */
+  onMenu: (owner: HTMLElement, x: number, y: number) => void;
 }) {
   const itemRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -117,6 +156,15 @@ function PdfThumbnail({ pdfDocument, pageNumber, active, onClick }: {
       type="button"
       className={`thumb-item${active ? " active" : ""}`}
       onClick={onClick}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        // Keyboard-opened menus (clientX/Y of 0) anchor to the thumbnail.
+        const keyboard = event.clientX === 0 && event.clientY === 0;
+        onMenu(event.currentTarget, keyboard ? rect.left + 12 : event.clientX,
+          keyboard ? rect.top + 12 : event.clientY);
+      }}
+      aria-haspopup="menu"
       aria-label={`Go to page ${pageNumber}`}
       aria-current={active ? "page" : undefined}
     >

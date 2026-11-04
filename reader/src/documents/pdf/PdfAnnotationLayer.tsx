@@ -14,6 +14,8 @@ interface AnnotationOverlayProps {
   annotations: PdfAnnotation[];
   /** current tool: null = select; otherwise create mode */
   tool: AnnotationTool;
+  /** Color for new text markup; falls back to the tool default. */
+  markColor?: string;
   renderVisuals: boolean;
   onAnnotationsChanged: (pageNumber: number, deletedId?: string) => void;
   onAnnotationCreated: (ann: PdfAnnotation) => void;
@@ -34,7 +36,7 @@ export type AnnotationTool =
  * them to the Rust `create_annotation` command.
  */
 export function AnnotationOverlay(props: AnnotationOverlayProps) {
-  const { doc, path, pageNumber, geom, annotations, tool, renderVisuals, onAnnotationsChanged, onAnnotationCreated } = props;
+  const { doc, path, pageNumber, geom, annotations, tool, markColor, renderVisuals, onAnnotationsChanged, onAnnotationCreated } = props;
   const svgRef = useRef<SVGSVGElement>(null);
   const [draftInk, setDraftInk] = useState<Point[]>([]);
 
@@ -80,7 +82,7 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
         rect: { left: bounds.left, right: bounds.right, bottom: bounds.bottom, top: bounds.top },
         quad_points: quads,
         ink_paths: [],
-        color: defaultColor(tool),
+        color: markColor ?? defaultColor(tool),
         opacity: 0.4,
         text: null,
         created_at: null,
@@ -99,7 +101,7 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
     // page element so a selection mouseup bubbles into this handler.
     pageElement.addEventListener("mouseup", onMouseUp);
     return () => pageElement.removeEventListener("mouseup", onMouseUp);
-  }, [tool, doc, path, pageNumber, geom, onAnnotationsChanged, onAnnotationCreated]);
+  }, [tool, markColor, doc, path, pageNumber, geom, onAnnotationsChanged, onAnnotationCreated]);
 
   // Note / FreeText creation: click to place.
   useEffect(() => {

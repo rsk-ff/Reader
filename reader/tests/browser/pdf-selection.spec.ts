@@ -16,39 +16,71 @@ function firstLine(page: Page, pageNumber = 1) {
     .filter({ hasText: /\S.{10}/ }).first();
 }
 
-test("PDF uses a single reading row and a right rail with output actions always visible", async ({ page }) => {
+test("PDF keeps every tool in one top row with output actions always visible", async ({ page }) => {
   expect((await page.locator(".pdf-toolbar").boundingBox())!.height).toBe(44);
-  expect((await page.locator(".document-tool-rail").boundingBox())!.x).toBe(1054);
-  await expect(page.locator(".pdf-markup-toolbar, .pdf-toolbar-caption")).toHaveCount(0);
-  await expect(page.locator(".document-tool-rail button")).toHaveCount(10);
+  await expect(page.locator(".document-tool-rail, .pdf-markup-toolbar, .pdf-toolbar-caption")).toHaveCount(0);
+  await expect(page.locator(".pdf-tool-group .pdf-tool")).toHaveCount(5);
+  const tools = (await page.locator(".pdf-tool-group").boundingBox())!;
+  expect(tools.y).toBeLessThan(44);
   await page.setViewportSize({ width: 330, height: 480 });
   for (const name of ["打印", "已保存"]) {
     const bounds = await page.getByRole("button", { name, exact: true }).boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(330);
   }
-  await page.getByRole("button", { name: "Delete current page", exact: true }).scrollIntoViewIfNeeded();
-  const last = await page.getByRole("button", { name: "Delete current page", exact: true }).boundingBox();
-  expect(last!.y + last!.height).toBeLessThanOrEqual(480);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(330);
 });
 
-test("right rail deletion requires an app confirmation and Escape leaves the file unchanged", async ({ page }) => {
+test("markup tool remembers its style and color from the popover", async ({ page }) => {
+  const mark = page.getByRole("button", { name: "标记文字", exact: true });
+  await mark.click();
+  await expect(mark).toHaveAttribute("aria-pressed", "true");
+  const popover = page.getByRole("dialog", { name: "标记样式", exact: true });
+  await expect(popover).toBeVisible();
+  await popover.getByRole("radio", { name: "下划线", exact: true }).click();
+  await popover.getByRole("radio", { name: "绿色", exact: true }).click();
+  await expect(popover.getByRole("radio", { name: "下划线", exact: true })).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
+  await expect(popover).toHaveCount(0);
+  await page.getByRole("button", { name: "选择", exact: true }).click();
+  await expect(mark).toHaveAttribute("aria-pressed", "false");
+  await mark.click();
+  await expect(popover.getByRole("radio", { name: "下划线", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(popover.getByRole("radio", { name: "绿色", exact: true })).toHaveAttribute("aria-checked", "true");
+});
+
+test("thumbnail menu deletion requires an app confirmation and Escape leaves the file unchanged", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.evaluate(() => { window.confirm = () => { throw new Error("Native confirm must not be called"); }; });
-  const deletion = page.getByRole("button", { name: "Delete current page", exact: true });
+  await page.getByRole("button", { name: "展开侧栏", exact: true }).click();
+  const thumbnail = page.getByRole("button", { name: "Go to page 1", exact: true });
+  const deletion = page.getByRole("menuitem", { name: "删除这一页", exact: true });
+  await thumbnail.click({ button: "right" });
+  await expect(page.getByRole("menu", { name: "页面操作", exact: true })).toBeVisible();
   await deletion.click();
   await expect(page.getByRole("dialog", { name: "删除第 1 页？", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(await page.evaluate(() => window.__readerInvocations.some((item) => item.command === "delete_page"))).toBe(false);
+  await thumbnail.click({ button: "right" });
   await deletion.click();
   await page.getByRole("button", { name: "删除", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__readerInvocations.filter((item) => item.command === "delete_page").length)).toBe(1);
   expect(await page.evaluate(() => window.__readerInvocations.find((item) => item.command === "delete_page")?.args?.index)).toBe(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("thumbnail menu inserts blank pages before and after the clicked page", async ({ page }) => {
+  await page.getByRole("button", { name: "展开侧栏", exact: true }).click();
+  const thumbnail = page.getByRole("button", { name: "Go to page 2", exact: true });
+  await thumbnail.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "在前面插入空白页", exact: true }).click();
+  await thumbnail.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "在后面插入空白页", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__readerInvocations
+    .filter((item) => item.command === "insert_blank_page").map((item) => item.args?.index))).toEqual([1, 2]);
 });
 
 async function linePoints(line: Locator, start = 0, end = 8) {
@@ -217,7 +249,7 @@ test("completes a line when dragging past its right margin", async ({ page }) =>
 });
 
 test("includes the completed last line in a highlight annotation", async ({ page }) => {
-  await page.getByTitle("Highlight (select text)", { exact: true }).click();
+  await page.getByRole("button", { name: "标记文字", exact: true }).click();
   await expect(page.locator('.page[data-page-number="1"] .pdf-annot-text-tool')).toBeAttached();
   const lines = page.locator('.page[data-page-number="1"] .textLayer span[role="presentation"]')
     .filter({ hasText: /\S.{10}/ });
@@ -471,7 +503,7 @@ test("cancelling during zoom repaint does not restore the previous search select
 });
 
 test("margin selection supplies text quads to the highlight tool", async ({ page }) => {
-  await page.getByTitle("Highlight (select text)", { exact: true }).click();
+  await page.getByRole("button", { name: "标记文字", exact: true }).click();
   await expect(page.locator('.page[data-page-number="1"] .pdf-annot-text-tool')).toBeAttached();
   const points = await linePoints(firstLine(page));
   await drag(page, points.left, points.y, points.end);

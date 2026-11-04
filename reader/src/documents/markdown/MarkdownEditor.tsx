@@ -6,7 +6,6 @@ import { isExternalChangeError, useMarkdownText, useMarkdownSave } from "./useMa
 import { confirmInApp } from "../../workspace/confirmDialog";
 import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
 import { MarkdownToolbar } from "./MarkdownToolbar";
-import { MarkdownTools } from "./MarkdownTools";
 import { printMarkdown } from "./printMarkdown";
 import { MarkdownScrollbar } from "./MarkdownScrollbar";
 import { MarkdownOutline } from "./MarkdownOutline";
@@ -315,6 +314,8 @@ export function MarkdownEditor({
         dirty={dirty}
         saving={saving}
         printing={printing}
+        formatEnabled={mode === "wysiwyg" && commandsReady}
+        onFormat={(format) => commandsRef.current?.format(format)}
         onSwitch={switchMode}
         onSave={saveFromEditor}
         onPrint={printFromEditor}
@@ -353,8 +354,6 @@ export function MarkdownEditor({
             contentVersion={crepeVersion + workingText.length}
           />
         </div>
-        <MarkdownTools enabled={mode === "wysiwyg" && commandsReady}
-          onFormat={(format) => commandsRef.current?.format(format)} />
       </div>
     </div>
   );

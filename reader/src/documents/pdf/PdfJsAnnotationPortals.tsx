@@ -20,6 +20,8 @@ interface PdfJsAnnotationPortalsProps {
   pageInfos: Record<number, PageInfo>;
   annotationsByPage: Record<number, PdfAnnotation[]>;
   tool: AnnotationTool;
+  /** Color for new highlight/underline/strikeout marks. */
+  markColor?: string;
   active: boolean;
   onAnnotationsChanged: (pageNumber: number, deletedId?: string) => void;
   onAnnotationCreated: (annotation: PdfAnnotation) => void;
@@ -43,6 +45,7 @@ export function PdfJsAnnotationPortals(props: PdfJsAnnotationPortalsProps) {
     pageInfos,
     annotationsByPage,
     tool,
+    markColor,
     active,
     onAnnotationsChanged,
     onAnnotationCreated,
@@ -111,6 +114,7 @@ export function PdfJsAnnotationPortals(props: PdfJsAnnotationPortalsProps) {
         }}
         annotations={annotationsByPage[pageNumber] ?? EMPTY_ANNOTATIONS}
         tool={tool}
+        markColor={markColor}
         renderVisuals
         onAnnotationsChanged={onAnnotationsChanged}
         onAnnotationCreated={onAnnotationCreated}

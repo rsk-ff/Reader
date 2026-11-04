@@ -32,7 +32,7 @@ import { installPdfMarginSelection } from "./pdfMarginSelection";
 import { SelectionPreservingPdfViewer as PdfJsViewer } from "./SelectionPreservingPdfViewer";
 import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
-import { PdfToolbar, PdfTools } from "./PdfToolbar";
+import { PdfToolbar, isMarkTool, markColor, type MarkTool } from "./PdfToolbar";
 import { PdfDeleteDialog } from "./PdfDeleteDialog";
 import type { OutlineNode, PageInfo, ZoomMode } from "./types";
 
@@ -162,7 +162,15 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
   const [searchHits, setSearchHits] = useState(0);
   const [searchIdx, setSearchIdx] = useState(0);
   const [searching, setSearching] = useState(false);
-  const [annotTool, setAnnotTool] = useState<AnnotationTool>("select");
+  const [annotTool, setAnnotToolState] = useState<AnnotationTool>("select");
+  // The markup button remembers its last mode and palette entry.
+  const [markTool, setMarkTool] = useState<MarkTool>("highlight");
+  const [markColorIndex, setMarkColorIndex] = useState(0);
+  const setAnnotTool = useCallback((tool: AnnotationTool) => {
+    setAnnotToolState(tool);
+    if (isMarkTool(tool)) setMarkTool(tool);
+  }, []);
+  const [lastSidebarMode, setLastSidebarMode] = useState<"thumbnails" | "outline">("thumbnails");
   const [annotationsByPage, setAnnotationsByPage] = useState<Record<number, PdfAnnotation[]>>({});
   const [pageInfos, setPageInfos] = useState<Record<number, PageInfo>>({});
   const [localDirty, setLocalDirty] = useState(false);
@@ -701,8 +709,12 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
         totalPages={totalPages}
         scale={scale}
         zoomMode={zoomMode}
-        sidebarMode={sidebarMode}
-        hasOutline={outline.length > 0}
+        sidebarOpen={sidebarMode !== null}
+        annotTool={annotTool}
+        markTool={markTool}
+        markColorIndex={markColorIndex}
+        onAnnotTool={setAnnotTool}
+        onMarkColor={setMarkColorIndex}
         searchHits={searchHits}
         searchIdx={searchIdx}
         searching={searching}
@@ -710,7 +722,8 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onFit={setFit}
-        onSidebarToggle={(mode) => setSidebarMode((current) => current === mode ? null : mode)}
+        onSidebarToggle={() => setSidebarMode((current) => current
+          ? null : lastSidebarMode === "outline" && outline.length === 0 ? "thumbnails" : lastSidebarMode)}
         onSearch={runSearch}
         onSearchNav={navigateSearch}
         onPrint={printDocument}
@@ -730,6 +743,13 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
              onCollapse={(restoreWidth) => { setSidebarWidth(restoreWidth); setSidebarMode(null); }}
              onOutlineClick={activateOutline}
             onThumbClick={scrollToPage}
+            hasOutline={outline.length > 0}
+            onModeChange={(mode) => { setSidebarMode(mode); setLastSidebarMode(mode); }}
+            canDelete={totalPages > 1}
+            onInsertBlank={(pageNumber, position) => {
+              void mutatePages("insert_blank_page", blankPageInsertArgs(pageNumber, position));
+            }}
+            onDeletePage={(pageNumber) => { if (totalPages > 1) setPageToDelete(pageNumber); }}
           />
         )}
         <div className="pdf-stage">
@@ -746,16 +766,6 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
             </div>
           )}
         </div>
-        <PdfTools annotTool={annotTool} canDelete={totalPages > 1}
-          onAnnotTool={setAnnotTool}
-          onInsertBlankBefore={() => {
-            void mutatePages("insert_blank_page", blankPageInsertArgs(currentPage, "before"));
-          }}
-          onInsertBlankAfter={() => {
-            void mutatePages("insert_blank_page", blankPageInsertArgs(currentPage, "after"));
-          }}
-          onDeletePage={() => { if (totalPages > 1) setPageToDelete(currentPage); }}
-        />
       </div>
       {pageToDelete !== null && <PdfDeleteDialog pageNumber={pageToDelete}
         onCancel={() => setPageToDelete(null)}
@@ -772,6 +782,7 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
         pageInfos={pageInfos}
         annotationsByPage={annotationsByPage}
         tool={annotTool}
+        markColor={markColor(annotTool, markColorIndex)}
         active={active}
         onAnnotationsChanged={onAnnotationsChanged}
         onAnnotationCreated={onAnnotationCreated}

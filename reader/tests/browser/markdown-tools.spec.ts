@@ -40,24 +40,24 @@ for (const [title, selector, source] of [
   ["删除线", "del", "~~Select~~"],
   ["行内代码", "code", "`Select`"],
 ] as const) {
-  test(`right rail ${title} keeps selection, updates saving and supports undo`, async ({ page }) => {
+  test(`toolbar ${title} keeps selection, updates saving and supports undo`, async ({ page }) => {
     await page.goto("/tests/browser/markdown-editor.html");
     const paragraph = await selectText(page);
     const editor = await page.locator(".ProseMirror").elementHandle();
     await page.getByRole("button", { name: title, exact: true }).click();
     await expect(paragraph.locator(selector)).toHaveText("Select");
     await expect(page.locator(".milkdown-toolbar")).toHaveCount(0);
-    await page.getByRole("button", { name: "保存 ●", exact: true }).click();
+    await page.getByRole("button", { name: "保存", exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.__readerInvocations
       .filter((item) => item.command === "save_file_text").at(-1)?.args?.content)).toContain(source);
     expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
     await page.keyboard.press("Control+z");
     await expect(paragraph.locator(selector)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "保存 ●", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
   });
 }
 
-test("right rail keeps inline math and link editing available without a selection toolbar", async ({ page }) => {
+test("toolbar keeps inline math and link editing available without a selection toolbar", async ({ page }) => {
   await page.goto("/tests/browser/markdown-editor.html");
   await selectText(page);
   await page.getByRole("button", { name: "行内公式", exact: true }).click();
@@ -119,7 +119,7 @@ test("printing rendered edits uses a snapshot and keeps the live editor and unsa
   expect(snapshot.html).not.toContain("contenteditable");
   expect(snapshot.html).not.toContain("button");
   expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
-  await expect(page.getByRole("button", { name: "保存 ●", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
   await expect(page.locator(".markdown-print-source, .markdown-print-frame")).toHaveCount(0);
   expect(await page.evaluate(() => window.__readerInvocations.some((item) => item.command === "save_file_text"))).toBe(false);
 });
@@ -127,7 +127,7 @@ test("printing rendered edits uses a snapshot and keeps the live editor and unsa
 test("Ctrl+P in source mode prints rendered Markdown, code, table and math without switching modes", async ({ page }) => {
   await capturePrinting(page);
   await page.goto("/tests/browser/markdown-editor.html");
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "源码视图", exact: true }).click();
   const markdown = "# Unsaved heading\n\n**printed bold**\n\n```js\nconst n = 2;\n```\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n$x^2$\n";
   await page.locator(".md-source").fill(markdown);
   await expect(page.getByRole("button", { name: "加粗 (Ctrl+B)", exact: true })).toBeDisabled();
@@ -141,17 +141,16 @@ test("Ctrl+P in source mode prints rendered Markdown, code, table and math witho
   expect(snapshot.html).toContain("katex");
   expect(snapshot.html).not.toContain("cm-editor");
   await expect(page.locator(".md-source")).toHaveValue(markdown);
-  await expect(page.getByRole("button", { name: "Source", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "源码视图", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".markdown-print-source, .markdown-print-frame")).toHaveCount(0);
 });
 
-test("compact Markdown layout keeps output actions and the right rail within the window", async ({ page }) => {
+test("compact Markdown layout keeps output actions and the mode switch within the window", async ({ page }) => {
   await page.setViewportSize({ width: 330, height: 480 });
   await page.goto("/tests/browser/markdown-editor.html");
   await expect(page.locator(".ProseMirror")).toBeVisible();
-  const rail = await page.locator(".document-tool-rail").boundingBox();
-  expect(rail!.x + rail!.width).toBe(330);
-  for (const name of ["打印", "已保存", "Source", "Rendered"]) {
+  await expect(page.locator(".document-tool-rail")).toHaveCount(0);
+  for (const name of ["打印", "已保存", "源码视图", "排版视图"]) {
     const bounds = await page.getByRole("button", { name, exact: true }).boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(330);
@@ -159,31 +158,9 @@ test("compact Markdown layout keeps output actions and the right rail within the
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(330);
 });
 
-
-test("all Markdown toolbar SVG masks parse and their image resources decode", async ({ page }) => {
+test("PDF and Markdown toolbars draw the same Lucide icon size and stroke", async ({ page, context }) => {
   await page.goto("/tests/browser/markdown-editor.html");
-  await expect(page.locator(".document-tool-icon")).toHaveCount(16);
-  const resources = await page.locator(".document-tool-icon").evaluateAll(async (elements) => {
-    return Promise.all(elements.map(async (element) => {
-      const mask = getComputedStyle(element).maskImage;
-      if (!mask.startsWith('url("') || !mask.endsWith('")')) return { mask, loaded: false };
-      const image = new Image();
-      image.src = mask.slice(5, -2);
-      try {
-        await image.decode();
-        return { mask, loaded: image.naturalWidth === 16 && image.naturalHeight === 16 };
-      } catch { return { mask, loaded: false }; }
-    }));
-  });
-  for (const resource of resources) {
-    expect(resource.mask).not.toBe("none");
-    expect(resource.loaded).toBe(true);
-  }
-});
-
-test("PDF and Markdown rails share icon geometry and the strikeout image; every PDF icon decodes", async ({ page, context }) => {
-  await page.goto("/tests/browser/markdown-editor.html");
-  await expect(page.locator(".document-tool-icon")).toHaveCount(16);
+  await expect(page.locator(".md-format-tools button")).toHaveCount(15);
   const pdf = await context.newPage();
   await pdf.route("http://reader-file.localhost/**", (route) => route.fulfill({
     path: path.resolve("tests/fixtures/text-3.pdf"), contentType: "application/pdf",
@@ -191,27 +168,18 @@ test("PDF and Markdown rails share icon geometry and the strikeout image; every 
   }));
   await pdf.goto("/tests/browser/pdf-viewer.html");
   await expect(pdf.locator('.page[data-page-number="1"] .textLayer')).toBeVisible();
-  await expect(pdf.locator(".document-tool-icon")).toHaveCount(10);
-  const mdStrike = page.getByRole("button", { name: "删除线", exact: true });
-  const pdfStrike = pdf.getByRole("button", { name: "Strikeout (select text)", exact: true });
   const metrics = (element: Element) => {
-    const button = getComputedStyle(element);
-    const icon = getComputedStyle(element.querySelector(".document-tool-icon")!);
-    return { width: button.width, height: button.height, color: icon.color,
-      iconWidth: icon.width, iconHeight: icon.height, mask: icon.maskImage };
+    const icon = element.querySelector("svg.ui-icon")!;
+    const style = getComputedStyle(icon);
+    return { width: style.width, height: style.height, stroke: icon.getAttribute("stroke-width"),
+      paths: icon.querySelectorAll("path").length > 0 };
   };
-  expect(await pdfStrike.evaluate(metrics)).toEqual(await mdStrike.evaluate(metrics));
-  const loaded = await pdf.locator(".document-tool-icon").evaluateAll(async (elements) =>
-    Promise.all(elements.map(async (element) => {
-      const mask = getComputedStyle(element).maskImage;
-      if (!mask.startsWith('url("') || !mask.endsWith('")')) return false;
-      const image = new Image();
-      image.src = mask.slice(5, -2);
-      try { await image.decode(); return image.naturalWidth === 16 && image.naturalHeight === 16; }
-      catch { return false; }
-    })));
-  expect(loaded).toEqual(Array(10).fill(true));
-  await pdfStrike.click();
-  await expect(pdfStrike).toHaveAttribute("aria-pressed", "true");
+  const mdStrike = await page.getByRole("button", { name: "删除线", exact: true }).evaluate(metrics);
+  const pdfMark = await pdf.getByRole("button", { name: "标记文字", exact: true }).evaluate(metrics);
+  expect(pdfMark).toEqual(mdStrike);
+  expect(mdStrike).toEqual({ width: "18px", height: "18px", stroke: "1.6", paths: true });
+  const empty = await pdf.locator(".pdf-toolbar svg.ui-icon").evaluateAll((icons) =>
+    icons.filter((icon) => icon.querySelectorAll("path").length === 0).length);
+  expect(empty).toBe(0);
   await pdf.close();
 });

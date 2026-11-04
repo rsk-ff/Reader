@@ -34,7 +34,7 @@ Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`m
 ## Markdown path
 
 - Milkdown/Crepe 提供所见即所得编辑，`Ctrl+/` 切换源码模式；两种模式共享同一个内存 Markdown 字符串。
-- [`MilkdownCrepe.tsx`](../reader/src/documents/markdown/MilkdownCrepe.tsx) 使用官方 common 样式与 Frame 浅色主题为基线，局部 `milkdownTheme.css` 只做字体、宽度和间距适配。Crepe 的 BlockEdit 与 Toolbar 被禁用，格式命令由右侧 `MarkdownTools` 通过命令桥调用。
+- [`MilkdownCrepe.tsx`](../reader/src/documents/markdown/MilkdownCrepe.tsx) 使用官方 common 样式与 Frame 浅色主题为基线，局部 `milkdownTheme.css` 只做字体、宽度和间距适配。Crepe 的 BlockEdit 与 Toolbar 被禁用，格式命令由顶部 `MarkdownToolbar` 通过命令桥调用。
 - Crepe 实例只随组件挂载/卸载创建与销毁，编辑回传不替换实例，以保留焦点、选区和撤销历史；源码返回和放弃修改通过显式重挂载加载内容。异步创建/销毁串行化，旧实例不再发布修改。
 - `flush()` 在保存和切换源码前补发实时内容，防止延迟监听漏掉刚输入的内容。保存使用临时文件加原子替换，并以修订号避免并发编辑被误标为已保存。
 - 新插入的本地图片经 FileReader 内嵌为 data URL。文档中已有的图片地址由 Crepe `proxyDomURL` 经 [`markdownImages.ts`](../reader/src/documents/markdown/markdownImages.ts) 映射：相对路径按 .md 所在目录解析，绝对路径和 `file:` 地址原样取路径，都改走 `reader-image` 协议；`https:`、`data:`、`blob:` 原样加载。打印前对 `getHTML` 结果做同样替换。Markdown 源文本中的地址不变。
@@ -45,7 +45,7 @@ Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`m
 
 ## Shared document UI
 
-- `DocumentActions` 统一 PDF/Markdown 的打印/保存入口；`DocumentToolRail` 统一右侧竖栏。
+- `DocumentActions` 统一 PDF/Markdown 的打印/保存入口；`UiIcon` 从 `lucideIcons.ts` 绘制所有界面图标。PDF 标记方式与颜色由 `PdfViewer` 保存，经 `PdfJsAnnotationPortals` 传给批注层；缩略图右键菜单复用 `FolderContextMenu`。
 - [`SidebarResizer`](../reader/src/components/SidebarResizer.tsx) 共用侧栏调宽与拖动收起逻辑（数值见 PRODUCT）；侧栏宽度和可见状态由各文档容器持有，不进入 Rust 工作区。
 
 ## Workspace, tabs and windows
