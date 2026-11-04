@@ -385,7 +385,7 @@ test("title bar, home and file entries decode the shared native SVG masters", as
       catch { return false; }
     })));
   expect(decoded).toEqual(Array(5).fill(true));
-  expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(40);
+  expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(38);
   expect((await page.locator(".winctl").first().boundingBox())!.width).toBe(46);
 });
 
@@ -396,11 +396,14 @@ test("title bar keeps a full-height drag region and tabs reach the top edge", as
   expect(spacer.height).toBe(bar.height);
   expect(spacer.width).toBeGreaterThan(40);
 
-  const tab = (await page.locator(".tab").first().boundingBox())!;
-  expect(tab.y).toBeGreaterThan(bar.y);
-  const hit = await page.evaluate(([x, y]) => {
-    const element = document.elementFromPoint(x, y);
-    return element?.closest(".tab") !== null;
-  }, [tab.x + tab.width / 2, bar.y + 1]);
-  expect(hit).toBe(true);
+  // The topmost pixel row above a tab or the add button still hits it.
+  for (const selector of [".tab", ".tab-add"]) {
+    const box = (await page.locator(selector).first().boundingBox())!;
+    expect(box.y).toBeGreaterThan(bar.y);
+    const hit = await page.evaluate(([x, y, sel]) => {
+      const element = document.elementFromPoint(x as number, y as number);
+      return element?.closest(sel as string) !== null;
+    }, [box.x + box.width / 2, bar.y, selector]);
+    expect(hit, selector).toBe(true);
+  }
 });
