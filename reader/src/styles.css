@@ -51,6 +51,7 @@
 
   /* Small neutral overlays */
   --tab-close-hover: rgba(28, 28, 26, 0.08);
+  --tab-hover: rgba(28, 28, 26, 0.05);
   --winctl-hover: rgba(0, 0, 0, 0.09);
   --winctl-pressed: rgba(0, 0, 0, 0.16);
 
@@ -194,10 +195,12 @@ html.tab-drag-preview-document #root {
 .window-titlebar {
   display: flex;
   align-items: stretch;
-  height: 36px;
-  min-height: 36px;
+  height: 40px;
+  min-height: 40px;
   background: var(--bg-chrome);
-  border-bottom: 1px solid var(--border);
+  /* The bottom line is an inset shadow so the active tab, painted above it,
+     joins the content area below. */
+  box-shadow: inset 0 -1px 0 var(--border);
   user-select: none;
 }
 
@@ -206,15 +209,15 @@ html.tab-drag-preview-document #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  width: 40px;
   /* The icon glyph is decorative: pointer-events:none so the mousedown that
      starts a window drag lands on this drag region itself. */
   cursor: default;
 }
 
 .titlebar-icon img {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   pointer-events: none;
   -webkit-user-drag: none;
   user-select: none;
@@ -224,6 +227,8 @@ html.tab-drag-preview-document #root {
   flex: 0 0 auto;
   display: flex;
   align-items: stretch;
+  /* Leave the 1px bottom line visible under hovered controls. */
+  height: calc(100% - 1px);
 }
 
 .winctl {
@@ -286,7 +291,7 @@ html.tab-drag-preview-document #root {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   height: 100%;
   padding: 0 6px 0 0;
   background: transparent;
@@ -298,17 +303,18 @@ html.tab-drag-preview-document #root {
   touch-action: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 28px;
-  align-self: center;
+  gap: 8px;
+  height: 34px;
+  align-self: flex-end;
   position: relative;
   flex: 1 1 220px;
   min-width: 28px;
   max-width: 220px;
   container: tab / inline-size;
-  padding: 0 8px 0 10px;
+  padding: 0 6px 0 12px;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
   background: transparent;
   color: var(--text-dim);
   cursor: default;
@@ -317,15 +323,16 @@ html.tab-drag-preview-document #root {
 }
 
 .tab:hover {
-  background: var(--bg-elev);
+  background: var(--tab-hover);
   color: var(--text);
 }
 
-.tab-active {
+.tab-active,
+.tab-active:hover {
   background: var(--bg-elev);
   color: var(--text);
-  border-color: var(--border-strong);
-  border-bottom-color: transparent;
+  border-color: var(--border);
+  font-weight: 600;
 }
 
 .tab-title {
@@ -378,13 +385,14 @@ html.tab-drag-preview-document #root {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-control);
   color: var(--text-faint);
   font-size: 11px;
+  font-weight: 400;
   cursor: default;
-  flex: 0 0 16px;
+  flex: 0 0 24px;
   position: relative;
   z-index: 1;
 }
@@ -419,7 +427,7 @@ html.tab-drag-preview-document #root {
     position: absolute;
     right: 4px;
     z-index: 2;
-    background: var(--bg-active);
+    background: var(--bg-elev);
   }
 }
 
@@ -431,14 +439,14 @@ html.tab-drag-preview-document #root {
 
 .tab-add {
   -webkit-app-region: no-drag;
-  flex: 0 0 28px;
-  align-self: center;
+  flex: 0 0 30px;
+  align-self: flex-end;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin: 0 4px;
+  width: 30px;
+  height: 30px;
+  margin: 0 4px 2px;
   padding: 0 0 2px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
@@ -451,8 +459,7 @@ html.tab-drag-preview-document #root {
 }
 
 .tab-add:hover {
-  background: var(--bg-elev);
-  border-color: var(--border);
+  background: var(--tab-hover);
   color: var(--text);
 }
 

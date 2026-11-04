@@ -385,6 +385,6 @@ test("title bar, home and file entries decode the shared native SVG masters", as
       catch { return false; }
     })));
   expect(decoded).toEqual(Array(5).fill(true));
-  expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(36);
+  expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(40);
   expect((await page.locator(".winctl").first().boundingBox())!.width).toBe(46);
 });

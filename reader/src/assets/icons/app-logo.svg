@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64">
+  <!-- Placeholder Reader mark (ginkgo leaf) shown in the title bar until the
+       final logo replaces shell-reader.svg and the native icons. -->
+  <defs>
+    <linearGradient id="l" x1="10" y1="10" x2="32" y2="44" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd66b"/><stop offset="1" stop-color="#e3920c"/></linearGradient>
+    <linearGradient id="r" x1="54" y1="10" x2="32" y2="44" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffe896"/><stop offset="1" stop-color="#f2a91c"/></linearGradient>
+    <linearGradient id="s" x1="32" y1="44" x2="28" y2="59" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#c58d14"/><stop offset="1" stop-color="#8f5f0a"/></linearGradient>
+    <radialGradient id="h" cx="22" cy="11" r="24" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <path d="M32 44C24 39 9 31 5 22C11 11 21 6 28.5 7C30 10.5 31.3 14.5 32 19Z" fill="url(#l)"/>
+  <path d="M32 44C40 39 55 31 59 22C53 11 43 6 35.5 7C34 10.5 32.7 14.5 32 19Z" fill="url(#r)"/>
+  <path d="M32 44C24 39 9 31 5 22C11 11 21 6 28.5 7C30 10.5 31.3 14.5 32 19C32.7 14.5 34 10.5 35.5 7C43 6 53 11 59 22C55 31 40 39 32 44Z" fill="url(#h)"/>
+  <path d="M32 19V44" stroke="#b87a08" stroke-opacity="0.35" stroke-width="0.9"/>
+  <path d="M32 42L12 22M32 42L19 13M32 42L26 9.5M32 42L38 9.5M32 42L45 13M32 42L52 22" stroke="#fff6d6" stroke-opacity="0.5" stroke-width="1" stroke-linecap="round"/>
+  <path d="M32 44C32.5 50 31.5 55 28 59" fill="none" stroke="url(#s)" stroke-width="3.2" stroke-linecap="round"/>
+</svg>
