@@ -322,6 +322,23 @@ html.tab-drag-preview-document #root {
   white-space: nowrap;
 }
 
+/* Tabs sit on the bottom of the 40px bar. Extend their hit area to the top
+   edge so a maximized window switches tabs when the pointer is pushed
+   against the screen edge. */
+.tab::before,
+.tab-add::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: 100%;
+  height: 6px;
+}
+
+.tab-add::before {
+  height: 8px;
+}
+
 .tab:hover {
   background: var(--tab-hover);
   color: var(--text);
@@ -433,6 +450,7 @@ html.tab-drag-preview-document #root {
 
 .tabstrip-spacer {
   flex: 1 1 auto;
+  align-self: stretch;
   min-width: 0;
   cursor: default;
 }
@@ -446,6 +464,7 @@ html.tab-drag-preview-document #root {
   justify-content: center;
   width: 30px;
   height: 30px;
+  position: relative;
   margin: 0 4px 2px;
   padding: 0 0 2px;
   border: 1px solid transparent;

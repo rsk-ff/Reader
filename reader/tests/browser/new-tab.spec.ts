@@ -388,3 +388,19 @@ test("title bar, home and file entries decode the shared native SVG masters", as
   expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(40);
   expect((await page.locator(".winctl").first().boundingBox())!.width).toBe(46);
 });
+
+test("title bar keeps a full-height drag region and tabs reach the top edge", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  const bar = (await page.locator(".window-titlebar").boundingBox())!;
+  const spacer = (await page.locator(".tabstrip-spacer").boundingBox())!;
+  expect(spacer.height).toBe(bar.height);
+  expect(spacer.width).toBeGreaterThan(40);
+
+  const tab = (await page.locator(".tab").first().boundingBox())!;
+  expect(tab.y).toBeGreaterThan(bar.y);
+  const hit = await page.evaluate(([x, y]) => {
+    const element = document.elementFromPoint(x, y);
+    return element?.closest(".tab") !== null;
+  }, [tab.x + tab.width / 2, bar.y + 1]);
+  expect(hit).toBe(true);
+});
