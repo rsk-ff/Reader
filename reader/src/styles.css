@@ -45,7 +45,7 @@
   --scrollbar-hover: #a8a8a2;
 
   /* Selection and search inside documents */
-  --text-selection: rgba(85, 85, 79, 0.28);
+  --text-selection: rgba(28, 28, 26, 0.18);
   --text-selection-legacy: rgba(85, 85, 79, 0.28);
   --search-hit: rgba(255, 213, 79, 0.5);
 
@@ -1601,6 +1601,12 @@ body.md-sidebar-resizing * {
 }
 
 .pdfjs-viewer-container .textLayer ::selection {
+  background: var(--text-selection);
+}
+
+/* PDF.js paints the selection itself on a layer above the page canvas
+   (selection rendering); its default fill is blue. */
+.pdfjs-viewer-container .pdfViewer .page .canvasWrapper .selection {
   background: var(--text-selection);
 }
 
