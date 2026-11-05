@@ -130,6 +130,13 @@ body,
   pointer-events: none;
 }
 
+/* Letter icons (H, B, I, S, U) at the optical size of the pictograms. */
+.ui-icon.ui-icon-glyph {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.1;
+}
+
 :is(.tab, .tab-add, .tab-close, .pdf-tbtn, .md-tbtn, .outline-item,
     .thumb-item, .unsaved-dialog-actions button):focus-visible {
   outline: 2px solid var(--accent);
@@ -1441,15 +1448,15 @@ body.md-sidebar-resizing * {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   height: 32px;
-  padding: 0 4px 0 7px;
+  padding: 0 5px 0 8px;
   margin-right: 2px;
   border-radius: var(--radius-control);
   color: var(--text-dim);
 }
 
-.md-heading-select .ui-icon:last-child { width: 14px; height: 14px; color: var(--text-faint); }
+.md-heading-select .ui-icon:last-child { width: 12px; height: 12px; margin-left: -1px; color: var(--text-faint); }
 .md-heading-select select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: default; }
 .md-heading-select:has(select:disabled) { opacity: 0.45; }
 .md-heading-select:hover:has(select:enabled) { background: var(--bg); color: var(--text); }

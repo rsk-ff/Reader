@@ -174,10 +174,13 @@ test("PDF and Markdown toolbars draw the same Lucide icon size and stroke", asyn
     return { width: style.width, height: style.height, stroke: icon.getAttribute("stroke-width"),
       paths: icon.querySelectorAll("path").length > 0 };
   };
-  const mdStrike = await page.getByRole("button", { name: "删除线", exact: true }).evaluate(metrics);
+  const mdQuote = await page.getByRole("button", { name: "引用块", exact: true }).evaluate(metrics);
   const pdfMark = await pdf.getByRole("button", { name: "标记文字", exact: true }).evaluate(metrics);
-  expect(pdfMark).toEqual(mdStrike);
-  expect(mdStrike).toEqual({ width: "18px", height: "18px", stroke: "1.6", paths: true });
+  expect(pdfMark).toEqual(mdQuote);
+  expect(mdQuote).toEqual({ width: "18px", height: "18px", stroke: "1.6", paths: true });
+  // Letter icons draw at the optical size of the pictograms.
+  const mdBold = await page.getByRole("button", { name: "加粗 (Ctrl+B)", exact: true }).evaluate(metrics);
+  expect(mdBold).toEqual({ width: "15px", height: "15px", stroke: "1.6", paths: true });
   const empty = await pdf.locator(".pdf-toolbar svg.ui-icon").evaluateAll((icons) =>
     icons.filter((icon) => icon.querySelectorAll("path").length === 0).length);
   expect(empty).toBe(0);
