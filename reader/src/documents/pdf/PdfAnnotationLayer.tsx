@@ -83,7 +83,8 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
         quad_points: quads,
         ink_paths: [],
         color: markColor ?? defaultColor(tool),
-        opacity: 0.4,
+        // Highlights tint the text; underline and strikeout are solid lines.
+        opacity: tool === "highlight" ? 0.4 : 1,
         text: null,
         created_at: null,
         modified_at: null,
@@ -284,20 +285,30 @@ function renderAnnotation(
     return (
       <g key={ann.id} opacity={renderVisuals ? 1 : 0} onDoubleClick={del}>
         {ann.quad_points.map((q, i) => {
-          const tl = pdfToScreen(geom, q.x3, q.y3);
-          const tr = pdfToScreen(geom, q.x4, q.y4);
-          const br = pdfToScreen(geom, q.x2, q.y2);
-          const bl = pdfToScreen(geom, q.x1, q.y1);
-          const d = `M ${tl.x} ${tl.y} L ${tr.x} ${tr.y} L ${br.x} ${br.y} L ${bl.x} ${bl.y} Z`;
+          const tl = pdfToScreen(geom, q.x1, q.y1);
+          const tr = pdfToScreen(geom, q.x2, q.y2);
+          const bl = pdfToScreen(geom, q.x3, q.y3);
+          const br = pdfToScreen(geom, q.x4, q.y4);
+          if (ann.annotation_type === "highlight") {
+            const d = `M ${tl.x} ${tl.y} L ${tr.x} ${tr.y} L ${br.x} ${br.y} L ${bl.x} ${bl.y} Z`;
+            return <path key={i} d={d} fill={ann.color} fillOpacity={ann.opacity} />;
+          }
+          // Underline runs just above the bottom edge; strikeout through the middle.
+          const t = ann.annotation_type === "underline" ? 0.08 : 0.5;
+          const start = lerpPoint(bl, tl, t);
+          const end = lerpPoint(br, tr, t);
+          const height = Math.hypot(tl.x - bl.x, tl.y - bl.y);
           return (
-            <path
+            <line
               key={i}
-              d={d}
-              fill={ann.color}
-              fillOpacity={ann.opacity}
-              stroke={ann.annotation_type === "underline" ? ann.color : "none"}
-              strokeWidth={ann.annotation_type === "underline" ? 1.5 : 0}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
+              stroke={ann.color}
               strokeOpacity={ann.opacity}
+              strokeWidth={Math.max(1, height * 0.07)}
+              strokeLinecap="butt"
             />
           );
         })}
@@ -372,6 +383,10 @@ function renderAnnotation(
     );
   }
   return null;
+}
+
+function lerpPoint(from: Point, to: Point, t: number): Point {
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
 }
 
 function defaultColor(tool: AnnotationTool): string {

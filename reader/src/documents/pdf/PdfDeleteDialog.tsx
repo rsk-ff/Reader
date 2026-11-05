@@ -15,7 +15,7 @@ export function PdfDeleteDialog({ pageNumber, onCancel, onConfirm }: {
   return <dialog ref={ref} className="pdf-delete-dialog" aria-labelledby="pdf-delete-title"
     onCancel={(event) => { event.preventDefault(); onCancel(); }}>
     <h2 id="pdf-delete-title">删除第 {pageNumber} 页？</h2>
-    <p>删除会立即写入文件，无法撤销。</p>
+    <p>点保存后才会写入文件；关闭时选“不保存”可以放弃这次删除。</p>
     <div className="pdf-delete-actions">
       <button type="button" autoFocus onClick={onCancel}>取消</button>
       <button type="button" className="pdf-delete-confirm" onClick={onConfirm}>删除</button>

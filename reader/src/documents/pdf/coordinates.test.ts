@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { clipScreenRect, pdfRectToScreen, pdfToScreen, screenToPdf } from "./coordinates";
+import { clipScreenRect, pdfRectToScreen, pdfToScreen, rectToQuad, screenToPdf } from "./coordinates";
 import type { PageGeom } from "./coordinates";
 
 describe("PDF coordinate transforms", () => {
+  it("orders markup quads top-left, top-right, bottom-left, bottom-right", () => {
+    // Acrobat and PDF.js draw underline on the (x3,y3)-(x4,y4) edge.
+    const geom: PageGeom = { w1: 600, h1: 800, scale: 1 };
+    const quad = rectToQuad(geom, 10, 100, 210, 120);
+    expect(quad).toEqual({ x1: 10, y1: 700, x2: 210, y2: 700, x3: 10, y3: 680, x4: 210, y4: 680 });
+  });
+
   it("round-trips the default unrotated page transform", () => {
     const geom: PageGeom = { w1: 600, h1: 800, scale: 2 };
     const screen = pdfToScreen(geom, 10, 20);

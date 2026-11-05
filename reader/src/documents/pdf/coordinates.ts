@@ -124,8 +124,10 @@ export function rectToQuad(
   const tr = screenToPdf(g, right, top);
   const bl = screenToPdf(g, left, bottom);
   const br = screenToPdf(g, right, bottom);
-  // Quad order: bottom-left, bottom-right, top-left, top-right (PDF spec).
-  return { x1: bl.x, y1: bl.y, x2: br.x, y2: br.y, x3: tl.x, y3: tl.y, x4: tr.x, y4: tr.y };
+  // QuadPoints order used by Acrobat, PDF.js and PDFium when they draw
+  // markup: top-left, top-right, bottom-left, bottom-right. Underline sits on
+  // the (x3,y3)-(x4,y4) edge, so the old bottom-first order put it above text.
+  return { x1: tl.x, y1: tl.y, x2: tr.x, y2: tr.y, x3: bl.x, y3: bl.y, x4: br.x, y4: br.y };
 }
 
 export interface Quad {
