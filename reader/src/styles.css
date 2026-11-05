@@ -398,9 +398,9 @@ html.tab-drag-preview-document #root {
   pointer-events: none;
 }
 
-.tab-icon-pdf {
-  color: var(--file-pdf);
-}
+.tab-icon-pdf { color: var(--file-pdf); }
+.tab-icon .file-page { stroke: var(--text-faint); }
+.tab-icon .file-band { fill: currentColor; }
 
 .tab-icon-markdown {
   color: var(--file-markdown);
@@ -734,11 +734,11 @@ html.tab-drag-preview-document #root {
 .pdf-toolbar-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   flex: 1 1 0;
   min-width: 0;
   height: 100%;
-  padding: 3px 10px;
+  padding: 0 8px 0 10px;
   overflow: hidden;
 }
 
@@ -755,29 +755,9 @@ html.tab-drag-preview-document #root {
   flex: 1 1 0;
 }
 
-/* PDF reading groups keep their dividers now that each sits in a slot. */
-.toolbar-slot + .toolbar-slot > .pdf-toolbar-group:not(.pdf-search-group) {
-  margin-left: 6px;
-  padding-left: 8px;
-  border-left: 1px solid var(--border);
-}
 
-.pdf-search-slot {
-  flex: 0 1 260px;
-  min-width: 220px;
-}
 
-.pdf-search-slot > .pdf-search-group,
-.md-search-slot > .md-search-group {
-  flex: 1 1 auto;
-  max-width: none;
-  min-width: 0;
-}
 
-.md-search-slot {
-  flex: 0 1 280px;
-  min-width: 190px;
-}
 
 .toolbar-more {
   display: inline-flex;
@@ -819,8 +799,7 @@ html.tab-drag-preview-document #root {
 
 .toolbar-overflow-group .toolbar-separator { display: none; }
 .toolbar-overflow-group + .toolbar-overflow-group { padding-top: 4px; border-top: 1px solid var(--border); }
-.toolbar-overflow-group .pdf-search-group,
-.toolbar-overflow-group .md-search-group { width: 300px; max-width: 100%; margin: 0; padding: 0; }
+.toolbar-overflow-group .doc-search { width: 300px; max-width: 100%; }
 
 .pdf-toolbar-group {
   display: flex;
@@ -838,6 +817,41 @@ html.tab-drag-preview-document #root {
 .pdf-toolbar-spacer {
   flex: 1 1 0;
   min-width: 0;
+}
+
+/* Shared toolbar icon button (sidebar toggle, search arrows). */
+.tbtn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.tbtn:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+.tbtn-active, .tbtn-active:hover:not(:disabled) { background: var(--bg-active); color: var(--text); }
+.tbtn:disabled { opacity: 0.45; }
+.tbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.doc-search {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.doc-search-slot {
+  flex: 0 1 260px;
+  min-width: 220px;
+  margin-left: 12px;
 }
 
 .pdf-tbtn {
@@ -1516,10 +1530,10 @@ body.md-sidebar-resizing * {
 .md-toolbar {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   height: 44px;
   min-width: 0;
-  padding: 0 0 0 10px;
+  padding: 0;
   border-bottom: 1px solid var(--border);
   background: var(--bg-elev);
   -webkit-app-region: no-drag;
@@ -1540,7 +1554,7 @@ body.md-sidebar-resizing * {
   gap: 2px;
   min-width: 0;
   height: 100%;
-  padding-right: 8px;
+  padding: 0 8px 0 10px;
   overflow: hidden;
 }
 
@@ -1736,7 +1750,7 @@ body.md-sidebar-resizing * {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 14px;
+  width: 10px;
   touch-action: none;
   cursor: default;
 }
@@ -1751,8 +1765,8 @@ body.md-sidebar-resizing * {
   top: 0;
   right: 0;
   left: 0;
-  border: 3px solid var(--bg-elev);
-  border-radius: var(--radius-control);
+  border: 3px solid transparent;
+  border-radius: 5px;
   background: var(--scrollbar);
   background-clip: padding-box;
   will-change: transform;
@@ -1886,19 +1900,7 @@ body.md-sidebar-resizing * {
   background-color: var(--search-hit-current);
 }
 
-.md-search-group {
-  display: flex;
-  align-items: center;
-  flex: 0 1 280px;
-  gap: 2px;
-  min-width: 190px;
-  margin-left: auto;
-  padding-left: 12px;
-}
 
-.md-search-group .pdf-search-form {
-  flex: 1 1 auto;
-}
 
 /* ---- PDF annotation layer (§5) ---- */
 
@@ -2132,11 +2134,6 @@ body.md-sidebar-resizing * {
   pointer-events: none;
 }
 
-@media (max-width: 420px) {
-  .md-toolbar { gap: 2px; padding-left: 6px; }
-  .md-outline-toggle { padding: 0 6px; }
-  .md-toolbar .document-actions { padding: 0 6px; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   :is(.tab, .tab-add, .tab-close, .winctl, .pdf-tbtn, .md-tbtn,

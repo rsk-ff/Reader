@@ -1,7 +1,8 @@
-import { useState, type RefObject } from "react";
+import type { RefObject } from "react";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
 import { DocumentActions } from "../../components/DocumentActions";
 import { OverflowToolbar, type ToolbarGroup } from "../../components/OverflowToolbar";
+import { DocumentSearch, SidebarToggle } from "../../components/DocumentToolbarParts";
 import type { MarkdownFormat } from "./MilkdownCrepe";
 
 interface MarkdownToolbarProps {
@@ -37,12 +38,6 @@ const GROUPS: [MarkdownFormat, UiIconName, string][][] = [
 ];
 
 export function MarkdownToolbar({ dirty, saving, printing, formatEnabled, onFormat, onSave, onPrint, outlineVisible, onToggleOutline, search }: MarkdownToolbarProps) {
-  // Typing edits a draft; Enter runs it, as in the PDF search field.
-  const [draft, setDraft] = useState(search.query);
-  const run = (step: 1 | -1) => {
-    if (draft !== search.query) search.onQuery(draft);
-    else search.onNav(step);
-  };
   const formatButtons = (tools: [MarkdownFormat, UiIconName, string][]) => tools.map(([format, icon, title]) => (
     <button key={format} type="button" className="md-tbtn" title={title} aria-label={title}
       disabled={!formatEnabled} onMouseDown={(event) => event.preventDefault()}
@@ -54,15 +49,8 @@ export function MarkdownToolbar({ dirty, saving, printing, formatEnabled, onForm
     {
       key: "outline",
       pinned: true,
-      node: <>
-        <button type="button" className={"md-tbtn md-outline-toggle" + (outlineVisible ? " md-tbtn-active" : "")}
-          title={outlineVisible ? "收起目录" : "展开目录"}
-          aria-label={outlineVisible ? "收起目录" : "展开目录"}
-          aria-expanded={outlineVisible} onClick={onToggleOutline}>
-          <UiIcon name="panelLeft" />
-        </button>
-        <span className="toolbar-separator" aria-hidden="true" />
-      </>,
+      node: <SidebarToggle open={outlineVisible} onToggle={onToggleOutline}
+        openLabel="展开目录" closeLabel="收起目录" />,
     },
     {
       key: "inline",
@@ -98,48 +86,10 @@ export function MarkdownToolbar({ dirty, saving, printing, formatEnabled, onForm
     { key: "spacer", pinned: true, flexible: true, minWidth: 0, node: null },
     {
       key: "search",
-      minWidth: 190,
-      slotClassName: "md-search-slot",
-      node: <div className="md-search-group" role="search">
-        <form className="pdf-search-form" onSubmit={(event) => { event.preventDefault(); run(1); }}>
-          <UiIcon name="search" />
-          <input
-            ref={search.inputRef}
-            className="pdf-search-input md-search-input"
-            type="search"
-            placeholder="搜索文档"
-            value={draft}
-            aria-label="search"
-            onChange={(event) => {
-              setDraft(event.target.value);
-              if (!event.target.value) search.onQuery("");
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && event.shiftKey) {
-                event.preventDefault();
-                run(-1);
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                if (draft || search.query) { setDraft(""); search.onQuery(""); }
-                else event.currentTarget.blur();
-              }
-            }}
-          />
-          <span className="pdf-search-count">
-            {search.count > 0 ? `${search.current + 1}/${search.count}` : search.query ? "0" : ""}
-          </span>
-        </form>
-        <button type="button" className="md-tbtn" title="上一个 (Shift+F3)" aria-label="上一个匹配"
-          disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
-          onClick={() => search.onNav(-1)}>
-          <UiIcon name="chevronUp" />
-        </button>
-        <button type="button" className="md-tbtn" title="下一个 (F3)" aria-label="下一个匹配"
-          disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
-          onClick={() => search.onNav(1)}>
-          <UiIcon name="chevronDown" />
-        </button>
-      </div>,
+      minWidth: 220,
+      slotClassName: "doc-search-slot",
+      node: <DocumentSearch count={search.count} current={search.current} inputRef={search.inputRef}
+        onSearch={search.onQuery} onNav={search.onNav} />,
     },
   ];
   return (

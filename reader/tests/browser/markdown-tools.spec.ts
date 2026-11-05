@@ -186,3 +186,40 @@ test("PDF and Markdown toolbars draw the same Lucide icon size and stroke", asyn
   expect(empty).toBe(0);
   await pdf.close();
 });
+
+test("PDF and Markdown toolbars share identical ends", async ({ page, context }) => {
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.goto("/tests/browser/markdown-editor.html");
+  await expect(page.locator(".ProseMirror")).toBeVisible();
+  const pdf = await context.newPage();
+  await pdf.setViewportSize({ width: 1100, height: 760 });
+  await pdf.route("http://reader-file.localhost/**", (route) => route.fulfill({
+    path: path.resolve("tests/fixtures/text-3.pdf"), contentType: "application/pdf",
+    headers: { "Access-Control-Allow-Origin": "*" },
+  }));
+  await pdf.goto("/tests/browser/pdf-viewer.html");
+  await expect(pdf.locator('.page[data-page-number="1"] .textLayer')).toBeVisible();
+  const ends = (target: Page, toolbar: string) => target.locator(toolbar).evaluate((bar) => {
+    const right = bar.getBoundingClientRect().right;
+    const box = (selector: string) => {
+      const rect = bar.querySelector(selector)!.getBoundingClientRect();
+      return { x: Math.round(rect.x), w: Math.round(rect.width), fromRight: Math.round(right - rect.right) };
+    };
+    return {
+      toggle: box(".tbtn"),
+      separator: box(".toolbar-separator"),
+      search: box(".doc-search"),
+      print: box('[aria-label="打印"]'),
+      save: box(".document-save"),
+    };
+  });
+  const md = await ends(page, ".md-toolbar");
+  const pdfEnds = await ends(pdf, ".pdf-toolbar");
+  expect(pdfEnds.toggle).toEqual(md.toggle);
+  expect(pdfEnds.separator).toEqual(md.separator);
+  expect(pdfEnds.search.w).toBe(md.search.w);
+  expect(pdfEnds.search.fromRight).toBe(md.search.fromRight);
+  expect(pdfEnds.print).toEqual(md.print);
+  expect(pdfEnds.save).toEqual(md.save);
+  await pdf.close();
+});

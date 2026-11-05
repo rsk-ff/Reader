@@ -5,6 +5,7 @@ import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
 import { DocumentActions } from "../../components/DocumentActions";
 import { OverflowToolbar, type ToolbarGroup } from "../../components/OverflowToolbar";
+import { DocumentSearch, SidebarToggle } from "../../components/DocumentToolbarParts";
 
 /** Text markup tools share one toolbar button and a style popover. */
 export type MarkTool = "highlight" | "underline" | "strikeout";
@@ -68,7 +69,6 @@ export function PdfToolbar(props: PdfToolbarProps) {
     onZoomIn, onZoomOut, onFit, onSidebarToggle, onSearch, onSearchNav, onPrint, onJumpPage, dirty, onSave,
   } = props;
 
-  const [searchInput, setSearchInput] = useState("");
   const [markMenuOpen, setMarkMenuOpen] = useState(false);
   const pageInputRef = useRef<HTMLInputElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -113,11 +113,6 @@ export function PdfToolbar(props: PdfToolbarProps) {
 
   useEffect(() => { if (!isMarkTool(annotTool)) setMarkMenuOpen(false); }, [annotTool]);
 
-  function submitSearch(e: React.FormEvent) {
-    e.preventDefault();
-    onSearch(searchInput);
-  }
-
   function submitPage(e: React.FormEvent) {
     e.preventDefault();
     const n = Number(pageInputRef.current?.value);
@@ -131,14 +126,8 @@ export function PdfToolbar(props: PdfToolbarProps) {
   const swatch = MARK_COLORS[markColorIndex] ?? MARK_COLORS[0];
 
   const groups: ToolbarGroup[] = [
-    { key: "sidebar", pinned: true, node: <>
-        <div className="pdf-toolbar-group">
-          <ToolbarButton active={sidebarOpen} onClick={onSidebarToggle}
-            title={sidebarOpen ? "收起侧栏" : "展开侧栏"}>
-            <UiIcon name="panelLeft" />
-          </ToolbarButton>
-        </div>
-        </> },
+    { key: "sidebar", pinned: true, node: <SidebarToggle open={sidebarOpen} onToggle={onSidebarToggle}
+        openLabel="展开侧栏" closeLabel="收起侧栏" /> },
     { key: "pages", node: <>
         <div className="pdf-toolbar-group">
           <ToolbarButton onClick={() => onJumpPage(currentPage - 1)} title="上一页" disabled={currentPage <= 1}>
@@ -162,6 +151,7 @@ export function PdfToolbar(props: PdfToolbarProps) {
         </div>
         </> },
     { key: "zoom", node: <>
+        <span className="toolbar-separator" aria-hidden="true" />
         <div className="pdf-toolbar-group">
           <ToolbarButton onClick={onZoomOut} title="Zoom out">
             <UiIcon name="zoomOut" />
@@ -237,40 +227,8 @@ export function PdfToolbar(props: PdfToolbarProps) {
         </div>
         </> },
     { key: "spacer-end", pinned: true, flexible: true, minWidth: 0, node: null },
-    { key: "search", minWidth: 220, slotClassName: "pdf-search-slot", node: <>
-        <div className="pdf-toolbar-group pdf-search-group">
-          <form className="pdf-search-form" onSubmit={submitSearch}>
-            <UiIcon name="search" />
-            <input
-              className="pdf-search-input"
-              type="search"
-              placeholder="搜索文档"
-              value={searchInput}
-              onChange={(event) => {
-                const value = event.target.value;
-                setSearchInput(value);
-                if (!value) onSearch("");
-              }}
-              aria-label="search"
-            />
-            <span className="pdf-search-count">
-              {searching
-                ? "…"
-                : searchHits > 0
-                  ? `${searchIdx + 1}/${searchHits}`
-                  : searchInput
-                    ? "0"
-                    : ""}
-            </span>
-          </form>
-          <ToolbarButton onClick={() => onSearchNav(-1)} title="Previous" disabled={searchHits === 0}>
-            <UiIcon name="chevronUp" />
-          </ToolbarButton>
-          <ToolbarButton onClick={() => onSearchNav(1)} title="Next" disabled={searchHits === 0}>
-            <UiIcon name="chevronDown" />
-          </ToolbarButton>
-        </div>
-        </> },
+    { key: "search", minWidth: 220, slotClassName: "doc-search-slot", node: <DocumentSearch
+        count={searchHits} current={searchIdx} busy={searching} onSearch={onSearch} onNav={onSearchNav} /> },
   ];
 
   return (
