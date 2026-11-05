@@ -270,7 +270,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
           {visibleFiles.length ? <div className="new-tab-recent-list">{visibleFiles.map((file) => (
             <button type="button" className="new-tab-recent-item" key={file.path} title={file.path} disabled={busy} onClick={() => void reopen(file.path)}>
               <span className="new-tab-recent-icon"><DocumentTypeIcon type={file.doc_type} /></span>
-              <span className="new-tab-recent-copy"><strong>{file.file_name}</strong><small>{file.path}</small></span>
+              <span className="new-tab-recent-copy"><strong>{file.file_name}</strong></span>
               <span className="new-tab-recent-time" title={file.opened_at ? new Date(file.opened_at).toLocaleString() : "打开时间未记录"}>{pending === file.path ? "打开中…" : openedTime(file.opened_at)}</span>
               <span className="new-tab-recent-size" title="最近读取的文件大小">{fileSize(file.file_size)}</span>
             </button>
@@ -295,7 +295,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
               }}
               onKeyDown={entry.is_dir ? (event) => folderKeyboard(event, { path: entry.path, name: entry.name }) : undefined}>
               <span className="new-tab-recent-icon">{entry.is_dir ? <UiIcon name="folder" /> : <DocumentTypeIcon type={documentType(entry.path)} />}</span>
-              <span className="new-tab-recent-copy"><strong>{entry.name}</strong><small>{entry.is_dir ? "文件夹" : documentType(entry.path) === "pdf" ? "PDF 文档" : "Markdown 文档"}</small></span>
+              <span className="new-tab-recent-copy"><strong>{entry.name}</strong></span>
               <span className="new-tab-recent-time">{openedTime(entry.modified_at)}</span><span className="new-tab-recent-size">{entry.is_dir ? "—" : fileSize(entry.file_size)}</span>
             </button>
           ))}</div>}

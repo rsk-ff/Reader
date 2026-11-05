@@ -293,10 +293,12 @@ for (const width of [330, 620, 1100]) {
     await expect(row.locator(".new-tab-recent-size")).toHaveText("12.1 KB");
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-time")).toHaveText("—");
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-size")).toHaveText("—");
-    expect((await row.boundingBox())!.height).toBeLessThanOrEqual(49);
+    expect((await row.boundingBox())!.height).toBe(34);
+    // One line per file: icon then name, no secondary line.
+    await expect(row.locator(".new-tab-recent-copy small")).toHaveCount(0);
     const recentIcon = (await row.locator(".new-tab-recent-icon svg").boundingBox())!;
-    expect(recentIcon.width).toBe(32);
-    expect(recentIcon.height).toBe(32);
+    expect(recentIcon.width).toBe(20);
+    expect(recentIcon.height).toBe(20);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     const columns = await row.evaluate((element) => Array.from(element.children).map((child) => {
