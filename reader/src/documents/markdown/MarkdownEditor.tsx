@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save as showSaveDialog } from "@tauri-apps/plugin-dialog";
 
 import { isExternalChangeError, useMarkdownText, useMarkdownSave } from "./useMarkdownText";
 import { confirmInApp } from "../../workspace/confirmDialog";
 import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
-import { MarkdownToolbar } from "./MarkdownToolbar";
+import { MarkdownModeSwitch, MarkdownToolbar } from "./MarkdownToolbar";
 import { printMarkdown } from "./printMarkdown";
 import { MarkdownScrollbar } from "./MarkdownScrollbar";
 import { MarkdownOutline } from "./MarkdownOutline";
@@ -58,6 +58,7 @@ export function MarkdownEditor({
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchIndex, setSearchIndex] = useState(0);
@@ -404,13 +405,11 @@ export function MarkdownEditor({
   return (
     <div className="md-root">
       <MarkdownToolbar
-        mode={mode}
         dirty={dirty}
         saving={saving}
         printing={printing}
         formatEnabled={mode === "wysiwyg" && commandsReady}
         onFormat={(format) => commandsRef.current?.format(format)}
-        onSwitch={switchMode}
         onSave={saveFromEditor}
         onPrint={printFromEditor}
         outlineVisible={outlineVisible}
@@ -440,6 +439,7 @@ export function MarkdownEditor({
               />
             ) : (
               <div className="md-source-wrap">
+              <SourceGutter text={workingText} textareaRef={textareaRef} gutterRef={gutterRef} />
               {sourceMatches.length > 0 && (
                 <div ref={backdropRef} className="md-source-backdrop" aria-hidden="true">
                   {sourceSegments(workingText, sourceMatches, currentMatch)}
@@ -449,6 +449,7 @@ export function MarkdownEditor({
                 ref={textareaRef}
                 onScroll={(event) => {
                   if (backdropRef.current) backdropRef.current.scrollTop = event.currentTarget.scrollTop;
+                  if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop;
                 }}
                 className={"md-source" + (sourceMatches.length > 0 ? " md-source-searching" : "")}
                 value={workingText}
@@ -465,6 +466,7 @@ export function MarkdownEditor({
             mode={mode}
             contentVersion={crepeVersion + workingText.length}
           />
+          <MarkdownModeSwitch mode={mode} onSwitch={switchMode} />
         </div>
       </div>
     </div>
@@ -484,4 +486,46 @@ function sourceSegments(text: string, matches: TextMatch[], current: number) {
   // A trailing newline still gets a line in a textarea.
   parts.push(text.slice(at) + "\n");
   return parts;
+}
+
+/**
+ * Line numbers beside the source textarea. Lines wrap, so each number's row
+ * takes the height its line wraps to, measured on a hidden copy of the text
+ * laid out at the textarea's width.
+ */
+function SourceGutter({ text, textareaRef, gutterRef }: {
+  text: string;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  gutterRef: RefObject<HTMLDivElement | null>;
+}) {
+  const lines = useMemo(() => text.split("\n"), [text]);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [heights, setHeights] = useState<number[]>([]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const observer = new ResizeObserver(() => setWidth(textarea.clientWidth));
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, [textareaRef]);
+
+  useLayoutEffect(() => {
+    const measure = measureRef.current;
+    if (!measure || width === 0) return;
+    setHeights(Array.from(measure.children, (child) => (child as HTMLElement).getBoundingClientRect().height));
+    if (gutterRef.current && textareaRef.current) gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+  }, [lines, width, gutterRef, textareaRef]);
+
+  return <>
+    <div ref={measureRef} className="md-source-measure" aria-hidden="true" style={{ width }}>
+      {lines.map((line, index) => <div key={index}>{line || "\u200b"}</div>)}
+    </div>
+    <div ref={gutterRef} className="md-source-gutter" aria-hidden="true">
+      {lines.map((_, index) => (
+        <div key={index} style={heights[index] ? { height: heights[index] } : undefined}>{index + 1}</div>
+      ))}
+    </div>
+  </>;
 }

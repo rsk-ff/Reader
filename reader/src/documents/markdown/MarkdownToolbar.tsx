@@ -1,18 +1,16 @@
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
 import { DocumentActions } from "../../components/DocumentActions";
 import { OverflowToolbar, type ToolbarGroup } from "../../components/OverflowToolbar";
 import type { MarkdownFormat } from "./MilkdownCrepe";
 
 interface MarkdownToolbarProps {
-  mode: "wysiwyg" | "source";
   dirty: boolean;
   saving: boolean;
   printing: boolean;
   /** Formatting commands are available (rendered mode with a ready editor). */
   formatEnabled: boolean;
   onFormat: (format: MarkdownFormat) => void;
-  onSwitch: (m: "wysiwyg" | "source") => void;
   onSave: () => void;
   onPrint: () => void;
   outlineVisible: boolean;
@@ -38,7 +36,13 @@ const GROUPS: [MarkdownFormat, UiIconName, string][][] = [
    ["table", "table", "插入表格"], ["image", "image", "插入图片"], ["divider", "divider", "分隔线"]],
 ];
 
-export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, onFormat, onSwitch, onSave, onPrint, outlineVisible, onToggleOutline, search }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ dirty, saving, printing, formatEnabled, onFormat, onSave, onPrint, outlineVisible, onToggleOutline, search }: MarkdownToolbarProps) {
+  // Typing edits a draft; Enter runs it, as in the PDF search field.
+  const [draft, setDraft] = useState(search.query);
+  const run = (step: 1 | -1) => {
+    if (draft !== search.query) search.onQuery(draft);
+    else search.onNav(step);
+  };
   const formatButtons = (tools: [MarkdownFormat, UiIconName, string][]) => tools.map(([format, icon, title]) => (
     <button key={format} type="button" className="md-tbtn" title={title} aria-label={title}
       disabled={!formatEnabled} onMouseDown={(event) => event.preventDefault()}
@@ -97,23 +101,26 @@ export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, 
       minWidth: 190,
       slotClassName: "md-search-slot",
       node: <div className="md-search-group" role="search">
-        <form className="pdf-search-form" onSubmit={(event) => { event.preventDefault(); search.onNav(1); }}>
+        <form className="pdf-search-form" onSubmit={(event) => { event.preventDefault(); run(1); }}>
           <UiIcon name="search" />
           <input
             ref={search.inputRef}
             className="pdf-search-input md-search-input"
             type="search"
             placeholder="搜索文档"
-            value={search.query}
+            value={draft}
             aria-label="search"
-            onChange={(event) => search.onQuery(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              if (!event.target.value) search.onQuery("");
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && event.shiftKey) {
                 event.preventDefault();
-                search.onNav(-1);
+                run(-1);
               } else if (event.key === "Escape") {
                 event.preventDefault();
-                if (search.query) search.onQuery("");
+                if (draft || search.query) { setDraft(""); search.onQuery(""); }
                 else event.currentTarget.blur();
               }
             }}
@@ -139,30 +146,38 @@ export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, 
     <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
       <OverflowToolbar className="md-toolbar-row" groups={groups}
         hideOrder={["inserts", "blocks", "search", "inline"]} />
-      <div className="segmented md-mode-switch" role="group" aria-label="Editor mode">
-        <button
-          type="button"
-          className={"segmented-item" + (mode === "wysiwyg" ? " segmented-item-on" : "")}
-          onClick={() => onSwitch("wysiwyg")}
-          title="排版视图 (Ctrl+/)"
-          aria-label="排版视图"
-          aria-pressed={mode === "wysiwyg"}
-        >
-          <UiIcon name="eye" />
-        </button>
-        <button
-          type="button"
-          className={"segmented-item" + (mode === "source" ? " segmented-item-on" : "")}
-          onClick={() => onSwitch("source")}
-          title="源码视图 (Ctrl+/)"
-          aria-label="源码视图"
-          aria-pressed={mode === "source"}
-        >
-          <UiIcon name="code" />
-        </button>
-      </div>
-      <span className="toolbar-separator" aria-hidden="true" />
       <DocumentActions dirty={dirty} saving={saving} printing={printing} onPrint={onPrint} onSave={onSave} />
+    </div>
+  );
+}
+
+/** Rendered/source switch floating over the bottom-right of the document. */
+export function MarkdownModeSwitch({ mode, onSwitch }: {
+  mode: "wysiwyg" | "source";
+  onSwitch: (m: "wysiwyg" | "source") => void;
+}) {
+  return (
+    <div className="segmented md-mode-switch md-mode-float" role="group" aria-label="Editor mode">
+      <button
+        type="button"
+        className={"segmented-item" + (mode === "wysiwyg" ? " segmented-item-on" : "")}
+        onClick={() => onSwitch("wysiwyg")}
+        title="排版视图 (Ctrl+/)"
+        aria-label="排版视图"
+        aria-pressed={mode === "wysiwyg"}
+      >
+        <UiIcon name="eye" />
+      </button>
+      <button
+        type="button"
+        className={"segmented-item" + (mode === "source" ? " segmented-item-on" : "")}
+        onClick={() => onSwitch("source")}
+        title="源码视图 (Ctrl+/)"
+        aria-label="源码视图"
+        aria-pressed={mode === "source"}
+      >
+        <UiIcon name="code" />
+      </button>
     </div>
   );
 }

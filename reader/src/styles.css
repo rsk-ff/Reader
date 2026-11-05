@@ -1768,7 +1768,7 @@ body.md-sidebar-resizing * {
   width: 100%;
   height: 100%;
   min-height: 100%;
-  padding: 24px 32px 96px;
+  padding: 24px 32px 96px 68px;
   border: none;
   outline: none;
   resize: none;
@@ -1800,7 +1800,7 @@ body.md-sidebar-resizing * {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  padding: 24px 32px 96px;
+  padding: 24px 32px 96px 68px;
   color: transparent;
   font-family: var(--font-mono);
   font-variant-ligatures: none;
@@ -1810,6 +1810,57 @@ body.md-sidebar-resizing * {
   white-space: pre-wrap;
   word-break: break-word;
   pointer-events: none;
+}
+
+/* Line numbers: rows take the measured height of their wrapped line. */
+.md-source-gutter {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 52px;
+  overflow: hidden;
+  padding: 24px 10px 96px 0;
+  color: var(--text-placeholder);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: calc(13px * 1.6);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+.md-source-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  padding: 0 32px 0 68px;
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Rendered/source switch floats over the document's bottom-right corner. */
+.md-mode-float {
+  position: absolute;
+  z-index: 25;
+  right: 24px;
+  bottom: 20px;
+  background: var(--bg-elev);
+  box-shadow: 0 0 0 1px var(--menu-line), 0 4px 14px rgb(28 28 26 / 12%);
+}
+
+.md-mode-float .segmented-item-on {
+  background: var(--bg-active);
+  box-shadow: none;
 }
 
 .md-source-searching {
