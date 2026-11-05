@@ -112,6 +112,93 @@ export function clipScreenRect(
   return clipped.right > clipped.left && clipped.bottom > clipped.top ? clipped : null;
 }
 
+/**
+ * Turn the rectangles of a text selection into one rectangle per line run.
+ *
+ * PDF.js splits a line into several spans, and a range also reports boxes for
+ * fully selected elements, so raw client rects overlap. Drawn as translucent
+ * highlights they stack into darker patches, and as underlines they double.
+ * Rects whose vertical centres fall in the same band join one line; a wide
+ * horizontal gap (another column) starts a new run. Neighbouring lines that
+ * still overlap are split at the midpoint so their fills never stack.
+ */
+export function mergeSelectionRects(rects: readonly ScreenRectEdges[]): ScreenRectEdges[] {
+  const boxes = rects
+    .filter((rect) => rect.right - rect.left > 0.5 && rect.bottom - rect.top > 0.5)
+    .map((rect) => ({ left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }))
+    .sort((a, b) => (a.top + a.bottom) / 2 - (b.top + b.bottom) / 2 || a.left - b.left);
+
+  const lines: ScreenRectEdges[][] = [];
+  for (const box of boxes) {
+    const centre = (box.top + box.bottom) / 2;
+    const line = lines[lines.length - 1];
+    const band = line && line.reduce((acc, item) => ({
+      top: Math.min(acc.top, item.top), bottom: Math.max(acc.bottom, item.bottom),
+    }), { top: Infinity, bottom: -Infinity });
+    const lineCentre = band ? (band.top + band.bottom) / 2 : 0;
+    const height = Math.min(box.bottom - box.top, band ? band.bottom - band.top : Infinity);
+    if (line && Math.abs(centre - lineCentre) <= height / 2) line.push(box);
+    else lines.push([box]);
+  }
+
+  // One band per line from the most common glyph height and centre, so a
+  // tall element box cannot stretch the line.
+  const bands = lines.map((line) => {
+    const heights = line.map((box) => box.bottom - box.top).sort((a, b) => a - b);
+    const centres = line.map((box) => (box.top + box.bottom) / 2).sort((a, b) => a - b);
+    const height = heights[Math.floor(heights.length / 2)];
+    const centre = centres[Math.floor(centres.length / 2)];
+    return { top: centre - height / 2, bottom: centre + height / 2, height };
+  });
+  // Neighbouring lines that still overlap are split at the midpoint.
+  for (let i = 1; i < bands.length; i++) {
+    const above = bands[i - 1];
+    const below = bands[i];
+    if (below.top < above.bottom) {
+      const middle = (above.bottom + below.top) / 2;
+      above.bottom = middle;
+      below.top = middle;
+    }
+  }
+
+  const runs: ScreenRectEdges[] = [];
+  lines.forEach((line, index) => {
+    const band = bands[index];
+    let run: ScreenRectEdges | null = null;
+    for (const box of [...line].sort((a, b) => a.left - b.left)) {
+      if (run && box.left <= run.right + band.height * 2) {
+        run.right = Math.max(run.right, box.right);
+      } else {
+        if (run) runs.push(run);
+        run = { left: box.left, right: box.right, top: band.top, bottom: band.bottom };
+      }
+    }
+    if (run) runs.push(run);
+  });
+  return runs;
+}
+
+/** Client rects of the text a range covers, without boxes of whole elements. */
+export function rangeTextRects(range: Range): ScreenRectEdges[] {
+  const root = range.commonAncestorContainer;
+  const rects: ScreenRectEdges[] = [];
+  const addNode = (node: Text) => {
+    if (!node.textContent || !range.intersectsNode(node)) return;
+    const part = document.createRange();
+    part.selectNodeContents(node);
+    if (node === range.startContainer) part.setStart(node, range.startOffset);
+    if (node === range.endContainer) part.setEnd(node, range.endOffset);
+    for (const rect of Array.from(part.getClientRects())) rects.push(rect);
+  };
+  if (root.nodeType === Node.TEXT_NODE) {
+    addNode(root as Text);
+    return rects;
+  }
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) addNode(node as Text);
+  return rects;
+}
+
 /** Convert a DOM Range rect (relative to page) to a PDF Quad. */
 export function rectToQuad(
   g: PageGeom,

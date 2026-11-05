@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import { clipScreenRect, pageCssSize, pdfRectToScreen, pdfToScreen, quadsBounds, rectToQuad, screenToPdf } from "./coordinates";
+import { clipScreenRect, mergeSelectionRects, pageCssSize, pdfRectToScreen, pdfToScreen, quadsBounds, rangeTextRects, rectToQuad, screenToPdf } from "./coordinates";
 import type { PageGeom, Point, Quad } from "./coordinates";
 import type { PdfAnnotation } from "./annotation-types";
 import { toPdfPageIndex } from "./pdfModel";
@@ -57,11 +57,11 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
       if (!sel || sel.isCollapsed) return;
       const range = sel.getRangeAt(0);
       const pageRect = host.getBoundingClientRect();
-      const clientRects = range.getClientRects();
+      const lineRects = mergeSelectionRects(rangeTextRects(range)
+        .map((rect) => clipScreenRect(rect, pageRect))
+        .filter((rect): rect is NonNullable<typeof rect> => rect !== null));
       const quads: Quad[] = [];
-      for (let i = 0; i < clientRects.length; i++) {
-        const clipped = clipScreenRect(clientRects[i], pageRect);
-        if (!clipped) continue;
+      for (const clipped of lineRects) {
         quads.push(
           rectToQuad(
             geom,

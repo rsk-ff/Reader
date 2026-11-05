@@ -276,9 +276,12 @@ test("includes the completed last line in a highlight annotation", async ({ page
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => (window as any).createdAnnotations.length)).toBe(1);
   const quads = await page.evaluate(() => (window as any).createdAnnotations[0].quad_points);
-  expect(quads.length).toBeGreaterThanOrEqual(3);
-  // DOM ranges can report both an element and its text rectangle for a full
-  // intermediate line. Compare the end-line geometry rather than line count.
+  // One quad per line: duplicate span/element boxes are merged, and lines
+  // never overlap, so translucent highlights and underlines do not stack.
+  expect(quads).toHaveLength(3);
+  for (let i = 1; i < quads.length; i++) {
+    expect(quads[i].y1).toBeLessThanOrEqual(quads[i - 1].y3 + 0.01);
+  }
   const lastQuad = quads.at(-1);
   expect(Math.abs(lastQuad.x2 - lastQuad.x1) / Math.abs(quads[0].x2 - quads[0].x1))
     .toBeCloseTo(geometry.lastWidth / geometry.firstWidth, 2);
