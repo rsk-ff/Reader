@@ -319,12 +319,12 @@ test("all recent files beyond eight remain reachable by scrolling", async ({ pag
   await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/old-38.pdf");
 });
 
-test("title bar, home and file entries decode the shared native SVG masters", async ({ page }) => {
+test("tabs and file entries decode the shared native SVG masters", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
-  await expect(page.locator(".titlebar-icon img")).toBeVisible();
-  const appSources = await page.locator(".titlebar-icon img, .new-tab-hero img").evaluateAll((images) =>
-    images.map((image) => (image as HTMLImageElement).src));
-  expect(appSources).toHaveLength(1);
+  // The title bar carries no application icon; tabs start at the left edge.
+  await expect(page.locator(".titlebar-icon, .new-tab-hero img")).toHaveCount(0);
+  const firstTab = (await page.locator(".tab").first().boundingBox())!;
+  expect(firstTab.x).toBeLessThanOrEqual(8);
 
   const colors: number[][] = [];
   for (const type of ["pdf", "markdown"]) {
@@ -378,13 +378,13 @@ test("title bar, home and file entries decode the shared native SVG masters", as
   });
   expect(hsl[0].saturation).toBeCloseTo(hsl[1].saturation, 8);
   expect(hsl[0].lightness).toBeCloseTo(hsl[1].lightness, 8);
-  const decoded = await page.locator(".titlebar-icon img, .new-tab-hero img, .tab-icon img")
+  const decoded = await page.locator(".tab-icon img")
     .evaluateAll(async (images) => Promise.all(images.map(async (element) => {
       const image = element as HTMLImageElement;
       try { await image.decode(); return image.naturalWidth === 128 && image.naturalHeight === 128; }
       catch { return false; }
     })));
-  expect(decoded).toEqual(Array(5).fill(true));
+  expect(decoded).toEqual(Array(4).fill(true));
   expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(38);
   expect((await page.locator(".winctl").first().boundingBox())!.width).toBe(46);
 });

@@ -24,5 +24,4 @@ round stroke in `currentColor`. The data was exported as SVG from the Lucide set
 and converted once; there is no icon font or runtime dependency. To add an icon, append its Lucide
 path data under a new `UiIconName` key.
 
-The title bar uses `app-logo.svg`, a placeholder ginkgo mark, until the final logo replaces
-`shell-reader.svg` and the native icons.
+The title bar shows no application icon; the window and taskbar icon still use `shell-reader.svg`.

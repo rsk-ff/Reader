@@ -203,25 +203,6 @@ html.tab-drag-preview-document #root {
   user-select: none;
 }
 
-.titlebar-icon {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  /* The icon glyph is decorative: pointer-events:none so the mousedown that
-     starts a window drag lands on this drag region itself. */
-  cursor: default;
-}
-
-.titlebar-icon img {
-  width: 18px;
-  height: 18px;
-  pointer-events: none;
-  -webkit-user-drag: none;
-  user-select: none;
-}
-
 .titlebar-controls {
   flex: 0 0 auto;
   display: flex;
@@ -292,7 +273,7 @@ html.tab-drag-preview-document #root {
   display: flex;
   align-items: flex-end;
   height: 100%;
-  padding: 0 6px 0 0;
+  padding: 0 6px 0 8px;
   background: transparent;
   overflow: hidden;
 }
