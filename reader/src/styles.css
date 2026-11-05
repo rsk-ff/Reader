@@ -945,18 +945,36 @@ html.tab-drag-preview-document #root {
 
 .pdf-search-count {
   min-width: 32px;
+  padding: 0 2px;
   text-align: center;
   color: var(--text-faint);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
+/* With nothing to count, the arrows sit right next to the field. */
+.pdf-search-count:empty { display: none; }
+
 .pdf-search-input:focus-visible,
 .pdf-page-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  outline: none;
+  border-color: var(--text-faint);
   background: var(--bg-elev);
 }
+
+/* The native clear button is blue; draw a neutral Lucide x instead. */
+.pdf-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  background-color: var(--text-faint);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center / contain no-repeat;
+  cursor: default;
+}
+
+.pdf-search-input::-webkit-search-cancel-button:hover { background-color: var(--text); }
 
 /* Shared output actions stay visible while the PDF reading tools scroll. */
 .document-actions {
