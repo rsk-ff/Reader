@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
-import { DocumentActions, scrollRowWithWheel } from "../../components/DocumentActions";
+import { DocumentActions } from "../../components/DocumentActions";
+import { OverflowToolbar, type ToolbarGroup } from "../../components/OverflowToolbar";
 import type { MarkdownFormat } from "./MilkdownCrepe";
 
 interface MarkdownToolbarProps {
@@ -38,9 +39,18 @@ const GROUPS: [MarkdownFormat, UiIconName, string][][] = [
 ];
 
 export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, onFormat, onSwitch, onSave, onPrint, outlineVisible, onToggleOutline, search }: MarkdownToolbarProps) {
-  return (
-    <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
-      <div className="md-toolbar-row" onWheel={scrollRowWithWheel}>
+  const formatButtons = (tools: [MarkdownFormat, UiIconName, string][]) => tools.map(([format, icon, title]) => (
+    <button key={format} type="button" className="md-tbtn" title={title} aria-label={title}
+      disabled={!formatEnabled} onMouseDown={(event) => event.preventDefault()}
+      onClick={() => onFormat(format)}>
+      <UiIcon name={icon} />
+    </button>
+  ));
+  const groups: ToolbarGroup[] = [
+    {
+      key: "outline",
+      pinned: true,
+      node: <>
         <button type="button" className={"md-tbtn md-outline-toggle" + (outlineVisible ? " md-tbtn-active" : "")}
           title={outlineVisible ? "收起目录" : "展开目录"}
           aria-label={outlineVisible ? "收起目录" : "展开目录"}
@@ -48,69 +58,87 @@ export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, 
           <UiIcon name="panelLeft" />
         </button>
         <span className="toolbar-separator" aria-hidden="true" />
-        <div className="md-format-tools" role="group" aria-label="Markdown 格式操作">
-          <label className="md-heading-select" title="正文与标题">
-            <UiIcon name="heading" />
-            <select aria-label="正文与标题" value="" disabled={!formatEnabled} onChange={(event) => {
-              onFormat(event.target.value as MarkdownFormat);
-            }}>
-              <option value="" disabled>正文与标题</option>
-              <option value="paragraph">正文</option>
-              {[1, 2, 3, 4, 5, 6].map((level) => <option key={level} value={`h${level}`}>标题 {level}</option>)}
-            </select>
-            <UiIcon name="chevronDown" />
-          </label>
-          {GROUPS.map((tools, index) => (
-            <div className="md-format-group" key={index}>
-              {index > 0 && <span className="toolbar-separator" aria-hidden="true" />}
-              {tools.map(([format, icon, title]) => (
-                <button key={format} type="button" className="md-tbtn" title={title} aria-label={title}
-                  disabled={!formatEnabled} onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onFormat(format)}>
-                  <UiIcon name={icon} />
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-        <div className="md-search-group" role="search">
-          <form className="pdf-search-form" onSubmit={(event) => { event.preventDefault(); search.onNav(1); }}>
-            <UiIcon name="search" />
-            <input
-              ref={search.inputRef}
-              className="pdf-search-input md-search-input"
-              type="search"
-              placeholder="搜索文档"
-              value={search.query}
-              aria-label="search"
-              onChange={(event) => search.onQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && event.shiftKey) {
-                  event.preventDefault();
-                  search.onNav(-1);
-                } else if (event.key === "Escape") {
-                  event.preventDefault();
-                  if (search.query) search.onQuery("");
-                  else event.currentTarget.blur();
-                }
-              }}
-            />
-          </form>
-          <span className="pdf-search-count">
-            {search.count > 0 ? `${search.current + 1}/${search.count}` : search.query ? "0" : ""}
-          </span>
-          <button type="button" className="md-tbtn" title="上一个 (Shift+F3)" aria-label="上一个匹配"
-            disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
-            onClick={() => search.onNav(-1)}>
-            <UiIcon name="chevronUp" />
-          </button>
-          <button type="button" className="md-tbtn" title="下一个 (F3)" aria-label="下一个匹配"
-            disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
-            onClick={() => search.onNav(1)}>
-            <UiIcon name="chevronDown" />
-          </button>
-        </div>
-      </div>
+      </>,
+    },
+    {
+      key: "inline",
+      node: <div className="md-format-group" role="group" aria-label="文字格式">
+        <label className="md-heading-select" title="正文与标题">
+          <UiIcon name="heading" />
+          <select aria-label="正文与标题" value="" disabled={!formatEnabled} onChange={(event) => {
+            onFormat(event.target.value as MarkdownFormat);
+          }}>
+            <option value="" disabled>正文与标题</option>
+            <option value="paragraph">正文</option>
+            {[1, 2, 3, 4, 5, 6].map((level) => <option key={level} value={`h${level}`}>标题 {level}</option>)}
+          </select>
+          <UiIcon name="chevronDown" />
+        </label>
+        {formatButtons(GROUPS[0])}
+      </div>,
+    },
+    {
+      key: "blocks",
+      node: <div className="md-format-group" role="group" aria-label="段落格式">
+        <span className="toolbar-separator" aria-hidden="true" />
+        {formatButtons(GROUPS[1])}
+      </div>,
+    },
+    {
+      key: "inserts",
+      node: <div className="md-format-group" role="group" aria-label="插入">
+        <span className="toolbar-separator" aria-hidden="true" />
+        {formatButtons(GROUPS[2])}
+      </div>,
+    },
+    { key: "spacer", pinned: true, flexible: true, minWidth: 0, node: null },
+    {
+      key: "search",
+      minWidth: 190,
+      slotClassName: "md-search-slot",
+      node: <div className="md-search-group" role="search">
+        <form className="pdf-search-form" onSubmit={(event) => { event.preventDefault(); search.onNav(1); }}>
+          <UiIcon name="search" />
+          <input
+            ref={search.inputRef}
+            className="pdf-search-input md-search-input"
+            type="search"
+            placeholder="搜索文档"
+            value={search.query}
+            aria-label="search"
+            onChange={(event) => search.onQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && event.shiftKey) {
+                event.preventDefault();
+                search.onNav(-1);
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                if (search.query) search.onQuery("");
+                else event.currentTarget.blur();
+              }
+            }}
+          />
+        </form>
+        <span className="pdf-search-count">
+          {search.count > 0 ? `${search.current + 1}/${search.count}` : search.query ? "0" : ""}
+        </span>
+        <button type="button" className="md-tbtn" title="上一个 (Shift+F3)" aria-label="上一个匹配"
+          disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
+          onClick={() => search.onNav(-1)}>
+          <UiIcon name="chevronUp" />
+        </button>
+        <button type="button" className="md-tbtn" title="下一个 (F3)" aria-label="下一个匹配"
+          disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
+          onClick={() => search.onNav(1)}>
+          <UiIcon name="chevronDown" />
+        </button>
+      </div>,
+    },
+  ];
+  return (
+    <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
+      <OverflowToolbar className="md-toolbar-row" groups={groups}
+        hideOrder={["inserts", "blocks", "search", "inline"]} />
       <div className="segmented md-mode-switch" role="group" aria-label="Editor mode">
         <button
           type="button"

@@ -31,11 +31,3 @@ export function DocumentActions({ dirty, saving, printing, onPrint, onSave }: Do
     </div>
   );
 }
-
-/** Turn vertical wheel movement over an overflowing toolbar row into
- * horizontal scrolling, since the row has no visible scrollbar. */
-export function scrollRowWithWheel(event: React.WheelEvent<HTMLElement>) {
-  const row = event.currentTarget;
-  if (row.scrollWidth <= row.clientWidth || event.deltaX !== 0) return;
-  row.scrollLeft += event.deltaY;
-}

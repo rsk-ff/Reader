@@ -44,16 +44,25 @@ test("source view paints matches behind the textarea", async ({ page }) => {
   expect(same).toBe(true);
 });
 
-test("toolbar row fits the default window and scrolls with the wheel when narrow", async ({ page }) => {
+test("toolbar never scrolls: tools that do not fit move into the more menu", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 760 });
   const row = page.locator(".md-toolbar-row");
   const fits = () => row.evaluate((element) => element.scrollWidth <= element.clientWidth + 1);
+  const more = page.getByRole("button", { name: "更多工具", exact: true });
   expect(await fits()).toBe(true);
-  expect(await row.evaluate((element) => getComputedStyle(element).scrollbarWidth)).toBe("none");
+  await expect(more).toHaveCount(0);
+  await expect(page.locator(".md-format-group button")).toHaveCount(15);
+
   await page.setViewportSize({ width: 700, height: 760 });
-  expect(await fits()).toBe(false);
-  const box = (await row.boundingBox())!;
-  await page.mouse.move(box.x + 100, box.y + box.height / 2);
-  await page.mouse.wheel(0, 200);
-  await expect.poll(() => row.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  await expect(more).toBeVisible();
+  expect(await fits()).toBe(true);
+  expect(await row.evaluate((element) => getComputedStyle(element).overflowX)).toBe("hidden");
+  await more.click();
+  const panel = page.getByRole("group", { name: "更多工具", exact: true });
+  await expect(panel.getByRole("button", { name: "插入表格", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await expect(more).toHaveCount(0);
 });

@@ -739,14 +739,88 @@ html.tab-drag-preview-document #root {
   min-width: 0;
   height: 100%;
   padding: 3px 10px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
 }
 
-/* Toolbar rows scroll sideways with the wheel and never show a bar. */
-:is(.pdf-toolbar-row, .md-toolbar-row) {
-  scrollbar-width: none;
+/* Toolbar rows never scroll: groups that do not fit move into the
+   "more" menu (OverflowToolbar). */
+.toolbar-slot {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
 }
+
+.toolbar-slot-flexible {
+  flex: 1 1 0;
+}
+
+/* PDF reading groups keep their dividers now that each sits in a slot. */
+.toolbar-slot + .toolbar-slot > .pdf-toolbar-group:not(.pdf-search-group) {
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+.pdf-search-slot {
+  flex: 0 1 260px;
+  min-width: 220px;
+}
+
+.pdf-search-slot > .pdf-search-group,
+.md-search-slot > .md-search-group {
+  flex: 1 1 auto;
+  max-width: none;
+  min-width: 0;
+}
+
+.md-search-slot {
+  flex: 0 1 280px;
+  min-width: 190px;
+}
+
+.toolbar-more {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.toolbar-more:hover,
+.toolbar-more[aria-expanded="true"] { background: var(--bg); color: var(--text); }
+.toolbar-more:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.toolbar-overflow-panel {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  box-shadow: 0 0 0 1px var(--menu-line), var(--menu-shadow);
+}
+
+.toolbar-overflow-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolbar-overflow-group .toolbar-separator { display: none; }
+.toolbar-overflow-group + .toolbar-overflow-group { padding-top: 4px; border-top: 1px solid var(--border); }
+.toolbar-overflow-group .pdf-search-group,
+.toolbar-overflow-group .md-search-group { width: 300px; max-width: 100%; margin: 0; padding: 0; }
 
 .pdf-toolbar-group {
   display: flex;
@@ -1446,8 +1520,7 @@ body.md-sidebar-resizing * {
   min-width: 0;
   height: 100%;
   padding-right: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
 }
 
 .md-mode-switch {

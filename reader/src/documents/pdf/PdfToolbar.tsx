@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import type { ZoomMode } from "./types";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
-import { DocumentActions, scrollRowWithWheel } from "../../components/DocumentActions";
+import { DocumentActions } from "../../components/DocumentActions";
+import { OverflowToolbar, type ToolbarGroup } from "../../components/OverflowToolbar";
 
 /** Text markup tools share one toolbar button and a style popover. */
 export type MarkTool = "highlight" | "underline" | "strikeout";
@@ -129,16 +130,16 @@ export function PdfToolbar(props: PdfToolbarProps) {
   const markIcon = MARKS.find(([tool]) => tool === markTool)![1];
   const swatch = MARK_COLORS[markColorIndex] ?? MARK_COLORS[0];
 
-  return (
-    <div className="pdf-toolbar" role="toolbar" aria-label="PDF tools">
-      <div className="pdf-toolbar-row pdf-reading-toolbar" onWheel={scrollRowWithWheel}>
+  const groups: ToolbarGroup[] = [
+    { key: "sidebar", pinned: true, node: <>
         <div className="pdf-toolbar-group">
           <ToolbarButton active={sidebarOpen} onClick={onSidebarToggle}
             title={sidebarOpen ? "收起侧栏" : "展开侧栏"}>
             <UiIcon name="panelLeft" />
           </ToolbarButton>
         </div>
-
+        </> },
+    { key: "pages", node: <>
         <div className="pdf-toolbar-group">
           <ToolbarButton onClick={() => onJumpPage(currentPage - 1)} title="上一页" disabled={currentPage <= 1}>
             <UiIcon name="prev" />
@@ -159,7 +160,8 @@ export function PdfToolbar(props: PdfToolbarProps) {
             <UiIcon name="next" />
           </ToolbarButton>
         </div>
-
+        </> },
+    { key: "zoom", node: <>
         <div className="pdf-toolbar-group">
           <ToolbarButton onClick={onZoomOut} title="Zoom out">
             <UiIcon name="zoomOut" />
@@ -177,9 +179,9 @@ export function PdfToolbar(props: PdfToolbarProps) {
             <UiIcon name="fitPage" />
           </ToolbarButton>
         </div>
-
-        <div className="pdf-toolbar-spacer" />
-
+        </> },
+    { key: "spacer-start", pinned: true, flexible: true, minWidth: 0, node: null },
+    { key: "tools", node: <>
         <div className="pdf-tool-group" ref={toolsRef} role="group" aria-label="批注工具">
           <ToolButton active={annotTool === "select"} title="选择" icon="select"
             onClick={() => onAnnotTool("select")} />
@@ -233,9 +235,9 @@ export function PdfToolbar(props: PdfToolbarProps) {
             </div>, document.body,
           )}
         </div>
-
-        <div className="pdf-toolbar-spacer" />
-
+        </> },
+    { key: "spacer-end", pinned: true, flexible: true, minWidth: 0, node: null },
+    { key: "search", minWidth: 220, slotClassName: "pdf-search-slot", node: <>
         <div className="pdf-toolbar-group pdf-search-group">
           <form className="pdf-search-form" onSubmit={submitSearch}>
             <UiIcon name="search" />
@@ -268,7 +270,13 @@ export function PdfToolbar(props: PdfToolbarProps) {
             <UiIcon name="chevronDown" />
           </ToolbarButton>
         </div>
-      </div>
+        </> },
+  ];
+
+  return (
+    <div className="pdf-toolbar" role="toolbar" aria-label="PDF tools">
+      <OverflowToolbar className="pdf-toolbar-row pdf-reading-toolbar" groups={groups}
+        hideOrder={["zoom", "search", "pages", "tools"]} />
       <DocumentActions dirty={dirty} onPrint={onPrint} onSave={onSave} />
     </div>
   );

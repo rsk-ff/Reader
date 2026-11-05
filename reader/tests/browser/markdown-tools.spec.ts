@@ -160,7 +160,7 @@ test("compact Markdown layout keeps output actions and the mode switch within th
 
 test("PDF and Markdown toolbars draw the same Lucide icon size and stroke", async ({ page, context }) => {
   await page.goto("/tests/browser/markdown-editor.html");
-  await expect(page.locator(".md-format-tools button")).toHaveCount(15);
+  await expect(page.locator(".md-format-group button")).toHaveCount(15);
   const pdf = await context.newPage();
   await pdf.route("http://reader-file.localhost/**", (route) => route.fulfill({
     path: path.resolve("tests/fixtures/text-3.pdf"), contentType: "application/pdf",
