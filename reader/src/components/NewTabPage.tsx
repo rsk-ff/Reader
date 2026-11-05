@@ -23,6 +23,24 @@ function fileSize(bytes?: number | null): string {
   return `${(bytes / unit).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${unit === 1024 ? "KB" : unit === 1024 ** 2 ? "MB" : "GB"}`;
 }
 
+/** Address-bar segments: 此电脑 > C: > Users > …, each a folder to open. */
+export function breadcrumbs(location: string): { label: string; path: string }[] {
+  if (location === "home") return [{ label: "主页", path: "home" }];
+  const computer = { label: "此电脑", path: "computer" };
+  if (location === "computer") return [computer];
+  const match = /^([A-Za-z]:)[\\/]?(.*)$/.exec(location);
+  if (!match) return [{ label: location, path: location }];
+  const separator = location.includes("\\") ? "\\" : "/";
+  const root = `${match[1]}${separator}`;
+  const crumbs = [computer, { label: match[1].toUpperCase(), path: root }];
+  let path = root;
+  for (const part of match[2].split(/[\\/]/).filter(Boolean)) {
+    path = path.endsWith(separator) ? `${path}${part}` : `${path}${separator}${part}`;
+    crumbs.push({ label: part, path });
+  }
+  return crumbs;
+}
+
 export function NewTabPage({ active = true }: { active?: boolean }) {
   const openDocument = useWorkspace((state) => state.openDocument);
   const recentFiles = useWorkspace((state) => state.recentFiles);
@@ -33,6 +51,8 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   const [locations, setLocations] = useState<LocalLocations>({ roots: [], shortcuts: [], cloud: [] });
   const [directory, setDirectory] = useState<LocalDirectory | null>(null);
   const [address, setAddress] = useState("");
+  const [editingAddress, setEditingAddress] = useState(false);
+  const addressInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -219,6 +239,40 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   );
 
   return <main className="new-tab-page">
+    <div className="home-navigation" aria-label="文件夹导航">
+      <button type="button" className="home-icon-button" aria-label="后退" disabled={busy || !!newFileFolder || history.index === 0} onClick={() => moveHistory(-1)}><UiIcon name="back" /></button>
+      <button type="button" className="home-icon-button" aria-label="前进" disabled={busy || !!newFileFolder || history.index === history.paths.length - 1} onClick={() => moveHistory(1)}><UiIcon name="forward" /></button>
+      <button type="button" className="home-icon-button" aria-label="上一级" disabled={busy || !isDirectory || !directory} onClick={() => navigate(directory?.parent ?? "computer")}><UiIcon name="up" /></button>
+      <button type="button" className="home-icon-button" aria-label="刷新" disabled={busy || loading} onClick={() => setRevision((value) => value + 1)}><UiIcon name="refresh" /></button>
+      <form className={"home-address" + (editingAddress ? " home-address-editing" : "")} onSubmit={(event) => {
+          event.preventDefault();
+          const path = address.trim().replace(/^"|"$/g, "");
+          if (path) navigate(path === "主页" ? "home" : path === "此电脑" ? "computer" : path);
+          addressInput.current?.blur();
+        }}>
+          <UiIcon name={isDirectory ? "folder" : location === "home" ? "home" : "computer"} />
+          <input ref={addressInput} aria-label="文件夹路径" value={address} disabled={busy}
+            onChange={(event) => setAddress(event.target.value)}
+            onFocus={(event) => { setEditingAddress(true); event.target.select(); }}
+            onBlur={() => { setEditingAddress(false); setAddress(directory?.path ?? (isDirectory ? location : location === "home" ? "主页" : "此电脑")); }}
+            onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.blur(); }} />
+          {!editingAddress && <span className="home-crumbs" onMouseDown={(event) => {
+            // Empty space switches to typing, as in File Explorer.
+            if (event.target === event.currentTarget) { event.preventDefault(); addressInput.current?.focus(); }
+          }}>
+            {breadcrumbs(directory?.path ?? location).map((crumb, index, all) => <span className="home-crumb" key={crumb.path}>
+              {index > 0 && <UiIcon name="next" />}
+              <button type="button" disabled={busy} aria-current={index === all.length - 1 ? "location" : undefined}
+                onClick={() => navigate(crumb.path)}>{crumb.label}</button>
+            </span>)}
+          </span>}
+        </form>
+      <label className="home-search"><UiIcon name="search" /><input aria-label="筛选当前列表"
+        placeholder={isDirectory ? "搜索此文件夹" : location === "home" ? "搜索最近文件" : "搜索磁盘"}
+        value={query} onChange={(event) => setQuery(event.target.value)} />
+        <button type="button" className="home-icon-button" aria-label="清除筛选" hidden={!query} onClick={() => setQuery("")}><UiIcon name="close" /></button>
+      </label>
+    </div>
     <aside className="home-sidebar" aria-label="本地文件导航">
       <nav>
         {navItem({ name: "主页", path: "home" }, "home", false, false)}
@@ -235,25 +289,6 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
       </nav>
     </aside>
     <div className="home-workspace">
-      <div className="home-navigation" aria-label="文件夹导航">
-        <button type="button" className="home-icon-button" aria-label="后退" disabled={busy || !!newFileFolder || history.index === 0} onClick={() => moveHistory(-1)}><UiIcon name="back" /></button>
-        <button type="button" className="home-icon-button" aria-label="前进" disabled={busy || !!newFileFolder || history.index === history.paths.length - 1} onClick={() => moveHistory(1)}><UiIcon name="forward" /></button>
-        <button type="button" className="home-icon-button" aria-label="上一级" disabled={busy || !isDirectory || !directory} onClick={() => navigate(directory?.parent ?? "computer")}><UiIcon name="up" /></button>
-        <button type="button" className="home-icon-button" aria-label="刷新" disabled={busy || loading} onClick={() => setRevision((value) => value + 1)}><UiIcon name="refresh" /></button>
-        <form className="home-address" onSubmit={(event) => {
-          event.preventDefault();
-          const path = address.trim().replace(/^"|"$/g, "");
-          if (path) navigate(path === "主页" ? "home" : path === "此电脑" ? "computer" : path);
-        }}>
-          <UiIcon name={isDirectory ? "folder" : location === "home" ? "home" : "computer"} />
-          <input aria-label="文件夹路径" value={address} disabled={busy} onChange={(event) => setAddress(event.target.value)} onFocus={(event) => event.target.select()} />
-        </form>
-        <label className="home-search"><UiIcon name="search" /><input aria-label="筛选当前列表"
-          placeholder={isDirectory ? "搜索此文件夹" : location === "home" ? "搜索最近文件" : "搜索磁盘"}
-          value={query} onChange={(event) => setQuery(event.target.value)} />
-          <button type="button" className="home-icon-button" aria-label="清除筛选" hidden={!query} onClick={() => setQuery("")}><UiIcon name="close" /></button>
-        </label>
-      </div>
       {error && <p className="new-tab-error" role="alert">{error}</p>}
       <div className="home-body" aria-busy={loading} tabIndex={isDirectory ? 0 : undefined}
         onContextMenu={(event) => {

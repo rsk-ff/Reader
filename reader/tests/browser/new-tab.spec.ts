@@ -226,8 +226,28 @@ test("context menu stays in the viewport and supports keyboard and dismissal", a
   await folder.focus();
   await page.keyboard.press("Shift+F10");
   await expect(page.getByRole("menu")).toBeVisible();
-  await page.getByRole("textbox", { name: "文件夹路径" }).click();
+  // Empty space in the breadcrumb bar switches it to typing.
+  const crumbs = (await page.locator(".home-crumbs").boundingBox())!;
+  await page.mouse.click(crumbs.x + crumbs.width - 4, crumbs.y + crumbs.height / 2);
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toBeFocused();
   await expect(page.getByRole("menu")).toHaveCount(0);
+});
+
+test("address bar shows clickable folder segments like File Explorer", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await goFolder(page, "C:/Notes");
+  const crumbs = page.locator(".home-crumb button");
+  await expect(crumbs).toHaveText(["此电脑", "C:", "Notes"]);
+  await expect(crumbs.last()).toHaveAttribute("aria-current", "location");
+  await crumbs.nth(1).click();
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/");
+  await page.locator(".home-crumb button").first().click();
+  await expect(page.locator(".home-drive")).not.toHaveCount(0);
+  // The navigation row spans the page above the sidebar, joining the active tab.
+  const nav = (await page.locator(".home-navigation").boundingBox())!;
+  const sidebar = (await page.locator(".home-sidebar").boundingBox())!;
+  expect(nav.x).toBe(sidebar.x);
+  expect(sidebar.y).toBeGreaterThanOrEqual(nav.y + nav.height - 1);
 });
 
 test("invalid paths recover and delayed results do not replace or count the current folder", async ({ page }) => {

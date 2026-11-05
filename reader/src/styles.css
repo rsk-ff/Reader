@@ -27,6 +27,7 @@
   --accent: #1c1c1a;
   --accent-hover: #000000;
   --on-accent: #ffffff;
+  --focus-ring: rgba(28, 28, 26, 0.35);
 
   /* Strong neutral action (save with changes, confirm delete) */
   --strong: #1c1c1a;
@@ -172,7 +173,7 @@ body,
 
 :is(.tab, .tab-add, .tab-close, .pdf-tbtn, .md-tbtn, .outline-item,
     .thumb-item, .unsaved-dialog-actions button):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -596,7 +597,7 @@ html.tab-drag-preview-document #root {
   --home-field: #f2f2f0; --home-field-hover: #ebebe8; --home-field-icon: #74746d; --home-field-placeholder: #74746d;
   --home-card-line: #e4e4e1; --home-card-hover: #f7f7f5; --home-card-hover-line: #d8d8d4; --home-folder: #55554f;
   --home-error: var(--danger); --home-error-bg: #fbefed; --home-divider: #eeeeec; --home-group-rule: #d8d8d4;
-  height: 100%; display: grid; grid-template-columns: 228px minmax(0, 1fr); overflow: hidden; background: var(--bg-elev); }
+  height: 100%; display: grid; grid-template-columns: 228px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: var(--bg-elev); }
 .home-sidebar { min-height: 0; overflow: auto; padding: 12px 10px; background: var(--home-sidebar); border-right: 1px solid var(--home-sidebar-line); }
 .home-nav-item { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 34px; margin: 1px 0; padding: 7px 10px 7px 12px; border: 0; border-radius: var(--home-radius); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease; }
 .home-nav-item > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -611,8 +612,20 @@ html.tab-drag-preview-document #root {
 /* Sidebar groups (home, cloud, folders, drives) are set apart by dashed rules. */
 .home-cloud-links, .home-folder-links, .home-drive-links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--home-group-rule); }
 .home-folder-links:empty { display: none; }
-.home-workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.home-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 10px 20px; }
+/* The navigation row spans the page like File Explorer's, so the white
+   active tab runs straight into it; sidebar and content sit below. */
+.home-workspace { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.home-sidebar { grid-column: 1; grid-row: 2; }
+.home-navigation { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 8px 12px; background: var(--bg-elev); border-bottom: 1px solid var(--home-sidebar-line); }
+.home-address { position: relative; }
+.home-address input { position: relative; z-index: 0; }
+.home-address:not(.home-address-editing) input { opacity: 0; }
+.home-crumbs { position: absolute; z-index: 1; inset: 0 8px 0 36px; display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; cursor: text; }
+.home-crumb { display: flex; flex: 0 1 auto; align-items: center; min-width: 0; }
+.home-crumb > .ui-icon { flex-shrink: 0; width: 14px; height: 14px; margin: 0 1px; color: var(--text-faint); }
+.home-crumb button { min-width: 0; max-width: 220px; height: 26px; padding: 0 6px; border: 0; border-radius: 4px; background: transparent; color: var(--text-dim); font: inherit; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.home-crumb button:hover:not(:disabled) { background: rgb(28 28 26 / 6%); color: var(--text); }
+.home-crumb button[aria-current] { color: var(--text); }
 .home-icon-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; padding: 7px; border: 0; border-radius: var(--home-radius); background: transparent; color: var(--text-dim); cursor: pointer; transition: background-color 120ms ease; }
 .home-icon-button[hidden] { display: none; }
 .home-icon-button .ui-icon { width: 17px; height: 17px; }
@@ -625,7 +638,7 @@ html.tab-drag-preview-document #root {
 .home-address > .ui-icon, .home-search > .ui-icon { flex-shrink: 0; width: 16px; height: 16px; color: var(--home-field-icon); }
 .home-address input, .home-search input { min-width: 0; width: 100%; border: 0; padding: 0; background: transparent; color: var(--text); font: inherit; outline: none; }
 .home-search input::placeholder { color: var(--home-field-placeholder); }
-.home-address:focus-within, .home-search:focus-within { background: var(--bg-elev); border-color: var(--accent); outline: none; }
+.home-address:focus-within, .home-search:focus-within { background: var(--bg-elev); border-color: var(--text-faint); outline: none; }
 .home-body { flex: 1; min-height: 0; overflow: auto; padding: 18px 32px 32px; }
 .home-body > section { max-width: 960px; margin: 0 auto; }
 .home-body h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; font-weight: 600; }
