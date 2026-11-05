@@ -9,10 +9,13 @@ test("rendered view highlights every match and moves through them", async ({ pag
   await page.keyboard.press("Control+f");
   const input = page.getByRole("searchbox", { name: "search", exact: true });
   await expect(input).toBeFocused();
+  const emptyWidth = (await input.boundingBox())!.width;
   await input.fill("中文内容");
   await expect(page.locator(".md-search-group .pdf-search-count")).toHaveText("1/40");
   const sizes = () => page.evaluate(() => [CSS.highlights.get("md-search")?.size, CSS.highlights.get("md-search-current")?.size]);
   await expect.poll(sizes).toEqual([39, 1]);
+  // The count sits inside the field, so typing never resizes it.
+  expect((await input.boundingBox())!.width).toBe(emptyWidth);
   await input.press("Enter");
   await expect(page.locator(".md-search-group .pdf-search-count")).toHaveText("2/40");
   await input.press("Shift+Enter");

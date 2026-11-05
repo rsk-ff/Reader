@@ -253,16 +253,16 @@ export function PdfToolbar(props: PdfToolbarProps) {
               }}
               aria-label="search"
             />
+            <span className="pdf-search-count">
+              {searching
+                ? "…"
+                : searchHits > 0
+                  ? `${searchIdx + 1}/${searchHits}`
+                  : searchInput
+                    ? "0"
+                    : ""}
+            </span>
           </form>
-          <span className="pdf-search-count">
-            {searching
-              ? "…"
-              : searchHits > 0
-                ? `${searchIdx + 1}/${searchHits}`
-                : searchInput
-                  ? "0"
-                  : ""}
-          </span>
           <ToolbarButton onClick={() => onSearchNav(-1)} title="Previous" disabled={searchHits === 0}>
             <UiIcon name="chevronUp" />
           </ToolbarButton>

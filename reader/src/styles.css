@@ -934,7 +934,7 @@ html.tab-drag-preview-document #root {
 .pdf-search-input {
   width: 100%;
   height: 30px;
-  padding: 0 8px 0 30px;
+  padding: 0 56px 0 30px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -943,16 +943,19 @@ html.tab-drag-preview-document #root {
   font-size: 12px;
 }
 
+/* The match count sits inside the field so the field never changes size. */
 .pdf-search-count {
-  min-width: 32px;
-  padding: 0 2px;
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  pointer-events: none;
   text-align: center;
   color: var(--text-faint);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
-/* With nothing to count, the arrows sit right next to the field. */
 .pdf-search-count:empty { display: none; }
 
 .pdf-search-input:focus-visible,

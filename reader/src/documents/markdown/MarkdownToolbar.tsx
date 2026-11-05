@@ -118,10 +118,10 @@ export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, 
               }
             }}
           />
+          <span className="pdf-search-count">
+            {search.count > 0 ? `${search.current + 1}/${search.count}` : search.query ? "0" : ""}
+          </span>
         </form>
-        <span className="pdf-search-count">
-          {search.count > 0 ? `${search.current + 1}/${search.count}` : search.query ? "0" : ""}
-        </span>
         <button type="button" className="md-tbtn" title="上一个 (Shift+F3)" aria-label="上一个匹配"
           disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
           onClick={() => search.onNav(-1)}>
