@@ -85,11 +85,16 @@
   margin-top: 0;
 }
 
-/* CodeMirror has its own font rule and does not read Crepe's font variable. */
+/* CodeMirror has its own font rule and does not read Crepe's font variable.
+   Code and formulas are sized to read the same as the body text. */
+.milkdown-root > .milkdown > .ProseMirror { font-size: var(--md-body-size); }
 .milkdown-root .cm-editor .cm-scroller {
   font-family: var(--crepe-font-code);
+  font-size: var(--md-mono-size);
   font-variant-ligatures: none;
 }
+.milkdown-root .ProseMirror :not(pre) > code { font-size: 0.9em; }
+.milkdown-root .ProseMirror .katex { font-size: var(--md-math-scale); }
 
 /* CodeMirror's open marker is the baseline-low text glyph ⌄. Keep the
    closed marker (›), line numbers, gutter hit target and folding untouched.

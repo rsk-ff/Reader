@@ -80,6 +80,11 @@
     "SF Mono", Menlo, "Liberation Mono", monospace;
   --font-doc: "Source Serif 4", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
   --font-doc-heading: var(--font-doc);
+  /* Markdown body size. Monospace text (source view, code) draws at 0.9x so
+     its x-height matches the serif body; formulas at 1.1x for the same reason. */
+  --md-body-size: 16px;
+  --md-mono-size: 14.4px;
+  --md-math-scale: 1.1em;
 
   /* Markdown editor surfaces */
   --md-surface-low: #f2f2f0;
@@ -1792,7 +1797,7 @@ body.md-sidebar-resizing * {
   color: var(--text);
   font-family: var(--font-mono);
   font-variant-ligatures: none;
-  font-size: 13px;
+  font-size: var(--md-mono-size);
   line-height: 1.6;
   tab-size: 2;
   white-space: pre-wrap;
@@ -1818,7 +1823,7 @@ body.md-sidebar-resizing * {
   color: transparent;
   font-family: var(--font-mono);
   font-variant-ligatures: none;
-  font-size: 13px;
+  font-size: var(--md-mono-size);
   line-height: 1.6;
   tab-size: 2;
   white-space: pre-wrap;
@@ -1839,7 +1844,7 @@ body.md-sidebar-resizing * {
   color: var(--text-placeholder);
   font-family: var(--font-mono);
   font-size: 12px;
-  line-height: calc(13px * 1.6);
+  line-height: calc(var(--md-mono-size) * 1.6);
   text-align: right;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -1855,7 +1860,7 @@ body.md-sidebar-resizing * {
   padding: 0 32px 0 68px;
   font-family: var(--font-mono);
   font-variant-ligatures: none;
-  font-size: 13px;
+  font-size: var(--md-mono-size);
   line-height: 1.6;
   tab-size: 2;
   white-space: pre-wrap;
