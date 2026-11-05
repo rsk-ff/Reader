@@ -1,12 +1,12 @@
 # Current status
 
-- Last updated: 2026-11-04
+- Last updated: 2026-11-05
 - Application version: `0.1.0`
 - Latest user-accepted source baseline: `b2c1553` — Markdown 侧栏调宽与 PDF/Markdown 拖动收起
 
 ## Active task
 
-- [界面改版（浅色，方向 A）](tasks/active/2026-11-04-ui-redesign.md): `waiting_user_acceptance`, 分支 `claude/project-thread-gsfh7v`。
+- None.
 
 ## Pending user acceptance
 
@@ -15,6 +15,7 @@
 
 ## Recently merged into dev
 
+- 2026-11-05：界面改版（浅色，方向 A），分支 `claude/project-thread-gsfh7v`，各阶段已由用户在检查版中验收；明细见 CHANGELOG。
 - 2026-10-27（PR #1）：全仓审查 P0 修复，Markdown 链接与错误提示框修复。
 - 2026-10-28（PR #2）：审查 P1/P2 修复（Markdown 读写限制在已打开文档、批注更新单次写入、标签/窗口健壮性）。
 - 2026-10-28（PR #3）：Markdown 保存保真（保留换行符/BOM、检测外部修改并用应用内对话框确认、非 UTF-8 中文提示卡片）。
@@ -22,6 +23,7 @@
 
 ## Open follow-ups
 
+- 界面改版后续：深色模式；正式软件 logo（窗口/任务栏与文件关联图标仍是旧母版 `shell-reader.svg` 等，定稿后重新生成原生图标）。
 - 批注 ID 仍存放在作者字段；pdfium-render 0.9 不公开 `/NM` 写入，需另行处理。
 
 ## Implemented
