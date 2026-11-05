@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type KeyboardEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspace } from "../workspace/store";
 import { BROWSE_DWELL_MS, fixedFolders, folderIdentity, folderName, frequentFolders, useFolderLocations, type FolderLocation } from "../workspace/folderLocations";
@@ -39,6 +39,65 @@ export function breadcrumbs(location: string): { label: string; path: string }[]
     crumbs.push({ label: part, path });
   }
   return crumbs;
+}
+
+/**
+ * Address-bar segments. When the path is too long, leading segments collapse
+ * into a "…" button (as in File Explorer) whose menu lists them.
+ */
+function Breadcrumbs({ crumbs, busy, navigate, onBlank }: {
+  crumbs: { label: string; path: string }[];
+  busy: boolean;
+  navigate: (path: string) => void;
+  onBlank: () => void;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const [hidden, setHidden] = useState(0);
+  const [width, setWidth] = useState(0);
+  const [menu, setMenu] = useState<FolderMenuState | null>(null);
+  const key = crumbs.map((crumb) => crumb.path).join("|");
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setWidth(element.clientWidth));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  // Start from every segment shown, then hide from the left until they fit.
+  useLayoutEffect(() => { setHidden(0); }, [key, width]);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element && element.scrollWidth > element.clientWidth + 1 && hidden < crumbs.length - 1) {
+      setHidden((value) => value + 1);
+    }
+  });
+
+  return <span className="home-crumbs" ref={ref} onMouseDown={(event) => {
+    // Empty space switches to typing, as in File Explorer.
+    if (event.target === event.currentTarget) { event.preventDefault(); onBlank(); }
+  }}>
+    {hidden > 0 && <span className="home-crumb">
+      <button type="button" ref={moreRef} disabled={busy} aria-label="更多上级文件夹" title="更多上级文件夹"
+        onClick={() => {
+          const rect = moreRef.current!.getBoundingClientRect();
+          setMenu({
+            x: rect.left, y: rect.bottom + 4, owner: moreRef.current!,
+            items: crumbs.slice(0, hidden).reverse().map((crumb) => ({ label: crumb.label, action: () => navigate(crumb.path) })),
+          });
+        }}>…</button>
+    </span>}
+    {crumbs.slice(hidden).map((crumb, index) => <span className="home-crumb" key={crumb.path}>
+      {(index > 0 || hidden > 0) && <UiIcon name="next" />}
+      <button type="button" disabled={busy} aria-current={crumb === crumbs[crumbs.length - 1] ? "location" : undefined}
+        onClick={() => navigate(crumb.path)}>{crumb.label}</button>
+    </span>)}
+    {menu && <FolderContextMenu state={menu} label="上级文件夹" close={(restore) => {
+      if (restore) moreRef.current?.focus();
+      setMenu(null);
+    }} />}
+  </span>;
 }
 
 export function NewTabPage({ active = true }: { active?: boolean }) {
@@ -256,16 +315,8 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
             onFocus={(event) => { setEditingAddress(true); event.target.select(); }}
             onBlur={() => { setEditingAddress(false); setAddress(directory?.path ?? (isDirectory ? location : location === "home" ? "主页" : "此电脑")); }}
             onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.blur(); }} />
-          {!editingAddress && <span className="home-crumbs" onMouseDown={(event) => {
-            // Empty space switches to typing, as in File Explorer.
-            if (event.target === event.currentTarget) { event.preventDefault(); addressInput.current?.focus(); }
-          }}>
-            {breadcrumbs(directory?.path ?? location).map((crumb, index, all) => <span className="home-crumb" key={crumb.path}>
-              {index > 0 && <UiIcon name="next" />}
-              <button type="button" disabled={busy} aria-current={index === all.length - 1 ? "location" : undefined}
-                onClick={() => navigate(crumb.path)}>{crumb.label}</button>
-            </span>)}
-          </span>}
+          {!editingAddress && <Breadcrumbs crumbs={breadcrumbs(directory?.path ?? location)} busy={busy}
+            navigate={navigate} onBlank={() => addressInput.current?.focus()} />}
         </form>
       <label className="home-search"><UiIcon name="search" /><input aria-label="筛选当前列表"
         placeholder={isDirectory ? "搜索此文件夹" : location === "home" ? "搜索最近文件" : "搜索磁盘"}

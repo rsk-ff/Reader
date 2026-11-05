@@ -243,6 +243,23 @@ test("address bar shows clickable folder segments like File Explorer", async ({ 
   await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/");
   await page.locator(".home-crumb button").first().click();
   await expect(page.locator(".home-drive")).not.toHaveCount(0);
+  // A path too long for the bar collapses its leading segments into "…".
+  await page.setViewportSize({ width: 520, height: 600 });
+  await goFolder(page, "D:/Work");
+  const address = page.getByRole("textbox", { name: "文件夹路径" });
+  await address.fill("C:/Notes/a very long folder name for the address bar/another long nested folder/deep");
+  await address.press("Enter");
+  const more = page.getByRole("button", { name: "更多上级文件夹", exact: true });
+  await expect(more).toBeVisible();
+  const bar = page.locator(".home-crumbs");
+  expect(await bar.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await expect(page.locator(".home-crumb button").last()).toHaveText("deep");
+  await more.click();
+  await expect(page.getByRole("menuitem", { name: "此电脑", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await goFolder(page, "C:/Notes");
+  await expect(more).toHaveCount(0);
   // The navigation row spans the page above the sidebar, joining the active tab.
   const nav = (await page.locator(".home-navigation").boundingBox())!;
   const sidebar = (await page.locator(".home-sidebar").boundingBox())!;
