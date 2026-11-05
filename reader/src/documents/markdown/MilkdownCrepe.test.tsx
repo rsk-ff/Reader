@@ -266,7 +266,7 @@ describe("Milkdown editor lifecycle", () => {
         dirty: true, untitled: false, revision: 0, last_saved_revision: 0, file_size: null,
       });
     });
-    await clickMode("Don't Save");
+    await clickMode("不保存");
     expect(await closed).toBe(true);
     expect(engine.instances).toHaveLength(2);
     expect(instance.destroy).toHaveBeenCalledTimes(1);

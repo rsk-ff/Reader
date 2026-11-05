@@ -35,6 +35,7 @@
 
   /* Status */
   --danger: #b93a30;
+  --danger-hover: #9e3028;
 
   /* File types */
   --file-pdf: #c4473c;
@@ -56,9 +57,7 @@
   --winctl-pressed: rgba(0, 0, 0, 0.16);
 
   /* Floating layers */
-  --backdrop: rgba(28, 28, 26, 0.28);
-  --backdrop-light: rgb(28 28 26 / 24%);
-  --dialog-backdrop: rgb(28 28 26 / 18%);
+  --backdrop: rgba(28, 28, 26, 0.24);
   --menu-line: #e4e4e1;
   --menu-shadow: 0 8px 24px rgb(28 28 26 / 14%);
   --dialog-line: #e4e4e1;
@@ -639,16 +638,10 @@ html.tab-drag-preview-document #root {
 .folder-context-menu button:hover:not(:disabled), .folder-context-menu button:focus-visible { background: var(--bg-active); outline: none; }
 .folder-context-menu button:disabled { opacity: 0.45; cursor: default; }
 .folder-context-menu .menu-item-danger { color: var(--danger); }
-.new-markdown-dialog { width: min(400px, calc(100vw - 32px)); border: 1px solid var(--dialog-line); border-radius: 10px; padding: 22px; background: var(--bg-elev); color: var(--text); box-shadow: var(--dialog-shadow); }
-.new-markdown-dialog::backdrop { background: var(--dialog-backdrop); }
-.new-markdown-dialog h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .new-markdown-location { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-faint); font-size: 12px; }
-.new-markdown-dialog label { display: flex; flex-direction: column; gap: 8px; }
-.new-markdown-dialog input { width: 100%; padding: 8px 10px; border: 1px solid var(--input-line); border-radius: 6px; font: inherit; }
+.new-markdown-dialog label { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; font-weight: 500; }
+.new-markdown-dialog input { width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--input-line); border-radius: var(--radius-control); background: var(--bg-elev); color: var(--text); font: inherit; font-weight: 400; }
 .new-markdown-dialog input:focus { border-color: var(--accent); outline: 1px solid var(--accent); }
-.new-markdown-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
-.new-markdown-dialog-actions button { border: 1px solid var(--input-line); border-radius: 6px; padding: 7px 14px; background: var(--button-bg); color: inherit; font: inherit; cursor: pointer; }
-.new-markdown-dialog-actions button:disabled { opacity: .5; cursor: default; }
 @media (max-width: 1000px) {
   .new-tab-page { grid-template-columns: 196px minmax(0, 1fr); }
   .home-search { flex: 1 1 100%; margin: 6px 0 0; }
@@ -1045,27 +1038,100 @@ html.tab-drag-preview-document #root {
 .pdf-mark-swatch-on { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 3.5px var(--text); }
 .pdf-mark-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.pdf-delete-dialog {
-  width: min(360px, calc(100vw - 32px));
+/* ---- Dialogs ----
+   Every modal shares one panel, one backdrop and one button system. The
+   primary action is ink, a destructive one is red, the rest are outlined. */
+.unsaved-dialog-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
   padding: 24px;
-  border: 1px solid var(--border);
+  background: var(--backdrop);
+}
+
+:is(.pdf-delete-dialog, .new-markdown-dialog)::backdrop { background: var(--backdrop); }
+
+:is(.unsaved-dialog, .pdf-delete-dialog, .new-markdown-dialog) {
+  width: min(400px, calc(100vw - 48px));
+  padding: 20px 22px 18px;
+  border: 0;
   border-radius: var(--radius-panel);
   background: var(--bg-elev);
   color: var(--text);
+  box-shadow: 0 0 0 1px var(--dialog-line), var(--dialog-shadow);
 }
-.pdf-delete-dialog::backdrop { background: var(--backdrop-light); }
-.pdf-delete-dialog h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
-.pdf-delete-dialog p { margin: 0; font-size: 12px; color: var(--text-dim); }
-.pdf-delete-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
-.pdf-delete-actions button {
-  min-width: 64px; height: 30px; padding: 0 12px;
-  border: 1px solid var(--border); border-radius: var(--radius-control);
-  background: var(--bg-elev); color: var(--text); font: inherit;
+
+:is(.unsaved-dialog, .pdf-delete-dialog, .new-markdown-dialog) h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
 }
-.pdf-delete-actions button:hover { background: var(--bg); }
-.pdf-delete-actions .pdf-delete-confirm { background: var(--strong); color: var(--on-strong); border-color: var(--strong); }
-.pdf-delete-actions .pdf-delete-confirm:hover { background: var(--strong-hover); }
-.pdf-delete-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+:is(.unsaved-dialog, .pdf-delete-dialog) p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+:is(.unsaved-dialog-actions, .pdf-delete-actions, .new-markdown-dialog-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+:is(.unsaved-dialog-actions, .pdf-delete-actions, .new-markdown-dialog-actions) button {
+  min-width: 72px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--input-line);
+  border-radius: var(--radius-control);
+  background: var(--button-bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  cursor: default;
+}
+
+:is(.unsaved-dialog-actions, .pdf-delete-actions, .new-markdown-dialog-actions) button:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+:is(.unsaved-dialog-actions, .pdf-delete-actions, .new-markdown-dialog-actions) button:is(.primary, .pdf-delete-confirm) {
+  border-color: var(--strong);
+  background: var(--strong);
+  color: var(--on-strong);
+}
+
+:is(.unsaved-dialog-actions, .new-markdown-dialog-actions) button.primary:hover:not(:disabled) {
+  border-color: var(--strong-hover);
+  background: var(--strong-hover);
+}
+
+.pdf-delete-actions button.pdf-delete-confirm {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+.pdf-delete-actions button.pdf-delete-confirm:hover {
+  border-color: var(--danger-hover);
+  background: var(--danger-hover);
+}
+
+:is(.unsaved-dialog-actions, .pdf-delete-actions, .new-markdown-dialog-actions) button:disabled {
+  opacity: 0.45;
+}
+
+:is(.unsaved-dialog-actions, .pdf-delete-actions, .new-markdown-dialog-actions) button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* body: sidebar + scroll area */
 .pdf-body {
@@ -1325,7 +1391,7 @@ body.md-sidebar-resizing * {
   margin: 0 24px;
   padding: 20px 24px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-panel);
   background: var(--bg-elev);
   color: var(--text);
   text-align: center;
@@ -1855,73 +1921,6 @@ body.md-sidebar-resizing * {
   border: 0;
   opacity: 0;
   pointer-events: none;
-}
-
-.unsaved-dialog-backdrop {
-  position: fixed;
-  z-index: 1000;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--backdrop);
-}
-
-.unsaved-dialog {
-  width: min(430px, calc(100vw - 48px));
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--bg-elev);
-  color: var(--text);
-  box-shadow: none;
-}
-
-.unsaved-dialog h2 {
-  margin: 0 0 10px;
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.unsaved-dialog p {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: 13px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.unsaved-dialog-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 22px;
-}
-
-.unsaved-dialog-actions button {
-  min-width: 82px;
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  color: var(--text);
-  font: inherit;
-  font-size: 12px;
-  cursor: default;
-}
-
-.unsaved-dialog-actions button.secondary {
-  background: var(--bg);
-}
-
-.unsaved-dialog-actions button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-.unsaved-dialog-actions button:hover {
-  filter: brightness(1.08);
 }
 
 @media (max-width: 420px) {
