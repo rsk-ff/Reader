@@ -325,24 +325,24 @@ for (const width of [330, 620, 1100]) {
     await page.goto("/tests/browser/new-tab.html");
     const row = page.locator(".new-tab-recent-item").first();
     await expect(row).toBeVisible();
-    await expect(page.locator(".new-tab-list-heading")).toHaveText("文档打开时间大小");
-    await expect(row.locator(".new-tab-recent-time")).toHaveText("10/7 12:35");
+    await expect(page.locator(".new-tab-list-heading")).toHaveText("名称打开时间类型大小");
+    await expect(row.locator(".new-tab-recent-time")).toHaveText(/^\d{4}\/10\/7 12:35$/);
     await expect(row.locator(".new-tab-recent-size")).toHaveText("12.1 KB");
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-time")).toHaveText("—");
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-size")).toHaveText("—");
-    expect((await row.boundingBox())!.height).toBe(34);
+    expect((await row.boundingBox())!.height).toBe(30);
     // One line per file: icon then name, no secondary line.
     await expect(row.locator(".new-tab-recent-copy small")).toHaveCount(0);
     const recentIcon = (await row.locator(".new-tab-recent-icon svg").boundingBox())!;
-    expect(recentIcon.width).toBe(20);
-    expect(recentIcon.height).toBe(20);
+    expect(recentIcon.width).toBe(16);
+    expect(recentIcon.height).toBe(16);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     const columns = await row.evaluate((element) => Array.from(element.children).map((child) => {
       const rect = child.getBoundingClientRect();
       return { left: rect.left, right: rect.right };
     }));
-    for (let index = 1; index < columns.length; index++) expect(columns[index].left).toBeGreaterThan(columns[index - 1].right);
+    for (let index = 1; index < columns.length; index++) expect(columns[index].left).toBeGreaterThanOrEqual(columns[index - 1].right - 0.5);
     expect(errors).toEqual([]);
   });
 }

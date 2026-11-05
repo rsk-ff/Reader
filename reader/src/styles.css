@@ -641,13 +641,30 @@ html.tab-drag-preview-document #root {
 .home-address input, .home-search input { min-width: 0; width: 100%; border: 0; padding: 0; background: transparent; color: var(--text); font: inherit; outline: none; }
 .home-search input::placeholder { color: var(--home-field-placeholder); }
 .home-address:focus-within, .home-search:focus-within { background: var(--bg-elev); border-color: var(--text-faint); outline: none; }
-.home-body { flex: 1; min-height: 0; overflow: auto; padding: 18px 32px 32px; }
-.home-body > section { max-width: 960px; margin: 0 auto; }
-.home-body h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; font-weight: 600; }
-.home-body h2 .ui-icon { width: 18px; height: 18px; color: var(--text-dim); }
-.new-tab-recent > header, .home-directory-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 0 14px; }
-.new-tab-recent > header > span, .home-directory-title > span { flex-shrink: 0; color: var(--text-faint); font-size: 12px; }
-.home-directory-title h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+/* File lists follow File Explorer's details view: left-aligned columns
+   (name, date, type, size) under a header with thin column rules. */
+.home-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 16px 24px; }
+.home-body > section { max-width: none; margin: 0; }
+.home-body h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; }
+.home-body h2 .ui-icon { width: 16px; height: 16px; color: var(--text-dim); }
+.new-tab-recent > header { display: flex; align-items: baseline; gap: 8px; margin: 4px 8px 10px; }
+.new-tab-recent > header > span { flex-shrink: 0; color: var(--text-faint); font-size: 12px; }
+.new-tab-page { --list-columns: 16px minmax(180px, 420px) 150px 120px 80px; }
+.new-tab-list-heading, .new-tab-recent-item { display: grid; grid-template-columns: var(--list-columns); justify-content: start; align-items: center; column-gap: 0; }
+.new-tab-list-heading { height: 28px; padding: 0 8px; color: var(--text-faint); font-size: 12px; }
+.new-tab-list-heading > span { height: 100%; display: flex; align-items: center; padding: 0 10px; border-right: 1px solid var(--border); }
+.new-tab-list-heading > span:first-child { padding: 0; border-right: 0; }
+.new-tab-list-heading > span:nth-child(2) { padding-left: 10px; }
+.new-tab-list-heading > span:last-child { justify-content: flex-end; }
+.new-tab-recent-item { width: 100%; min-width: 0; height: 30px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease; }
+.new-tab-recent-item:hover:not(:disabled) { background: var(--home-hover); }
+.new-tab-recent-item > span { min-width: 0; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.new-tab-recent-item > .new-tab-recent-icon { padding: 0; }
+.new-tab-recent-icon, .new-tab-recent-icon .tab-icon, .new-tab-recent-icon svg, .new-tab-recent-icon img { display: block; width: 16px; height: 16px; }
+.new-tab-recent-copy { display: flex; }
+.new-tab-recent-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 400; }
+.new-tab-recent-time, .new-tab-recent-type, .new-tab-recent-size { color: var(--text-dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+.new-tab-recent-size { text-align: right; }
 .home-drive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 8px; }
 .home-drive { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 16px; border: 1px solid var(--home-card-line); border-radius: 10px; background: var(--bg-elev); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; }
 .home-drive:hover:not(:disabled) { background: var(--home-card-hover); border-color: var(--home-card-hover-line); }
@@ -658,14 +675,6 @@ html.tab-drag-preview-document #root {
 .home-directory-entry .new-tab-recent-icon > .ui-icon { color: var(--home-folder); }
 .home-empty-note { color: var(--text-faint); padding: 28px 8px; font-size: 13px; line-height: 1.6; text-align: center; }
 .new-tab-error { margin: 0 20px 4px; padding: 10px 14px; border-radius: var(--home-radius); color: var(--home-error); background: var(--home-error-bg); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.new-tab-list-heading { display: grid; grid-template-columns: minmax(0, 1fr) 94px 62px; gap: 12px; padding: 0 12px 6px 42px; color: var(--text-faint); font-size: 11px; }
-.new-tab-list-heading > span:not(:first-child) { text-align: right; }
-.new-tab-recent-item { display: grid; grid-template-columns: 20px minmax(0, 1fr) 94px 62px; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 0 12px; height: 34px; border: 0; border-radius: var(--home-radius); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease; }
-.new-tab-recent-item:hover:not(:disabled) { background: var(--home-hover); }
-.new-tab-recent-icon, .new-tab-recent-icon .tab-icon, .new-tab-recent-icon svg, .new-tab-recent-icon img { display: block; width: 20px; height: 20px; }
-.new-tab-recent-copy { display: flex; min-width: 0; }
-.new-tab-recent-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 18px; font-size: 13px; font-weight: 400; }
-.new-tab-recent-time, .new-tab-recent-size { color: var(--text-faint); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
 .new-tab-page button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .new-tab-page button:disabled { opacity: 0.45; cursor: default; }
 .folder-context-menu { position: fixed; z-index: 1000; min-width: 174px; padding: 4px; border: 1px solid var(--menu-line); border-radius: 8px; background: var(--bg-elev); color: var(--text); box-shadow: var(--menu-shadow); }
@@ -695,8 +704,8 @@ html.tab-drag-preview-document #root {
 }
 @media (max-width: 420px) {
   .home-address { flex-basis: 100%; margin: 6px 0 0; }
-  .new-tab-list-heading { grid-template-columns: minmax(0, 1fr) 72px 50px; gap: 8px; padding: 0 8px 6px 36px; }
-  .new-tab-recent-item { grid-template-columns: 20px minmax(0, 1fr) 72px 50px; gap: 8px; padding: 0 8px; }
+  .new-tab-page { --list-columns: 16px minmax(0, 1fr) 0 0 60px; }
+  :is(.new-tab-list-heading, .new-tab-recent-item) > :is(:nth-child(3), :nth-child(4)) { visibility: hidden; padding: 0; border: 0; }
 }
 
 /* ---- PDF viewer ---- */
@@ -2162,7 +2171,7 @@ body.md-sidebar-resizing * {
 }
 
 @media (max-width: 600px) {
-  .new-tab-list-heading { grid-template-columns: minmax(0, 1fr) 80px 48px; gap: 8px; padding: 8px; }
-  .new-tab-recent-item { grid-template-columns: 20px minmax(0, 1fr) 80px 48px; gap: 8px; padding: 0 8px; }
+  .new-tab-page { --list-columns: 16px minmax(0, 1fr) 130px 0 64px; }
+  :is(.new-tab-list-heading, .new-tab-recent-item) > :nth-child(4) { visibility: hidden; padding: 0; border: 0; }
 }
 

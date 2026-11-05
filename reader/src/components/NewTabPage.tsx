@@ -11,10 +11,14 @@ import { NewMarkdownDialog } from "./NewMarkdownDialog";
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+/** File Explorer's details-view date: 2026/10/29 20:33. */
 function openedTime(timestamp?: number | null): string {
   if (!timestamp) return "—";
   const date = new Date(timestamp);
-  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+function typeLabel(kind: "folder" | "pdf" | "markdown" | "unknown"): string {
+  return kind === "folder" ? "文件夹" : kind === "pdf" ? "PDF 文档" : kind === "markdown" ? "Markdown 文档" : "文件";
 }
 function fileSize(bytes?: number | null): string {
   if (bytes == null) return "—";
@@ -352,12 +356,13 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
         }}>
         {location === "home" ? <section className="new-tab-recent" aria-label="最近打开">
           <header><h2><UiIcon name="clock" />最近打开</h2><span>{visibleFiles.length} 个文件</span></header>
-          <div className="new-tab-list-heading" aria-hidden="true"><span>文档</span><span>打开时间</span><span>大小</span></div>
+          <div className="new-tab-list-heading" aria-hidden="true"><span /><span>名称</span><span>打开时间</span><span>类型</span><span>大小</span></div>
           {visibleFiles.length ? <div className="new-tab-recent-list">{visibleFiles.map((file) => (
             <button type="button" className="new-tab-recent-item" key={file.path} title={file.path} disabled={busy} onClick={() => void reopen(file.path)}>
               <span className="new-tab-recent-icon"><DocumentTypeIcon type={file.doc_type} /></span>
               <span className="new-tab-recent-copy"><strong>{file.file_name}</strong></span>
               <span className="new-tab-recent-time" title={file.opened_at ? new Date(file.opened_at).toLocaleString() : "打开时间未记录"}>{pending === file.path ? "打开中…" : openedTime(file.opened_at)}</span>
+              <span className="new-tab-recent-type">{typeLabel(file.doc_type)}</span>
               <span className="new-tab-recent-size" title="最近读取的文件大小">{fileSize(file.file_size)}</span>
             </button>
           ))}</div> : <p className="home-empty-note">{query ? "没有匹配的最近文件" : "暂无最近文件"}</p>}
@@ -370,8 +375,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
           ))}</div>
           {!locations.roots.length && !error && <p className="home-empty-note">暂无可用本地磁盘，请刷新或输入文件夹路径</p>}
         </section> : <section aria-label="当前文件夹">
-          <header className="home-directory-title"><h2>{directory ? folderName(directory.path) : folderName(location)}</h2><span>PDF / Markdown</span></header>
-          <div className="new-tab-list-heading" aria-hidden="true"><span>名称</span><span>修改时间</span><span>大小</span></div>
+          <div className="new-tab-list-heading" aria-hidden="true"><span /><span>名称</span><span>修改日期</span><span>类型</span><span>大小</span></div>
           {loading ? <p className="home-empty-note" role="status">正在读取文件夹…</p> : <div>{entries.map((entry) => (
             <button type="button" className="new-tab-recent-item home-directory-entry" key={entry.path} title={entry.path} disabled={busy}
               onClick={() => entry.is_dir ? navigate(entry.path) : void reopen(entry.path)}
@@ -382,7 +386,9 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
               onKeyDown={entry.is_dir ? (event) => folderKeyboard(event, { path: entry.path, name: entry.name }) : undefined}>
               <span className="new-tab-recent-icon">{entry.is_dir ? <UiIcon name="folder" /> : <DocumentTypeIcon type={documentType(entry.path)} />}</span>
               <span className="new-tab-recent-copy"><strong>{entry.name}</strong></span>
-              <span className="new-tab-recent-time">{openedTime(entry.modified_at)}</span><span className="new-tab-recent-size">{entry.is_dir ? "—" : fileSize(entry.file_size)}</span>
+              <span className="new-tab-recent-time">{openedTime(entry.modified_at)}</span>
+              <span className="new-tab-recent-type">{typeLabel(entry.is_dir ? "folder" : documentType(entry.path))}</span>
+              <span className="new-tab-recent-size">{entry.is_dir ? "—" : fileSize(entry.file_size)}</span>
             </button>
           ))}</div>}
           {!loading && directory && !entries.length && <p className="home-empty-note">{query ? "没有匹配的文件或文件夹" : "此文件夹没有子文件夹或 PDF / Markdown 文件"}</p>}
