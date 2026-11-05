@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { ZoomMode } from "./types";
 import type { AnnotationTool } from "./PdfAnnotationLayer";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
-import { DocumentActions } from "../../components/DocumentActions";
+import { DocumentActions, scrollRowWithWheel } from "../../components/DocumentActions";
 
 /** Text markup tools share one toolbar button and a style popover. */
 export type MarkTool = "highlight" | "underline" | "strikeout";
@@ -131,7 +131,7 @@ export function PdfToolbar(props: PdfToolbarProps) {
 
   return (
     <div className="pdf-toolbar" role="toolbar" aria-label="PDF tools">
-      <div className="pdf-toolbar-row pdf-reading-toolbar">
+      <div className="pdf-toolbar-row pdf-reading-toolbar" onWheel={scrollRowWithWheel}>
         <div className="pdf-toolbar-group">
           <ToolbarButton active={sidebarOpen} onClick={onSidebarToggle}
             title={sidebarOpen ? "收起侧栏" : "展开侧栏"}>

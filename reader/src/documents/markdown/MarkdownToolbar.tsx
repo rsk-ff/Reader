@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
-import { DocumentActions } from "../../components/DocumentActions";
+import { DocumentActions, scrollRowWithWheel } from "../../components/DocumentActions";
 import type { MarkdownFormat } from "./MilkdownCrepe";
 
 interface MarkdownToolbarProps {
@@ -40,7 +40,7 @@ const GROUPS: [MarkdownFormat, UiIconName, string][][] = [
 export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, onFormat, onSwitch, onSave, onPrint, outlineVisible, onToggleOutline, search }: MarkdownToolbarProps) {
   return (
     <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
-      <div className="md-toolbar-row">
+      <div className="md-toolbar-row" onWheel={scrollRowWithWheel}>
         <button type="button" className={"md-tbtn md-outline-toggle" + (outlineVisible ? " md-tbtn-active" : "")}
           title={outlineVisible ? "收起目录" : "展开目录"}
           aria-label={outlineVisible ? "收起目录" : "展开目录"}

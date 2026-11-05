@@ -43,3 +43,17 @@ test("source view paints matches behind the textarea", async ({ page }) => {
   });
   expect(same).toBe(true);
 });
+
+test("toolbar row fits the default window and scrolls with the wheel when narrow", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 760 });
+  const row = page.locator(".md-toolbar-row");
+  const fits = () => row.evaluate((element) => element.scrollWidth <= element.clientWidth + 1);
+  expect(await fits()).toBe(true);
+  expect(await row.evaluate((element) => getComputedStyle(element).scrollbarWidth)).toBe("none");
+  await page.setViewportSize({ width: 700, height: 760 });
+  expect(await fits()).toBe(false);
+  const box = (await row.boundingBox())!;
+  await page.mouse.move(box.x + 100, box.y + box.height / 2);
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => row.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+});
