@@ -49,6 +49,7 @@
   --text-selection: rgba(28, 28, 26, 0.18);
   --text-selection-legacy: rgba(85, 85, 79, 0.28);
   --search-hit: rgba(255, 213, 79, 0.5);
+  --search-hit-current: rgba(245, 166, 35, 0.75);
 
   /* Small neutral overlays */
   --tab-close-hover: rgba(28, 28, 26, 0.08);
@@ -1677,6 +1678,66 @@ body.md-sidebar-resizing * {
 
 .md-source:focus {
   outline: none;
+}
+
+/* Source-view search: matches are painted on a backdrop that mirrors the
+   textarea's text and scroll, because a textarea cannot style its text. */
+.md-source-wrap {
+  position: relative;
+  height: 100%;
+}
+
+.md-source-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 24px 32px 96px;
+  color: transparent;
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
+}
+
+.md-source-searching {
+  position: relative;
+  background: transparent;
+}
+
+.md-hit {
+  border-radius: 2px;
+  background: var(--search-hit);
+  color: transparent;
+}
+
+.md-hit-current {
+  background: var(--search-hit-current);
+}
+
+::highlight(md-search) {
+  background-color: var(--search-hit);
+}
+
+::highlight(md-search-current) {
+  background-color: var(--search-hit-current);
+}
+
+.md-search-group {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 2px;
+  width: 300px;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.md-search-group .pdf-search-form {
+  flex: 1 1 auto;
 }
 
 /* ---- PDF annotation layer (§5) ---- */

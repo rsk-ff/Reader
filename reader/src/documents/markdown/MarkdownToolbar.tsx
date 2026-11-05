@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
 import { DocumentActions } from "../../components/DocumentActions";
 import type { MarkdownFormat } from "./MilkdownCrepe";
@@ -15,6 +16,15 @@ interface MarkdownToolbarProps {
   onPrint: () => void;
   outlineVisible: boolean;
   onToggleOutline: () => void;
+  search: {
+    query: string;
+    count: number;
+    /** Index of the current match, meaningful when `count > 0`. */
+    current: number;
+    inputRef: RefObject<HTMLInputElement | null>;
+    onQuery: (query: string) => void;
+    onNav: (step: 1 | -1) => void;
+  };
 }
 
 const GROUPS: [MarkdownFormat, UiIconName, string][][] = [
@@ -27,7 +37,7 @@ const GROUPS: [MarkdownFormat, UiIconName, string][][] = [
    ["table", "table", "插入表格"], ["image", "image", "插入图片"], ["divider", "divider", "分隔线"]],
 ];
 
-export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, onFormat, onSwitch, onSave, onPrint, outlineVisible, onToggleOutline }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, onFormat, onSwitch, onSave, onPrint, outlineVisible, onToggleOutline, search }: MarkdownToolbarProps) {
   return (
     <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
       <div className="md-toolbar-row">
@@ -62,6 +72,43 @@ export function MarkdownToolbar({ mode, dirty, saving, printing, formatEnabled, 
               ))}
             </div>
           ))}
+        </div>
+        <div className="md-search-group" role="search">
+          <form className="pdf-search-form" onSubmit={(event) => { event.preventDefault(); search.onNav(1); }}>
+            <UiIcon name="search" />
+            <input
+              ref={search.inputRef}
+              className="pdf-search-input md-search-input"
+              type="search"
+              placeholder="搜索文档"
+              value={search.query}
+              aria-label="search"
+              onChange={(event) => search.onQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && event.shiftKey) {
+                  event.preventDefault();
+                  search.onNav(-1);
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  if (search.query) search.onQuery("");
+                  else event.currentTarget.blur();
+                }
+              }}
+            />
+          </form>
+          <span className="pdf-search-count">
+            {search.count > 0 ? `${search.current + 1}/${search.count}` : search.query ? "0" : ""}
+          </span>
+          <button type="button" className="md-tbtn" title="上一个 (Shift+F3)" aria-label="上一个匹配"
+            disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
+            onClick={() => search.onNav(-1)}>
+            <UiIcon name="chevronUp" />
+          </button>
+          <button type="button" className="md-tbtn" title="下一个 (F3)" aria-label="下一个匹配"
+            disabled={search.count === 0} onMouseDown={(event) => event.preventDefault()}
+            onClick={() => search.onNav(1)}>
+            <UiIcon name="chevronDown" />
+          </button>
         </div>
       </div>
       <div className="segmented md-mode-switch" role="group" aria-label="Editor mode">
