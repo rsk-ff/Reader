@@ -398,3 +398,40 @@ test("title bar keeps a full-height drag region and tabs reach the top edge", as
     expect(hit, selector).toBe(true);
   }
 });
+
+test("narrow windows keep the layout, and the sidebar and columns can be dragged wider", async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 700 });
+  await page.goto("/tests/browser/new-tab.html");
+  // No icon rail and no wrapped navigation row in a narrow window.
+  await expect(page.locator(".home-nav-name").first()).toBeVisible();
+  const nav = (await page.locator(".home-navigation").boundingBox())!;
+  expect(nav.height).toBeLessThan(60);
+  await page.setViewportSize({ width: 1100, height: 760 });
+
+  const sidebar = page.locator(".home-sidebar");
+  const before = (await sidebar.boundingBox())!.width;
+  const handle = (await page.getByRole("separator", { name: "调整侧栏宽度" }).boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2 + 60, handle.y + 100);
+  await page.mouse.up();
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(before + 60, 0);
+  // Dragging far left stops at the minimum instead of collapsing.
+  await page.getByRole("separator", { name: "调整侧栏宽度" }).focus();
+  await page.keyboard.press("Home");
+  await expect(sidebar).toBeVisible();
+  expect((await sidebar.boundingBox())!.width).toBe(168);
+
+  const name = page.locator(".new-tab-list-heading > span").nth(1);
+  const nameBefore = (await name.boundingBox())!.width;
+  const column = (await page.getByRole("separator", { name: "调整“名称”列宽" }).boundingBox())!;
+  await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(column.x + column.width / 2 + 80, column.y + column.height / 2);
+  await page.mouse.up();
+  await expect.poll(async () => (await name.boundingBox())!.width).toBeCloseTo(nameBefore + 80, 0);
+  // Widths are remembered.
+  await page.reload();
+  await expect.poll(async () => (await page.locator(".new-tab-list-heading > span").nth(1).boundingBox())!.width)
+    .toBeCloseTo(nameBefore + 80, 0);
+});

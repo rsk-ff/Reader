@@ -7,6 +7,8 @@ import { DocumentTypeIcon } from "./DocumentTypeIcon";
 import { UiIcon, type UiIconName } from "./UiIcon";
 import { FolderContextMenu, type FolderMenuState } from "./FolderContextMenu";
 import { NewMarkdownDialog } from "./NewMarkdownDialog";
+import { SidebarResizer } from "./SidebarResizer";
+import { ColumnResizer } from "./ColumnResizer";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -78,9 +80,12 @@ function Breadcrumbs({ crumbs, busy, navigate, onBlank }: {
     }
   });
 
-  return <span className="home-crumbs" ref={ref} onMouseDown={(event) => {
+  // With every earlier segment collapsed, the current folder's name may shrink.
+  const tight = hidden >= crumbs.length - 1;
+  return <span className={"home-crumbs" + (tight ? " home-crumbs-tight" : "")} ref={ref} onMouseDown={(event) => {
     // Empty space switches to typing, as in File Explorer.
-    if (event.target === event.currentTarget) { event.preventDefault(); onBlank(); }
+    const target = event.target as HTMLElement;
+    if (target === event.currentTarget || target.classList.contains("home-crumbs-blank")) { event.preventDefault(); onBlank(); }
   }}>
     {hidden > 0 && <span className="home-crumb">
       <button type="button" ref={moreRef} disabled={busy} aria-label="更多上级文件夹" title="更多上级文件夹"
@@ -92,16 +97,51 @@ function Breadcrumbs({ crumbs, busy, navigate, onBlank }: {
           });
         }}>…</button>
     </span>}
-    {crumbs.slice(hidden).map((crumb, index) => <span className="home-crumb" key={crumb.path}>
+    {crumbs.slice(hidden).map((crumb, index) => <span key={crumb.path}
+      className={crumb === crumbs[crumbs.length - 1] ? "home-crumb home-crumb-current" : "home-crumb"}>
       {(index > 0 || hidden > 0) && <UiIcon name="next" />}
       <button type="button" disabled={busy} aria-current={crumb === crumbs[crumbs.length - 1] ? "location" : undefined}
         onClick={() => navigate(crumb.path)}>{crumb.label}</button>
     </span>)}
+    <span className="home-crumbs-blank" />
     {menu && <FolderContextMenu state={menu} label="上级文件夹" close={(restore) => {
       if (restore) moreRef.current?.focus();
       setMenu(null);
     }} />}
   </span>;
+}
+
+const LAYOUT_KEY = "reader.new-tab-layout.v1";
+interface ListLayout { sidebar: number; columns: [number, number, number, number] }
+const DEFAULT_LAYOUT: ListLayout = { sidebar: 228, columns: [320, 150, 120, 80] };
+
+/** Sidebar and column widths are a per-viewer convenience kept in storage. */
+function loadLayout(): ListLayout {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(LAYOUT_KEY) ?? "null") as ListLayout | null;
+    if (value && typeof value.sidebar === "number" && Array.isArray(value.columns) && value.columns.length === 4
+      && value.columns.every((width) => typeof width === "number")) return value;
+  } catch { /* fall back to defaults */ }
+  return DEFAULT_LAYOUT;
+}
+function saveLayout(layout: ListLayout) {
+  try { window.localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { /* ignore */ }
+}
+
+/** List header: each label cell has a drag handle on its right edge. */
+function ListHeading({ labels, layout, setColumn }: {
+  labels: string[];
+  layout: ListLayout;
+  setColumn: (index: number, width: number) => void;
+}) {
+  return <div className="new-tab-list-heading">
+    <span aria-hidden="true" />
+    {labels.map((label, index) => <span key={label}>
+      <span className="new-tab-heading-label">{label}</span>
+      <ColumnResizer label={`调整“${label}”列宽`} width={layout.columns[index]} min={index === 0 ? 120 : 60}
+        onWidthChange={(width) => setColumn(index, width)} />
+    </span>)}
+  </div>;
 }
 
 export function NewTabPage({ active = true }: { active?: boolean }) {
@@ -114,6 +154,15 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   const [locations, setLocations] = useState<LocalLocations>({ roots: [], shortcuts: [], cloud: [] });
   const [directory, setDirectory] = useState<LocalDirectory | null>(null);
   const [address, setAddress] = useState("");
+  const [layout, setLayout] = useState<ListLayout>(loadLayout);
+  const updateLayout = useCallback((next: (current: ListLayout) => ListLayout) => {
+    setLayout((current) => { const value = next(current); saveLayout(value); return value; });
+  }, []);
+  const setColumn = useCallback((index: number, width: number) => updateLayout((current) => {
+    const columns = [...current.columns] as ListLayout["columns"];
+    columns[index] = width;
+    return { ...current, columns };
+  }), [updateLayout]);
   const [editingAddress, setEditingAddress] = useState(false);
   const addressInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -301,7 +350,10 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     </button>
   );
 
-  return <main className="new-tab-page">
+  return <main className="new-tab-page" style={{
+    gridTemplateColumns: `${layout.sidebar}px minmax(0, 1fr)`,
+    ["--list-columns" as string]: `16px ${layout.columns.map((width) => `${width}px`).join(" ")}`,
+  }}>
     <div className="home-navigation" aria-label="文件夹导航">
       <button type="button" className="home-icon-button" aria-label="后退" disabled={busy || !!newFileFolder || history.index === 0} onClick={() => moveHistory(-1)}><UiIcon name="back" /></button>
       <button type="button" className="home-icon-button" aria-label="前进" disabled={busy || !!newFileFolder || history.index === history.paths.length - 1} onClick={() => moveHistory(1)}><UiIcon name="forward" /></button>
@@ -329,6 +381,8 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
       </label>
     </div>
     <aside className="home-sidebar" aria-label="本地文件导航">
+      <SidebarResizer kind="home" label="调整侧栏宽度" width={layout.sidebar}
+        onWidthChange={(sidebar) => updateLayout((current) => ({ ...current, sidebar }))} />
       <nav>
         {navItem({ name: "主页", path: "home" }, "home", false, false)}
         {!!locations.cloud.length && <div className="home-cloud-links" aria-label="同步文件夹">
@@ -356,7 +410,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
         }}>
         {location === "home" ? <section className="new-tab-recent" aria-label="最近打开">
           <header><h2><UiIcon name="clock" />最近打开</h2><span>{visibleFiles.length} 个文件</span></header>
-          <div className="new-tab-list-heading" aria-hidden="true"><span /><span>名称</span><span>打开时间</span><span>类型</span><span>大小</span></div>
+          <ListHeading labels={["名称", "打开时间", "类型", "大小"]} layout={layout} setColumn={setColumn} />
           {visibleFiles.length ? <div className="new-tab-recent-list">{visibleFiles.map((file) => (
             <button type="button" className="new-tab-recent-item" key={file.path} title={file.path} disabled={busy} onClick={() => void reopen(file.path)}>
               <span className="new-tab-recent-icon"><DocumentTypeIcon type={file.doc_type} /></span>
@@ -375,7 +429,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
           ))}</div>
           {!locations.roots.length && !error && <p className="home-empty-note">暂无可用本地磁盘，请刷新或输入文件夹路径</p>}
         </section> : <section aria-label="当前文件夹">
-          <div className="new-tab-list-heading" aria-hidden="true"><span /><span>名称</span><span>修改日期</span><span>类型</span><span>大小</span></div>
+          <ListHeading labels={["名称", "修改日期", "类型", "大小"]} layout={layout} setColumn={setColumn} />
           {loading ? <p className="home-empty-note" role="status">正在读取文件夹…</p> : <div>{entries.map((entry) => (
             <button type="button" className="new-tab-recent-item home-directory-entry" key={entry.path} title={entry.path} disabled={busy}
               onClick={() => entry.is_dir ? navigate(entry.path) : void reopen(entry.path)}

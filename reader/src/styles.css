@@ -617,13 +617,16 @@ html.tab-drag-preview-document #root {
 /* The navigation row spans the page like File Explorer's, so the white
    active tab runs straight into it; sidebar and content sit below. */
 .home-workspace { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.home-sidebar { grid-column: 1; grid-row: 2; }
-.home-navigation { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 8px 12px; background: var(--bg-elev); border-bottom: 1px solid var(--home-sidebar-line); }
+.home-sidebar { grid-column: 1; grid-row: 2; position: relative; overflow-x: hidden; }
+.home-navigation { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; flex-wrap: nowrap; gap: 2px; padding: 8px 12px; min-width: 0; background: var(--bg-elev); border-bottom: 1px solid var(--home-sidebar-line); }
 .home-address { position: relative; }
 .home-address input { position: relative; z-index: 0; }
 .home-address:not(.home-address-editing) input { opacity: 0; }
-.home-crumbs { position: absolute; z-index: 1; inset: 0 8px 0 36px; display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; cursor: text; }
+.home-crumbs { position: absolute; z-index: 1; inset: 0 0 0 36px; display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; cursor: text; }
 .home-crumb { display: flex; flex: 0 0 auto; align-items: center; }
+.home-crumbs-tight .home-crumb-current { flex-shrink: 1; min-width: 0; }
+/* Always leave some empty space to click for typing a path. */
+.home-crumbs-blank { flex: 1 0 32px; align-self: stretch; }
 .home-crumb > .ui-icon { flex-shrink: 0; width: 14px; height: 14px; margin: 0 1px; color: var(--text-faint); }
 .home-crumb button { min-width: 0; max-width: 240px; height: 26px; padding: 0 6px; border: 0; border-radius: 4px; background: transparent; color: var(--text-dim); font: inherit; overflow: hidden; text-overflow: ellipsis; cursor: default; }
 .home-crumb button:hover:not(:disabled) { background: rgb(28 28 26 / 6%); color: var(--text); }
@@ -633,8 +636,8 @@ html.tab-drag-preview-document #root {
 .home-icon-button .ui-icon { width: 17px; height: 17px; }
 .home-icon-button:hover:not(:disabled) { background: var(--home-hover); }
 .home-address, .home-search { display: flex; align-items: center; gap: 8px; min-width: 0; height: 34px; padding: 0 12px; background: var(--home-field); border: 1px solid transparent; border-radius: var(--radius-control); transition: background-color 120ms ease, border-color 120ms ease; }
-.home-address { flex: 1 1 170px; margin-left: 8px; }
-.home-search { flex: 0 1 260px; margin-left: 8px; padding-right: 2px; }
+.home-address { flex: 1 1 170px; min-width: 120px; margin-left: 8px; }
+.home-search { flex: 0 1 260px; min-width: 120px; margin-left: 8px; padding-right: 2px; }
 .home-search .home-icon-button { width: 28px; height: 28px; padding: 6px; border-radius: 4px; }
 .home-address:hover, .home-search:hover { background: var(--home-field-hover); }
 .home-address > .ui-icon, .home-search > .ui-icon { flex-shrink: 0; width: 16px; height: 16px; color: var(--home-field-icon); }
@@ -649,13 +652,18 @@ html.tab-drag-preview-document #root {
 .home-body h2 .ui-icon { width: 16px; height: 16px; color: var(--text-dim); }
 .new-tab-recent > header { display: flex; align-items: baseline; gap: 8px; margin: 4px 8px 10px; }
 .new-tab-recent > header > span { flex-shrink: 0; color: var(--text-faint); font-size: 12px; }
-.new-tab-page { --list-columns: 16px minmax(180px, 420px) 150px 120px 80px; }
 .new-tab-list-heading, .new-tab-recent-item { display: grid; grid-template-columns: var(--list-columns); justify-content: start; align-items: center; column-gap: 0; }
 .new-tab-list-heading { height: 28px; padding: 0 8px; color: var(--text-faint); font-size: 12px; }
-.new-tab-list-heading > span { height: 100%; display: flex; align-items: center; padding: 0 10px; border-right: 1px solid var(--border); }
+.new-tab-list-heading > span { position: relative; height: 100%; display: flex; align-items: center; min-width: 0; padding: 0 10px; border-right: 1px solid var(--border); }
+.new-tab-heading-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .new-tab-list-heading > span:first-child { padding: 0; border-right: 0; }
 .new-tab-list-heading > span:nth-child(2) { padding-left: 10px; }
 .new-tab-list-heading > span:last-child { justify-content: flex-end; }
+/* Column and sidebar drag handles share the toolbar's resize affordance. */
+.column-resizer { position: absolute; z-index: 1; top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; touch-action: none; outline: none; }
+.column-resizer:hover, .column-resizer:focus-visible { background: linear-gradient(var(--accent), var(--accent)) center / 2px 100% no-repeat; }
+body.column-resizing, body.column-resizing * { cursor: col-resize !important; user-select: none !important; }
+.home-body section { min-width: max-content; }
 .new-tab-recent-item { width: 100%; min-width: 0; height: 30px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease; }
 .new-tab-recent-item:hover:not(:disabled) { background: var(--home-hover); }
 .new-tab-recent-item > span { min-width: 0; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -686,27 +694,6 @@ html.tab-drag-preview-document #root {
 .new-markdown-dialog label { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; font-weight: 500; }
 .new-markdown-dialog input { width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--input-line); border-radius: var(--radius-control); background: var(--bg-elev); color: var(--text); font: inherit; font-weight: 400; }
 .new-markdown-dialog input:focus { border-color: var(--accent); outline: 1px solid var(--accent); }
-@media (max-width: 1000px) {
-  .new-tab-page { grid-template-columns: 196px minmax(0, 1fr); }
-  .home-search { flex: 1 1 100%; margin: 6px 0 0; }
-  .home-body { padding: 16px 20px 24px; }
-}
-@media (max-width: 680px) {
-  /* Narrow windows keep navigation on the left as an icon rail; names stay available as tooltips. */
-  .new-tab-page { grid-template-columns: 52px minmax(0, 1fr); }
-  .home-sidebar { padding: 8px 6px; }
-  .home-nav-item { justify-content: center; gap: 0; padding: 8px; }
-  .home-nav-name, .home-pin { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .home-nav-item[aria-current]::before { top: 8px; bottom: 8px; }
-  .home-cloud-links, .home-folder-links, .home-drive-links { margin-top: 6px; padding-top: 6px; }
-  .home-navigation { padding: 8px 10px; }
-  .home-body { padding: 12px 10px 20px; }
-}
-@media (max-width: 420px) {
-  .home-address { flex-basis: 100%; margin: 6px 0 0; }
-  .new-tab-page { --list-columns: 16px minmax(0, 1fr) 0 0 60px; }
-  :is(.new-tab-list-heading, .new-tab-recent-item) > :is(:nth-child(3), :nth-child(4)) { visibility: hidden; padding: 0; border: 0; }
-}
 
 /* ---- PDF viewer ---- */
 
@@ -1317,7 +1304,8 @@ html.tab-drag-preview-document #root {
 }
 
 .pdf-sidebar-resizer,
-.md-sidebar-resizer {
+.md-sidebar-resizer,
+.home-sidebar-resizer {
   position: absolute;
   z-index: 5;
   top: 0;
@@ -1330,7 +1318,8 @@ html.tab-drag-preview-document #root {
 }
 
 .pdf-sidebar-resizer::after,
-.md-sidebar-resizer::after {
+.md-sidebar-resizer::after,
+.home-sidebar-resizer::after {
   content: "";
   position: absolute;
   top: 0;
@@ -1345,7 +1334,10 @@ html.tab-drag-preview-document #root {
 .pdf-sidebar-resizing .pdf-sidebar-resizer::after,
 .md-sidebar-resizer:hover::after,
 .md-sidebar-resizer:focus-visible::after,
-.md-sidebar-resizing .md-sidebar-resizer::after {
+.md-sidebar-resizing .md-sidebar-resizer::after,
+.home-sidebar-resizer:hover::after,
+.home-sidebar-resizer:focus-visible::after,
+.home-sidebar-resizing .home-sidebar-resizer::after {
   width: 2px;
   background: var(--accent);
 }
@@ -1353,7 +1345,9 @@ html.tab-drag-preview-document #root {
 body.pdf-sidebar-resizing,
 body.pdf-sidebar-resizing *,
 body.md-sidebar-resizing,
-body.md-sidebar-resizing * {
+body.md-sidebar-resizing *,
+body.home-sidebar-resizing,
+body.home-sidebar-resizing * {
   cursor: col-resize !important;
   user-select: none !important;
 }
@@ -2170,8 +2164,4 @@ body.md-sidebar-resizing * {
   }
 }
 
-@media (max-width: 600px) {
-  .new-tab-page { --list-columns: 16px minmax(0, 1fr) 130px 0 64px; }
-  :is(.new-tab-list-heading, .new-tab-recent-item) > :nth-child(4) { visibility: hidden; padding: 0; border: 0; }
-}
 
