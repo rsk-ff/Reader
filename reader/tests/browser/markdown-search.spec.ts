@@ -71,6 +71,14 @@ test("toolbar never scrolls: tools that do not fit move into the more menu", asy
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
 
+  // In a very narrow window the panel still opens fully inside it.
+  await page.setViewportSize({ width: 395, height: 760 });
+  await more.click();
+  const box = (await panel.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(395);
+  await page.keyboard.press("Escape");
+
   await page.setViewportSize({ width: 1100, height: 760 });
   await expect(more).toHaveCount(0);
 });

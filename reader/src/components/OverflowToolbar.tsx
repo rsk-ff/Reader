@@ -54,7 +54,7 @@ export function OverflowToolbar({ className, groups, hideOrder }: {
   const [menuOpen, setMenuOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelAt, setPanelAt] = useState<{ right: number; top: number } | null>(null);
+  const [panelAt, setPanelAt] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => {
     const row = rowRef.current;
@@ -87,7 +87,7 @@ export function OverflowToolbar({ className, groups, hideOrder }: {
   useEffect(() => {
     if (!menuOpen) { setPanelAt(null); return; }
     const button = moreRef.current!.getBoundingClientRect();
-    setPanelAt({ right: Math.max(8, innerWidth - button.right), top: button.bottom + 6 });
+    setPanelAt({ left: button.left, top: button.bottom + 6 });
     const outside = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!panelRef.current?.contains(target) && !moreRef.current?.contains(target)) setMenuOpen(false);
@@ -105,6 +105,15 @@ export function OverflowToolbar({ className, groups, hideOrder }: {
       window.removeEventListener("blur", dismiss);
     };
   }, [menuOpen, rowWidth]);
+
+  // Keep the panel inside the window: it opens under the button and shifts
+  // left only as far as needed to fit.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !panelAt) return;
+    const left = Math.max(8, Math.min(panelAt.left, innerWidth - panel.offsetWidth - 8));
+    if (Math.abs(left - panelAt.left) > 0.5) setPanelAt({ ...panelAt, left });
+  }, [panelAt]);
 
   const firstHidden = groups.findIndex((group) => hidden.has(group.key));
   const more = (
@@ -129,7 +138,7 @@ export function OverflowToolbar({ className, groups, hideOrder }: {
       ])}
       {menuOpen && panelAt && createPortal(
         <div className="toolbar-overflow-panel" ref={panelRef} role="group" aria-label="更多工具"
-          style={{ right: panelAt.right, top: panelAt.top }}>
+          style={{ left: panelAt.left, top: panelAt.top }}>
           {groups.filter((group) => hidden.has(group.key)).map((group) => (
             <div key={group.key} className="toolbar-overflow-group">{group.node}</div>
           ))}

@@ -798,6 +798,8 @@ body.column-resizing, body.column-resizing * { cursor: col-resize !important; us
   flex-direction: column;
   gap: 4px;
   max-width: min(420px, calc(100vw - 16px));
+  overflow: auto;
+  max-height: calc(100vh - 60px);
   padding: 6px;
   border-radius: 8px;
   background: var(--bg-elev);
