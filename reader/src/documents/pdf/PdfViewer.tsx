@@ -62,7 +62,44 @@ function pdfAssetUrl(directory: string): string {
   return new URL(`${import.meta.env.BASE_URL}pdfjs/${directory}/`, window.location.href).href;
 }
 
+/**
+ * Print the PDF itself: the loaded bytes (the working copy, so unsaved
+ * annotations are included) go to the WebView's built-in PDF engine, which
+ * prints vector pages without rasterising the document first. Falls back to
+ * page images if the engine cannot print from a frame.
+ */
 async function printPdfDocument(pdfDocument: PDFDocumentProxy): Promise<void> {
+  const data = await pdfDocument.getData();
+  const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+  const frame = window.document.createElement("iframe");
+  frame.className = "pdf-print-frame";
+  frame.setAttribute("aria-hidden", "true");
+  const cleanup = () => {
+    frame.remove();
+    URL.revokeObjectURL(url);
+  };
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(() => reject(new Error("PDF print frame did not load")), 15_000);
+      frame.addEventListener("load", () => { window.clearTimeout(timer); resolve(); }, { once: true });
+      frame.src = url;
+      window.document.body.append(frame);
+    });
+    const printWindow = frame.contentWindow;
+    if (!printWindow) throw new Error("print frame is unavailable");
+    printWindow.focus();
+    printWindow.print();
+    // The PDF engine owns the frame; afterprint does not reach this page.
+    window.setTimeout(cleanup, 120_000);
+  } catch (error) {
+    cleanup();
+    console.warn("native PDF print failed, printing page images", error);
+    await printPdfAsImages(pdfDocument);
+  }
+}
+
+/** Fallback: rasterise every page and print the images. */
+async function printPdfAsImages(pdfDocument: PDFDocumentProxy): Promise<void> {
   const frame = window.document.createElement("iframe");
   frame.className = "pdf-print-frame";
   frame.setAttribute("aria-hidden", "true");
