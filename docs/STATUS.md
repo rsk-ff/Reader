@@ -23,7 +23,7 @@
 
 ## Open follow-ups
 
-- 界面改版后续：深色模式；正式软件 logo（窗口/任务栏与文件关联图标仍是旧母版 `shell-reader.svg` 等，定稿后重新生成原生图标）。
+- 界面改版后续：自制打印窗口（可考虑 winprint + 现有缩略图做预览，Windows 系统对话框方案已被否决）；深色模式；正式软件 logo（窗口/任务栏与文件关联图标仍是旧母版 `shell-reader.svg` 等，定稿后重新生成原生图标）。
 - 批注 ID 仍存放在作者字段；pdfium-render 0.9 不公开 `/NM` 写入，需另行处理。
 
 ## Implemented
