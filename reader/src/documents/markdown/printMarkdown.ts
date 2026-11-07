@@ -2,21 +2,40 @@ import { Crepe } from "@milkdown/crepe";
 import { rewriteImageSources } from "./markdownImages";
 import { getHTML } from "@milkdown/kit/utils";
 
+/* Printed from the main document: in print media only the print copy shows. */
 const printStyles = `
-  @page { margin: 18mm; }
-  html, body { margin: 0; height: auto; overflow: visible; background: white; color: #222; user-select: text; }
-  body { font: 11pt/1.65 "Segoe UI", sans-serif; }
-  h1, h2, h3, h4, h5, h6 { line-height: 1.3; break-after: avoid; }
-  h1 { font-size: 24pt; } h2 { font-size: 19pt; } h3 { font-size: 15pt; }
-  h4, h5, h6 { font-size: 12pt; }
-  p, ul, ol, pre, blockquote, table { margin: 0 0 1em; }
-  img, svg { max-width: 100%; } img { height: auto; }
-  pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: #f5f5f5; }
-  code { font-family: Consolas, monospace; font-size: .9em; }
-  blockquote { margin-left: 0; padding-left: 16px; border-left: 2px solid #ccc; }
-  table { border-collapse: collapse; width: 100%; } th, td { border: 1px solid #ccc; padding: 6px 10px; }
-  a { color: inherit; text-decoration: underline; } .katex { font-size: 1.1em; }
+  #reader-print-root { display: none; }
+  @media print {
+    @page { margin: 18mm; }
+    html, body, #root { height: auto !important; overflow: visible !important; background: white !important; }
+    body > :not(#reader-print-root) { display: none !important; }
+    #reader-print-root { display: block !important; color: #222; user-select: text;
+      font: 11pt/1.65 "Segoe UI", "Noto Sans SC", sans-serif; }
+    #reader-print-root :is(h1, h2, h3, h4, h5, h6) { line-height: 1.3; break-after: avoid; }
+    #reader-print-root h1 { font-size: 24pt; } #reader-print-root h2 { font-size: 19pt; }
+    #reader-print-root h3 { font-size: 15pt; } #reader-print-root :is(h4, h5, h6) { font-size: 12pt; }
+    #reader-print-root :is(p, ul, ol, pre, blockquote, table) { margin: 0 0 1em; }
+    #reader-print-root :is(img, svg) { max-width: 100%; } #reader-print-root img { height: auto; }
+    #reader-print-root pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: #f5f5f5; }
+    #reader-print-root code { font-family: Consolas, monospace; font-size: .9em; }
+    #reader-print-root blockquote { margin-left: 0; padding-left: 16px; border-left: 2px solid #ccc; }
+    #reader-print-root table { border-collapse: collapse; width: 100%; }
+    #reader-print-root :is(th, td) { border: 1px solid #ccc; padding: 6px 10px; }
+    #reader-print-root a { color: inherit; text-decoration: underline; }
+    #reader-print-root .katex { font-size: 1.1em; }
+  }
 `;
+
+/** Show the Windows print dialog for this window, or the browser's outside Reader. */
+async function showPrintDialog(): Promise<void> {
+  const tauri = (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  if (!tauri) {
+    window.print();
+    return;
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("show_print_dialog");
+}
 
 /** Render a snapshot, including source edits, without touching the live editor. */
 export async function printMarkdown(markdown: string, title: string, documentPath?: string): Promise<void> {
@@ -44,49 +63,26 @@ export async function printMarkdown(markdown: string, title: string, documentPat
     try { await renderer.destroy(); } finally { source.remove(); }
   }
 
-  const frame = document.createElement("iframe");
-  frame.className = "markdown-print-frame";
-  frame.title = "Markdown 打印";
-  frame.setAttribute("aria-hidden", "true");
-  frame.style.cssText = "position:fixed;width:0;height:0;border:0;left:-100000px";
-  document.body.appendChild(frame);
+  // The previous print copy stays until now: the dialog prints after it closes.
+  document.getElementById("reader-print-root")?.remove();
+  const root = document.createElement("div");
+  root.id = "reader-print-root";
+  root.dataset.title = title;
+  root.setAttribute("aria-hidden", "true");
+  root.innerHTML = `<style>${printStyles}</style>${html}`;
+  document.body.appendChild(root);
+  await document.fonts.ready;
+  await Promise.all([...root.querySelectorAll("img")].map((image) => image.decode().catch(() => {})));
+
+  // The print job is named after the page title.
+  const previousTitle = document.title;
+  document.title = title;
+  const restoreTitle = () => { document.title = previousTitle; };
+  window.addEventListener("focus", restoreTitle, { once: true });
+  window.setTimeout(restoreTitle, 60_000);
   try {
-    const printWindow = frame.contentWindow;
-    const printDocument = frame.contentDocument;
-    if (!printWindow || !printDocument) throw new Error("无法创建打印页面");
-    printDocument.open();
-    printDocument.write("<!doctype html><html><head></head><body></body></html>");
-    printDocument.close();
-    printDocument.title = title;
-    // KaTeX and any local document fonts use the already loaded app stylesheet.
-    const base = printDocument.createElement("base");
-    base.href = document.baseURI;
-    printDocument.head.appendChild(base);
-    const stylesLoaded: Promise<unknown>[] = [];
-    document.querySelectorAll<HTMLLinkElement | HTMLStyleElement>("link[rel='stylesheet'], style")
-      .forEach((element) => {
-        const copy = element.cloneNode(true) as HTMLLinkElement | HTMLStyleElement;
-        if (copy instanceof HTMLLinkElement) stylesLoaded.push(new Promise<void>((resolve) => {
-          copy.onload = () => resolve();
-          copy.onerror = () => resolve();
-        }));
-        printDocument.head.appendChild(copy);
-      });
-    const style = printDocument.createElement("style");
-    style.textContent = printStyles;
-    printDocument.head.appendChild(style);
-    printDocument.body.innerHTML = html;
-    await Promise.all(stylesLoaded);
-    await printDocument.fonts.ready;
-    await Promise.all([...printDocument.images].map((image) => image.decode().catch(() => {})));
-    printWindow.addEventListener("afterprint", () => {
-      frame.remove();
-      if (focused?.isConnected) focused.focus({ preventScroll: true });
-    }, { once: true });
-    printWindow.focus();
-    printWindow.print();
-  } catch (error) {
-    frame.remove();
-    throw error;
+    await showPrintDialog();
+  } finally {
+    if (focused?.isConnected) focused.focus({ preventScroll: true });
   }
 }

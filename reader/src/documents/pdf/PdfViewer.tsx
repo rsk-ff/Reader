@@ -660,10 +660,19 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
 
   const printDocument = useCallback(() => {
     if (!pdfDocument) return;
-    void printPdfDocument(pdfDocument).catch((error: unknown) => {
+    // In Reader the PDF engine prints the current file (the working copy, so
+    // unsaved annotations are included) behind the Windows print dialog.
+    const inReader = Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+    const job = inReader
+      ? invoke("print_pdf", { url: pdfFileUrl(path, `print${Date.now()}`) }).catch((error: unknown) => {
+          console.warn("Windows print dialog unavailable, using the PDF engine's", error);
+          return printPdfDocument(pdfDocument);
+        })
+      : printPdfDocument(pdfDocument);
+    void job.catch((error: unknown) => {
       window.alert(`Print failed: ${String(error)}`);
     });
-  }, [pdfDocument]);
+  }, [pdfDocument, path]);
 
   const activateOutline = useCallback((node: OutlineNode) => {
     if (node.dest) {

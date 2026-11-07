@@ -24,3 +24,9 @@ pdfium-render = { version = "0.9", features = ["thread_safe"] }
 http = "1"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "~2.5"
+
+# Windows print dialog (ICoreWebView2_16::ShowPrintUI). Same versions Tauri
+# already links; no new code is downloaded.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows-core = "0.61"
