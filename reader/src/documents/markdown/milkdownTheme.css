@@ -5,7 +5,7 @@
   justify-content: center;
   width: 100%;
   min-height: 100%;
-  padding: 0 24px 96px;
+  padding: 0 clamp(0px, 2vw, 24px) 96px;
 }
 
 .milkdown-root > .milkdown {
@@ -49,9 +49,10 @@
   border-radius: var(--radius-control);
 }
 
+/* Margins shrink smoothly with the window instead of jumping at a breakpoint. */
 .milkdown-root > .milkdown > .ProseMirror {
   min-height: 100%;
-  padding: 48px 60px;
+  padding: clamp(24px, 4vw, 48px) clamp(24px, 5vw, 60px);
 }
 
 /* Only H1–H3 have a size gradient; preserve H4–H6 as semantic headings. */
@@ -104,16 +105,6 @@
   transform: translateY(-0.2em);
 }
 
-@media (max-width: 767px) {
-  .milkdown-root {
-    padding-right: 0;
-    padding-left: 0;
-  }
-
-  .milkdown-root > .milkdown > .ProseMirror {
-    padding: 24px 40px 72px;
-  }
-}
 
 /* Compact quote inset; the rule is a straight 3px edge. */
 .milkdown-root .ProseMirror blockquote { padding-left: 15px; }
