@@ -226,8 +226,45 @@ test("context menu stays in the viewport and supports keyboard and dismissal", a
   await folder.focus();
   await page.keyboard.press("Shift+F10");
   await expect(page.getByRole("menu")).toBeVisible();
-  await page.getByRole("textbox", { name: "文件夹路径" }).click();
+  // Empty space in the breadcrumb bar switches it to typing.
+  const crumbs = (await page.locator(".home-crumbs").boundingBox())!;
+  await page.mouse.click(crumbs.x + crumbs.width - 4, crumbs.y + crumbs.height / 2);
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toBeFocused();
   await expect(page.getByRole("menu")).toHaveCount(0);
+});
+
+test("address bar shows clickable folder segments like File Explorer", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  await goFolder(page, "C:/Notes");
+  const crumbs = page.locator(".home-crumb button");
+  await expect(crumbs).toHaveText(["此电脑", "C:", "Notes"]);
+  await expect(crumbs.last()).toHaveAttribute("aria-current", "location");
+  await crumbs.nth(1).click();
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/");
+  await page.locator(".home-crumb button").first().click();
+  await expect(page.locator(".home-drive")).not.toHaveCount(0);
+  // A path too long for the bar collapses its leading segments into "…".
+  await page.setViewportSize({ width: 520, height: 600 });
+  await goFolder(page, "D:/Work");
+  const address = page.getByRole("textbox", { name: "文件夹路径" });
+  await address.fill("C:/Notes/a very long folder name for the address bar/another long nested folder/deep");
+  await address.press("Enter");
+  const more = page.getByRole("button", { name: "更多上级文件夹", exact: true });
+  await expect(more).toBeVisible();
+  const bar = page.locator(".home-crumbs");
+  expect(await bar.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await expect(page.locator(".home-crumb button").last()).toHaveText("deep");
+  await more.click();
+  await expect(page.getByRole("menuitem", { name: "此电脑", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await goFolder(page, "C:/Notes");
+  await expect(more).toHaveCount(0);
+  // The navigation row spans the page above the sidebar, joining the active tab.
+  const nav = (await page.locator(".home-navigation").boundingBox())!;
+  const sidebar = (await page.locator(".home-sidebar").boundingBox())!;
+  expect(nav.x).toBe(sidebar.x);
+  expect(sidebar.y).toBeGreaterThanOrEqual(nav.y + nav.height - 1);
 });
 
 test("invalid paths recover and delayed results do not replace or count the current folder", async ({ page }) => {
@@ -288,22 +325,24 @@ for (const width of [330, 620, 1100]) {
     await page.goto("/tests/browser/new-tab.html");
     const row = page.locator(".new-tab-recent-item").first();
     await expect(row).toBeVisible();
-    await expect(page.locator(".new-tab-list-heading")).toHaveText("文档打开时间大小");
-    await expect(row.locator(".new-tab-recent-time")).toHaveText("10/7 12:35");
+    await expect(page.locator(".new-tab-list-heading")).toHaveText("名称打开时间类型大小");
+    await expect(row.locator(".new-tab-recent-time")).toHaveText(/^\d{4}\/10\/7 12:35$/);
     await expect(row.locator(".new-tab-recent-size")).toHaveText("12.1 KB");
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-time")).toHaveText("—");
     await expect(page.locator(".new-tab-recent-item").last().locator(".new-tab-recent-size")).toHaveText("—");
-    expect((await row.boundingBox())!.height).toBeLessThanOrEqual(49);
-    const recentIcon = (await row.locator(".new-tab-recent-icon img").boundingBox())!;
-    expect(recentIcon.width).toBe(32);
-    expect(recentIcon.height).toBe(32);
+    expect((await row.boundingBox())!.height).toBe(30);
+    // One line per file: icon then name, no secondary line.
+    await expect(row.locator(".new-tab-recent-copy small")).toHaveCount(0);
+    const recentIcon = (await row.locator(".new-tab-recent-icon svg").boundingBox())!;
+    expect(recentIcon.width).toBe(16);
+    expect(recentIcon.height).toBe(16);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     const columns = await row.evaluate((element) => Array.from(element.children).map((child) => {
       const rect = child.getBoundingClientRect();
       return { left: rect.left, right: rect.right };
     }));
-    for (let index = 1; index < columns.length; index++) expect(columns[index].left).toBeGreaterThan(columns[index - 1].right);
+    for (let index = 1; index < columns.length; index++) expect(columns[index].left).toBeGreaterThanOrEqual(columns[index - 1].right - 0.5);
     expect(errors).toEqual([]);
   });
 }
@@ -319,72 +358,80 @@ test("all recent files beyond eight remain reachable by scrolling", async ({ pag
   await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/old-38.pdf");
 });
 
-test("title bar, home and file entries decode the shared native SVG masters", async ({ page }) => {
+test("tabs and file entries draw Lucide file glyphs in the file type colour", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
-  await expect(page.locator(".titlebar-icon img")).toBeVisible();
-  const appSources = await page.locator(".titlebar-icon img, .new-tab-hero img").evaluateAll((images) =>
-    images.map((image) => (image as HTMLImageElement).src));
-  expect(appSources).toHaveLength(1);
-
-  const colors: number[][] = [];
-  for (const type of ["pdf", "markdown"]) {
-    const sources = await page.locator(`.tab-icon-${type} img`).evaluateAll((images) =>
-      images.map((image) => (image as HTMLImageElement).src));
-    expect(sources).toHaveLength(2); // Document tab and recent-file entry.
-    expect(sources[0]).toBe(sources[1]);
-    const fills = await page.evaluate(async (src) => {
-      const image = new Image();
-      image.src = src;
-      await image.decode();
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = image.naturalWidth;
-      const context = canvas.getContext("2d")!;
-      context.drawImage(image, 0, 0);
-      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      const counts = new Map<string, number>();
-      let white = 0;
-      let clipped = 0;
-      for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-          const i = (y * canvas.width + x) * 4;
-          if (pixels[i + 3] !== 0 && (x < 2 || y < 2 || x >= canvas.width - 2 || y >= canvas.height - 2)) clipped++;
-          if (pixels[i + 3] !== 255) continue;
-          const rgb = Array.from(pixels.slice(i, i + 3));
-          if (rgb.every((value) => value === 255)) white++;
-          else {
-            const key = rgb.join(",");
-            counts.set(key, (counts.get(key) ?? 0) + 1);
-          }
-        }
-      }
-      const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-      return { white, clipped, color: dominant[0].split(",").map(Number), colored: dominant[1] };
-    }, sources[0]);
-    // Actual rendered cutouts must be opaque white, including on a dark desktop.
-    expect(fills.white).toBeGreaterThan(50);
-    expect(fills.colored).toBeGreaterThan(1000);
-    expect(fills.clipped).toBe(0);
-    expect(fills.color).toEqual(type === "pdf" ? [180, 92, 92] : [92, 131, 180]);
-    colors.push(fills.color);
-    const tabIcon = (await page.locator(`.tab .tab-icon-${type} img`).boundingBox())!;
-    expect(tabIcon.width).toBe(24);
-    expect(tabIcon.height).toBe(24);
+  // The title bar carries no application icon; tabs start at the left edge.
+  await expect(page.locator(".titlebar-icon, .new-tab-hero img")).toHaveCount(0);
+  const firstTab = (await page.locator(".tab").first().boundingBox())!;
+  expect(firstTab.x).toBeLessThanOrEqual(8);
+  await expect(page.locator(".tab-icon img")).toHaveCount(0);
+  for (const [type, band] of [["pdf", "rgb(196, 71, 60)"], ["markdown", "rgb(85, 85, 79)"]] as const) {
+    const glyphs = page.locator(`.tab-icon-${type} svg`);
+    expect(await glyphs.count()).toBeGreaterThanOrEqual(2); // Document tab and recent-file entry.
+    const style = await glyphs.first().evaluate((svg) => ({
+      stroke: svg.getAttribute("stroke-width"),
+      band: getComputedStyle(svg.querySelector(".file-band")!).fill,
+    }));
+    expect(style).toEqual({ stroke: "1.6", band });
+    const tabIcon = (await page.locator(`.tab .tab-icon-${type} svg`).boundingBox())!;
+    expect(tabIcon.width).toBe(16);
   }
-  const hsl = colors.map((rgb) => {
-    const max = Math.max(...rgb) / 255;
-    const min = Math.min(...rgb) / 255;
-    const lightness = (max + min) / 2;
-    return { lightness, saturation: (max - min) / (1 - Math.abs(2 * lightness - 1)) };
-  });
-  expect(hsl[0].saturation).toBeCloseTo(hsl[1].saturation, 8);
-  expect(hsl[0].lightness).toBeCloseTo(hsl[1].lightness, 8);
-  const decoded = await page.locator(".titlebar-icon img, .new-tab-hero img, .tab-icon img")
-    .evaluateAll(async (images) => Promise.all(images.map(async (element) => {
-      const image = element as HTMLImageElement;
-      try { await image.decode(); return image.naturalWidth === 128 && image.naturalHeight === 128; }
-      catch { return false; }
-    })));
-  expect(decoded).toEqual(Array(5).fill(true));
-  expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(36);
+  expect((await page.locator(".window-titlebar").boundingBox())!.height).toBe(38);
   expect((await page.locator(".winctl").first().boundingBox())!.width).toBe(46);
+});
+
+test("title bar keeps a full-height drag region and tabs reach the top edge", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  const bar = (await page.locator(".window-titlebar").boundingBox())!;
+  const spacer = (await page.locator(".tabstrip-spacer").boundingBox())!;
+  expect(spacer.height).toBe(bar.height);
+  expect(spacer.width).toBeGreaterThan(40);
+
+  // The topmost pixel row above a tab or the add button still hits it.
+  for (const selector of [".tab", ".tab-add"]) {
+    const box = (await page.locator(selector).first().boundingBox())!;
+    expect(box.y).toBeGreaterThan(bar.y);
+    const hit = await page.evaluate(([x, y, sel]) => {
+      const element = document.elementFromPoint(x as number, y as number);
+      return element?.closest(sel as string) !== null;
+    }, [box.x + box.width / 2, bar.y, selector]);
+    expect(hit, selector).toBe(true);
+  }
+});
+
+test("narrow windows keep the layout, and the sidebar and columns can be dragged wider", async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 700 });
+  await page.goto("/tests/browser/new-tab.html");
+  // No icon rail and no wrapped navigation row in a narrow window.
+  await expect(page.locator(".home-nav-name").first()).toBeVisible();
+  const nav = (await page.locator(".home-navigation").boundingBox())!;
+  expect(nav.height).toBeLessThan(60);
+  await page.setViewportSize({ width: 1100, height: 760 });
+
+  const sidebar = page.locator(".home-sidebar");
+  const before = (await sidebar.boundingBox())!.width;
+  const handle = (await page.getByRole("separator", { name: "调整侧栏宽度" }).boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2 + 60, handle.y + 100);
+  await page.mouse.up();
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(before + 60, 0);
+  // Dragging far left stops at the minimum instead of collapsing.
+  await page.getByRole("separator", { name: "调整侧栏宽度" }).focus();
+  await page.keyboard.press("Home");
+  await expect(sidebar).toBeVisible();
+  expect((await sidebar.boundingBox())!.width).toBe(168);
+
+  const name = page.locator(".new-tab-list-heading > span").nth(1);
+  const nameBefore = (await name.boundingBox())!.width;
+  const column = (await page.getByRole("separator", { name: "调整“名称”列宽" }).boundingBox())!;
+  await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(column.x + column.width / 2 + 80, column.y + column.height / 2);
+  await page.mouse.up();
+  await expect.poll(async () => (await name.boundingBox())!.width).toBeCloseTo(nameBefore + 80, 0);
+  // Widths are remembered.
+  await page.reload();
+  await expect.poll(async () => (await page.locator(".new-tab-list-heading > span").nth(1).boundingBox())!.width)
+    .toBeCloseTo(nameBefore + 80, 0);
 });

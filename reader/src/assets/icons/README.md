@@ -1,6 +1,6 @@
 # Icon sources
 
-Toolbar SVG artwork comes from [Bootstrap Icons 1.13.1](https://github.com/twbs/icons/tree/v1.13.1/icons), used under the adjacent [MIT license](LICENSE). The application mark comes from Microsoft Fluent Emoji under [its MIT license](LICENSE-fluent-emoji). File artwork uses the user-selected Material Icon Theme PDF and Material Design Icons Markdown. No icon font or runtime dependency is required.
+Interface icons come from [Lucide](https://lucide.dev) under the adjacent [ISC license](LICENSE-lucide); see Interface icons below. The application mark comes from Microsoft Fluent Emoji under [its MIT license](LICENSE-fluent-emoji). File artwork uses the user-selected Material Icon Theme PDF and Material Design Icons Markdown. No icon font or runtime dependency is required.
 
 ## Application UI and Windows shell
 
@@ -10,18 +10,18 @@ Toolbar SVG artwork comes from [Bootstrap Icons 1.13.1](https://github.com/twbs/
 - Both file masters use a 22×22 UI canvas, translating (1.4,1.4) and scaling the original 24-unit artwork by .8. Their longest visible dimension is 16 units; original aspect ratios are preserved, so MD remains horizontal. Tabs retain a 24px image canvas and recent rows 32px with unchanged row height. PDF #b45c5c and MD #5c83b4 share HSL saturation 36.97% and lightness 53.33%, following the user's request to match saturation. External margins remain transparent; internal white is opaque. Fixed-source hashes and adaptation notice are recorded in NOTICE-file-icons.
 - `shell-file.svg`: matching neutral paper for unknown file types, used only within the application.
 
-[`brandIcons.ts`](../../components/brandIcons.ts) is the shared application catalogue: title bar, home, document tabs, recent files, frontend drag previews and native preview windows all use these SVG masters. The HTML favicon also uses shell-reader.svg. Duplicate old entry points and rejected proposals were removed; their history remains in Git. Fluent, Bootstrap, Material Icon Theme, Pictogrammers, Apache license texts and the file-icon adaptation notice are bundled in `licenses/`. NSIS uses configured `.txt` names; the generated MSI retains the source basenames.
+[`brandIcons.ts`](../../components/brandIcons.ts) is the shared application catalogue: home, document tabs, recent files, frontend drag previews and native preview windows all use these SVG masters. The HTML favicon also uses shell-reader.svg. Duplicate old entry points and rejected proposals were removed; their history remains in Git. Fluent, Lucide, Material Icon Theme, Pictogrammers, Apache license texts and the file-icon adaptation notice are bundled in `licenses/`. NSIS uses configured `.txt` names; the generated MSI retains the source basenames.
 
 Run `pnpm --dir reader generate:file-icons` from the repository root. The generator reads shell-reader.svg, shell-pdf.svg and shell-markdown.svg and uses the existing Tauri converter to generate application PNG/ICO/ICNS resources and Windows file association ICOs. The UI imports exactly these masters, so future design changes must regenerate native resources too. Windows file ICO conversion crops only outer margins to the centered viewBox `2 2 18 18`; the longest artwork dimension occupies 16/18 of the frame, retaining the accepted shell size. This does not modify the artwork or the UI/tab canvas; application icon conversion is unchanged.
 
 The application ICO keeps every generated size and orders its 256px entry first: Tauri's Windows context decoder uses entry zero for the live window. All three ICOs retain 16/24/32/48/64/256px frames. File association ICO filenames remain unchanged.
 
-## Shared document tools
+## Interface icons
 
-Both rails use `document-tool-icon` SVG masks at 18px inside the same rail buttons. Masks inherit the control color. Always quote the CSS `url("...")`: Vite may inline SVG as a data URL containing single quotes, which make an unquoted CSS URL invalid.
+[`UiIcon`](../../components/UiIcon.tsx) draws every toolbar, sidebar and file-browser icon from
+[`lucideIcons.ts`](../../components/lucideIcons.ts): Lucide path data on a 24×24 grid with a 1.6px
+round stroke in `currentColor`. The data was exported as SVG from the Lucide set hosted by Streamline
+and converted once; there is no icon font or runtime dependency. To add an icon, append its Lucide
+path data under a new `UiIconName` key.
 
-Markdown uses `type`, `type-bold`, `type-italic`, `type-strikethrough`, `code`, `superscript`, `link-45deg`, `blockquote-left`, `list-ul`, `list-ol`, `list-check`, `code-square`, `calculator`, `table`, `image` and `hr`.
-
-PDF uses `cursor`, `highlighter`, `type-underline`, `type-strikethrough`, `sticky`, `type`, `pen`, `file-earmark-plus-before`, `file-earmark-plus-after` and `file-earmark-minus`.
-
-Most toolbar paths are unchanged Bootstrap artwork. Exceptions: `type-strikethrough.svg` is a locally redrawn compact S and horizontal stroke shared by both rails; `file-earmark-plus-before/after.svg` derive from the retained upstream `file-earmark-plus.svg`, placing the plus above/below the page center while retaining the normal folded corner.
+The title bar shows no application icon; the window and taskbar icon still use `shell-reader.svg`.

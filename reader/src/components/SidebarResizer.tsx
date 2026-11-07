@@ -6,13 +6,14 @@ export const SIDEBAR_MAX_WIDTH = 560;
 export const SIDEBAR_COLLAPSE_WIDTH = SIDEBAR_MIN_WIDTH * (1 - 0.7);
 
 interface SidebarResizerProps {
-  kind: "md" | "pdf";
+  kind: "md" | "pdf" | "home";
   label: string;
   width: number;
   preferredWidth?: number;
   maxWidth?: number;
   onWidthChange: (width: number) => void;
-  onCollapse: (restoreWidth: number) => void;
+  /** Omit to keep the sidebar open however far it is dragged. */
+  onCollapse?: (restoreWidth: number) => void;
 }
 
 /** Both viewers use the same drag threshold and pointer cleanup. */
@@ -44,7 +45,7 @@ export function SidebarResizer({ kind, label, width, preferredWidth = width,
         const drag = dragRef.current;
         if (!drag || drag.pointerId !== event.pointerId) return;
         const targetWidth = drag.startWidth + event.clientX - drag.startX;
-        if (targetWidth <= SIDEBAR_COLLAPSE_WIDTH) {
+        if (onCollapse && targetWidth <= SIDEBAR_COLLAPSE_WIDTH) {
           stopDragging();
           if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
           onCollapse(drag.restoreWidth);

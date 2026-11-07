@@ -120,19 +120,19 @@ export function UnsavedChangesDialog() {
         aria-labelledby="unsaved-dialog-title"
         aria-describedby="unsaved-dialog-description"
       >
-        <h2 id="unsaved-dialog-title">Save changes?</h2>
+        <h2 id="unsaved-dialog-title">保存更改？</h2>
         <p id="unsaved-dialog-description">
-          <strong>{request.title}</strong> has unsaved changes.
+          “{request.title}”有未保存的更改，不保存的话这些更改会丢失。
         </p>
         <div className="unsaved-dialog-actions">
           <button type="button" className="secondary" onClick={() => choose("discard")}>
-            Don&apos;t Save
+            不保存
           </button>
           <button type="button" className="secondary" onClick={() => choose("cancel")}>
-            Cancel
+            取消
           </button>
           <button type="button" className="primary" autoFocus onClick={() => choose("save")}>
-            Save
+            保存
           </button>
         </div>
       </section>

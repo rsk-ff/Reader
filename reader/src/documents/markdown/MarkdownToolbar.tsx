@@ -1,51 +1,133 @@
-import { UiIcon } from "../../components/UiIcon";
+import type { RefObject } from "react";
+import { UiIcon, type UiIconName } from "../../components/UiIcon";
 import { DocumentActions } from "../../components/DocumentActions";
+import { OverflowToolbar, type ToolbarGroup } from "../../components/OverflowToolbar";
+import { DocumentSearch, SidebarToggle } from "../../components/DocumentToolbarParts";
+import type { MarkdownFormat } from "./MilkdownCrepe";
 
 interface MarkdownToolbarProps {
-  mode: "wysiwyg" | "source";
   dirty: boolean;
   saving: boolean;
   printing: boolean;
-  onSwitch: (m: "wysiwyg" | "source") => void;
+  /** Formatting commands are available (rendered mode with a ready editor). */
+  formatEnabled: boolean;
+  onFormat: (format: MarkdownFormat) => void;
   onSave: () => void;
   onPrint: () => void;
   outlineVisible: boolean;
   onToggleOutline: () => void;
+  search: {
+    query: string;
+    count: number;
+    /** Index of the current match, meaningful when `count > 0`. */
+    current: number;
+    inputRef: RefObject<HTMLInputElement | null>;
+    onQuery: (query: string) => void;
+    onNav: (step: 1 | -1) => void;
+  };
 }
 
-export function MarkdownToolbar({ mode, dirty, saving, printing, onSwitch, onSave, onPrint, outlineVisible, onToggleOutline }: MarkdownToolbarProps) {
+const GROUPS: [MarkdownFormat, UiIconName, string][][] = [
+  [["bold", "bold", "加粗 (Ctrl+B)"], ["italic", "italic", "斜体 (Ctrl+I)"],
+   ["strikeout", "strikeout", "删除线"], ["code", "code", "行内代码"],
+   ["math", "math", "行内公式"], ["link", "link", "链接 (Ctrl+K)"]],
+  [["quote", "quote", "引用块"], ["bullet", "bullet", "无序列表"],
+   ["ordered", "ordered", "有序列表"], ["task", "task", "任务列表"]],
+  [["codeBlock", "codeBlock", "代码块"], ["mathBlock", "mathBlock", "公式块"],
+   ["table", "table", "插入表格"], ["image", "image", "插入图片"], ["divider", "divider", "分隔线"]],
+];
+
+export function MarkdownToolbar({ dirty, saving, printing, formatEnabled, onFormat, onSave, onPrint, outlineVisible, onToggleOutline, search }: MarkdownToolbarProps) {
+  const formatButtons = (tools: [MarkdownFormat, UiIconName, string][]) => tools.map(([format, icon, title]) => (
+    <button key={format} type="button" className="md-tbtn" title={title} aria-label={title}
+      disabled={!formatEnabled} onMouseDown={(event) => event.preventDefault()}
+      onClick={() => onFormat(format)}>
+      <UiIcon name={icon} />
+    </button>
+  ));
+  const groups: ToolbarGroup[] = [
+    {
+      key: "outline",
+      pinned: true,
+      node: <SidebarToggle open={outlineVisible} onToggle={onToggleOutline}
+        openLabel="展开目录" closeLabel="收起目录" />,
+    },
+    {
+      key: "inline",
+      node: <div className="md-format-group" role="group" aria-label="文字格式">
+        <label className="md-heading-select" title="正文与标题">
+          <UiIcon name="heading" />
+          <select aria-label="正文与标题" value="" disabled={!formatEnabled} onChange={(event) => {
+            onFormat(event.target.value as MarkdownFormat);
+          }}>
+            <option value="" disabled>正文与标题</option>
+            <option value="paragraph">正文</option>
+            {[1, 2, 3, 4, 5, 6].map((level) => <option key={level} value={`h${level}`}>标题 {level}</option>)}
+          </select>
+          <UiIcon name="chevronDown" />
+        </label>
+        {formatButtons(GROUPS[0])}
+      </div>,
+    },
+    {
+      key: "blocks",
+      node: <div className="md-format-group" role="group" aria-label="段落格式">
+        <span className="toolbar-separator" aria-hidden="true" />
+        {formatButtons(GROUPS[1])}
+      </div>,
+    },
+    {
+      key: "inserts",
+      node: <div className="md-format-group" role="group" aria-label="插入">
+        <span className="toolbar-separator" aria-hidden="true" />
+        {formatButtons(GROUPS[2])}
+      </div>,
+    },
+    { key: "spacer", pinned: true, flexible: true, minWidth: 0, node: null },
+    {
+      key: "search",
+      minWidth: 220,
+      slotClassName: "doc-search-slot",
+      node: <DocumentSearch count={search.count} current={search.current} inputRef={search.inputRef}
+        onSearch={search.onQuery} onNav={search.onNav} />,
+    },
+  ];
   return (
     <div className="md-toolbar" role="toolbar" aria-label="Markdown tools">
-      <button type="button" className={"md-tbtn md-outline-toggle" + (outlineVisible ? " md-tbtn-active" : "")}
-        title={outlineVisible ? "收起目录" : "展开目录"}
-        aria-label={outlineVisible ? "收起目录" : "展开目录"}
-        aria-expanded={outlineVisible} onClick={onToggleOutline}>
-        <UiIcon name="outline" />
-      </button>
-      <div className="md-toolbar-group md-mode-switch" role="group" aria-label="Editor mode">
-        <button
-          type="button"
-          className={"md-tbtn" + (mode === "wysiwyg" ? " md-tbtn-active" : "")}
-          onClick={() => onSwitch("wysiwyg")}
-          title="Rendered (Ctrl+/)"
-          aria-pressed={mode === "wysiwyg"}
-        >
-          <UiIcon name="book" />
-          Rendered
-        </button>
-        <button
-          type="button"
-          className={"md-tbtn" + (mode === "source" ? " md-tbtn-active" : "")}
-          onClick={() => onSwitch("source")}
-          title="Source (Ctrl+/)"
-          aria-pressed={mode === "source"}
-        >
-          <UiIcon name="code" />
-          Source
-        </button>
-      </div>
-      <div className="md-toolbar-spacer" />
+      <OverflowToolbar className="md-toolbar-row" groups={groups}
+        hideOrder={["inserts", "blocks", "search", "inline"]} />
       <DocumentActions dirty={dirty} saving={saving} printing={printing} onPrint={onPrint} onSave={onSave} />
+    </div>
+  );
+}
+
+/** Rendered/source switch floating over the bottom-right of the document. */
+export function MarkdownModeSwitch({ mode, onSwitch }: {
+  mode: "wysiwyg" | "source";
+  onSwitch: (m: "wysiwyg" | "source") => void;
+}) {
+  return (
+    <div className="segmented md-mode-switch md-mode-float" role="group" aria-label="Editor mode">
+      <button
+        type="button"
+        className={"segmented-item" + (mode === "wysiwyg" ? " segmented-item-on" : "")}
+        onClick={() => onSwitch("wysiwyg")}
+        title="排版视图 (Ctrl+/)"
+        aria-label="排版视图"
+        aria-pressed={mode === "wysiwyg"}
+      >
+        <UiIcon name="eye" />
+      </button>
+      <button
+        type="button"
+        className={"segmented-item" + (mode === "source" ? " segmented-item-on" : "")}
+        onClick={() => onSwitch("source")}
+        title="源码视图 (Ctrl+/)"
+        aria-label="源码视图"
+        aria-pressed={mode === "source"}
+      >
+        <UiIcon name="code" />
+      </button>
     </div>
   );
 }

@@ -1,9 +1,35 @@
 import { describe, expect, it } from "vitest";
 
-import { clipScreenRect, pdfRectToScreen, pdfToScreen, screenToPdf } from "./coordinates";
+import { clipScreenRect, mergeSelectionRects, pdfRectToScreen, pdfToScreen, rectToQuad, screenToPdf } from "./coordinates";
 import type { PageGeom } from "./coordinates";
 
 describe("PDF coordinate transforms", () => {
+  it("merges overlapping selection rects into one run per line", () => {
+    const merged = mergeSelectionRects([
+      // line 1: two spans, a duplicate inner box and a tall element box
+      { left: 10, top: 100, right: 60, bottom: 120 },
+      { left: 60, top: 100, right: 200, bottom: 120 },
+      { left: 12, top: 101, right: 58, bottom: 119 },
+      { left: 10, top: 96, right: 200, bottom: 124 },
+      // line 2 overlaps line 1 by 4px
+      { left: 10, top: 116, right: 150, bottom: 136 },
+      // a second column on line 2
+      { left: 400, top: 116, right: 500, bottom: 136 },
+    ]);
+    expect(merged).toEqual([
+      { left: 10, top: 100, right: 200, bottom: 118 },
+      { left: 10, top: 118, right: 150, bottom: 136 },
+      { left: 400, top: 118, right: 500, bottom: 136 },
+    ]);
+  });
+
+  it("orders markup quads top-left, top-right, bottom-left, bottom-right", () => {
+    // Acrobat and PDF.js draw underline on the (x3,y3)-(x4,y4) edge.
+    const geom: PageGeom = { w1: 600, h1: 800, scale: 1 };
+    const quad = rectToQuad(geom, 10, 100, 210, 120);
+    expect(quad).toEqual({ x1: 10, y1: 700, x2: 210, y2: 700, x3: 10, y3: 680, x4: 210, y4: 680 });
+  });
+
   it("round-trips the default unrotated page transform", () => {
     const geom: PageGeom = { w1: 600, h1: 800, scale: 2 };
     const screen = pdfToScreen(geom, 10, 20);

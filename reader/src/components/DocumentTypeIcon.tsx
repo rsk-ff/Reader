@@ -1,11 +1,18 @@
 import type { DocumentType } from "../workspace/types";
 
-import { brandIcons } from "./brandIcons";
-
-/** Canonical file glyphs are also used to generate Windows association icons. */
+/**
+ * In-app file glyph: Lucide's page outline, the same line icon as the rest of
+ * the interface, with a band in the file type's colour. Windows association
+ * icons keep their own masters in brandIcons.
+ */
 export function DocumentTypeIcon({ type }: { type: DocumentType }) {
   return <span className={`tab-icon tab-icon-${type}`} aria-hidden="true">
-    <img src={brandIcons[type]} alt="" draggable={false} />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" focusable="false">
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" className="file-page" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" className="file-page" />
+      {type !== "unknown" && <rect x="7" y="13" width="10" height="5" rx="1" className="file-band" stroke="none" />}
+    </svg>
   </span>;
 }
 

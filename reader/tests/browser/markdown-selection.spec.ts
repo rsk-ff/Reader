@@ -73,7 +73,7 @@ test("continuous edits preserve the real editor and its undo history", async ({ 
   const original = await paragraph.textContent();
   await page.keyboard.type(" stable typing", { delay: 25 });
   await expect(paragraph).toHaveText(`${original} stable typing`);
-  await expect(page.getByRole("button", { name: "保存 ●", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
   expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
   await page.keyboard.press("Control+z");
   await expect(paragraph).toHaveText(original!);

@@ -44,7 +44,7 @@ pub fn run() {
     // is installed here. On non-Windows targets the plugin is a no-op.
     builder = builder.plugin(
         tauri_plugin_frame::FramePluginBuilder::new()
-            .titlebar_height(36)
+            .titlebar_height(38)
             .button_width(46)
             .auto_titlebar(true)
             .snap_overlay(true)

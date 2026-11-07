@@ -18,7 +18,7 @@ for (const [name, selector, source] of [
     await page.locator(".ProseMirror > p").first().click();
     await page.getByRole("button", { name, exact: true }).click();
     await expect(page.locator(`.ProseMirror ${selector}`).first()).toBeAttached();
-    await page.getByRole("button", { name: "保存 ●", exact: true }).click();
+    await page.getByRole("button", { name: "保存", exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.__readerInvocations
       .filter((item) => item.command === "save_file_text").at(-1)?.args?.content)).toContain(source);
     await page.keyboard.press("Control+z");
@@ -37,7 +37,7 @@ test("heading selector changes structure without replacing the live editor", asy
   await page.getByLabel("正文与标题").selectOption("paragraph");
   await expect(page.locator(".ProseMirror h3")).toHaveCount(0);
   expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "源码视图", exact: true }).click();
   await expect(page.getByLabel("正文与标题")).toBeDisabled();
   await expect(page.getByRole("button", { name: "插入表格", exact: true })).toBeDisabled();
 });
@@ -95,12 +95,12 @@ test("uploaded image remains in the saved Markdown after switching modes", async
   });
   const image = page.locator('.milkdown-image-block img');
   await expect(image).toHaveAttribute("src", /^data:image\/png;base64,/);
-  await page.getByRole("button", { name: "保存 ●", exact: true }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__readerInvocations
     .filter((item) => item.command === "save_file_text").at(-1)?.args?.content)).toContain("data:image/png;base64,");
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "源码视图", exact: true }).click();
   await expect(page.locator(".md-source")).toHaveValue(/data:image\/png;base64,/);
-  await page.getByRole("button", { name: "Rendered", exact: true }).click();
+  await page.getByRole("button", { name: "排版视图", exact: true }).click();
   await expect(page.locator('.milkdown-image-block img')).toHaveAttribute("src", /^data:image\/png;base64,/);
 });
 
@@ -112,6 +112,6 @@ test("immediate save and source switch capture typing before the deferred listen
   await expect.poll(() => page.evaluate(() => window.__readerInvocations
     .filter((item) => item.command === "save_file_text").at(-1)?.args?.content)).toContain("Immediate typed content");
   await page.keyboard.insertText("Mode typed content");
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "源码视图", exact: true }).click();
   await expect(page.locator(".md-source")).toHaveValue(/Mode typed content/);
 });

@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save as showSaveDialog } from "@tauri-apps/plugin-dialog";
 
 import { isExternalChangeError, useMarkdownText, useMarkdownSave } from "./useMarkdownText";
 import { confirmInApp } from "../../workspace/confirmDialog";
 import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
-import { MarkdownToolbar } from "./MarkdownToolbar";
-import { MarkdownTools } from "./MarkdownTools";
+import { MarkdownModeSwitch, MarkdownToolbar } from "./MarkdownToolbar";
 import { printMarkdown } from "./printMarkdown";
 import { MarkdownScrollbar } from "./MarkdownScrollbar";
 import { MarkdownOutline } from "./MarkdownOutline";
+import { clearPaintedRanges, findMatches, findRanges, paintRanges, wrapIndex, type TextMatch } from "./markdownSearch";
 import { extractMarkdownHeadings, type MarkdownHeading } from "./markdownHeadingModel";
 import { saveCoversCurrentRevision } from "./saveRevision";
 import { ensureMarkdownExtension } from "./markdownSavePath";
@@ -57,6 +57,30 @@ export function MarkdownEditor({
   }, []);
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchIndex, setSearchIndex] = useState(0);
+  /** Rendered-view ranges live in a ref; the version re-runs dependent effects. */
+  const searchRangesRef = useRef<Range[]>([]);
+  /** The query `searchRangesRef` was computed for. */
+  const searchRangesQueryRef = useRef("");
+  const [searchRangesVersion, setSearchRangesVersion] = useState(0);
+  /** Set by explicit navigation so edits never move the viewport. */
+  const [searchScroll, setSearchScroll] = useState(0);
+  const pendingSearchScrollRef = useRef(false);
+  const updateSearchQuery = useCallback((query: string) => {
+    setSearchQuery(query);
+    setSearchIndex(0);
+    pendingSearchScrollRef.current = true;
+    setSearchScroll((value) => value + 1);
+  }, []);
+  const navigateSearch = useCallback((step: 1 | -1) => {
+    setSearchIndex((index) => index + step);
+    pendingSearchScrollRef.current = true;
+    setSearchScroll((value) => value + 1);
+  }, []);
   const editRevisionRef = useRef(0);
   const saveInFlightRef = useRef<Promise<boolean> | null>(null);
   const dirtyRef = useRef(untitled);
@@ -263,15 +287,85 @@ export function MarkdownEditor({
         e.preventDefault();
         switchMode(mode === "wysiwyg" ? "source" : "wysiwyg");
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+      if (e.key === "F3") {
+        e.preventDefault();
+        navigateSearch(e.shiftKey ? -1 : 1);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, saveFromEditor, printFromEditor, switchMode, mode]);
+  }, [active, saveFromEditor, printFromEditor, switchMode, mode, navigateSearch]);
 
   const headings = useMemo(
     () => extractMarkdownHeadings(workingText ?? ""),
     [workingText],
   );
+
+  // ---- Find in document ----
+  const sourceMatches = useMemo<TextMatch[]>(
+    () => (mode === "source" ? findMatches(workingText ?? "", searchQuery) : []),
+    [mode, workingText, searchQuery],
+  );
+
+  useEffect(() => {
+    if (mode !== "wysiwyg" || !active || !searchQuery) {
+      searchRangesRef.current = [];
+      searchRangesQueryRef.current = searchQuery;
+      setSearchRangesVersion((version) => version + 1);
+      return;
+    }
+    // Wait one frame so ProseMirror has rendered the latest text.
+    const frame = requestAnimationFrame(() => {
+      const root = contentRef.current?.querySelector(".ProseMirror");
+      searchRangesRef.current = root ? findRanges(root, searchQuery) : [];
+      searchRangesQueryRef.current = searchQuery;
+      setSearchRangesVersion((version) => version + 1);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mode, active, searchQuery, workingText, crepeVersion, commandsReady]);
+
+  const matchCount = mode === "source" ? sourceMatches.length : searchRangesRef.current.length;
+  const currentMatch = wrapIndex(searchIndex, matchCount);
+
+  useEffect(() => {
+    if (mode !== "wysiwyg" || !active) return;
+    paintRanges(searchRangesRef.current, currentMatch);
+    return clearPaintedRanges;
+  }, [mode, active, currentMatch, searchRangesVersion]);
+
+  // Scroll once the current query's matches exist: rendered-view ranges are
+  // found a frame after the query changes.
+  useEffect(() => {
+    if (!pendingSearchScrollRef.current) return;
+    if (mode === "wysiwyg") {
+      if (searchRangesQueryRef.current !== searchQuery) return;
+      const range = searchRangesRef.current[currentMatch];
+      const container = contentRef.current;
+      if (!range || !container) return;
+      pendingSearchScrollRef.current = false;
+      const rect = range.getBoundingClientRect();
+      const bounds = container.getBoundingClientRect();
+      if (rect.top < bounds.top + 48 || rect.bottom > bounds.bottom - 48) {
+        container.scrollTop += rect.top - bounds.top - container.clientHeight / 3;
+      }
+      return;
+    }
+    const textarea = textareaRef.current;
+    const mark = backdropRef.current?.querySelector<HTMLElement>(".md-hit-current");
+    if (!textarea || !mark) return;
+    pendingSearchScrollRef.current = false;
+    const top = mark.offsetTop;
+    if (top < textarea.scrollTop + 48 || top > textarea.scrollTop + textarea.clientHeight - 48) {
+      textarea.scrollTop = Math.max(0, top - textarea.clientHeight / 3);
+      if (backdropRef.current) backdropRef.current.scrollTop = textarea.scrollTop;
+    }
+  }, [searchScroll, searchRangesVersion, sourceMatches, currentMatch, mode, searchQuery]);
+
 
   const navigateToHeading = useCallback(
     (heading: MarkdownHeading, index: number) => {
@@ -311,15 +405,23 @@ export function MarkdownEditor({
   return (
     <div className="md-root">
       <MarkdownToolbar
-        mode={mode}
         dirty={dirty}
         saving={saving}
         printing={printing}
-        onSwitch={switchMode}
+        formatEnabled={mode === "wysiwyg" && commandsReady}
+        onFormat={(format) => commandsRef.current?.format(format)}
         onSave={saveFromEditor}
         onPrint={printFromEditor}
         outlineVisible={outlineVisible}
         onToggleOutline={() => setOutlineVisible((visible) => !visible)}
+        search={{
+          query: searchQuery,
+          count: matchCount,
+          current: currentMatch,
+          inputRef: searchInputRef,
+          onQuery: updateSearchQuery,
+          onNav: navigateSearch,
+        }}
       />
       <div className="md-workspace">
         {outlineVisible && <MarkdownOutline headings={headings} onNavigate={navigateToHeading}
@@ -336,14 +438,26 @@ export function MarkdownEditor({
                 documentPath={untitled ? undefined : path}
               />
             ) : (
+              <div className="md-source-wrap">
+              <SourceGutter text={workingText} textareaRef={textareaRef} gutterRef={gutterRef} />
+              {sourceMatches.length > 0 && (
+                <div ref={backdropRef} className="md-source-backdrop" aria-hidden="true">
+                  {sourceSegments(workingText, sourceMatches, currentMatch)}
+                </div>
+              )}
               <textarea
                 ref={textareaRef}
-                className="md-source"
+                onScroll={(event) => {
+                  if (backdropRef.current) backdropRef.current.scrollTop = event.currentTarget.scrollTop;
+                  if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop;
+                }}
+                className={"md-source" + (sourceMatches.length > 0 ? " md-source-searching" : "")}
                 value={workingText}
                 onChange={onSourceChange}
                 spellCheck={false}
                 placeholder="# Markdown source"
               />
+              </div>
             )}
           </div>
           <MarkdownScrollbar
@@ -352,10 +466,66 @@ export function MarkdownEditor({
             mode={mode}
             contentVersion={crepeVersion + workingText.length}
           />
+          <MarkdownModeSwitch mode={mode} onSwitch={switchMode} />
         </div>
-        <MarkdownTools enabled={mode === "wysiwyg" && commandsReady}
-          onFormat={(format) => commandsRef.current?.format(format)} />
       </div>
     </div>
   );
+}
+
+/** Source text split around matches, painted behind a transparent textarea. */
+function sourceSegments(text: string, matches: TextMatch[], current: number) {
+  const parts: React.ReactNode[] = [];
+  let at = 0;
+  matches.forEach((match, index) => {
+    if (match.start > at) parts.push(text.slice(at, match.start));
+    parts.push(<mark key={index} className={index === current ? "md-hit md-hit-current" : "md-hit"}>
+      {text.slice(match.start, match.end)}</mark>);
+    at = match.end;
+  });
+  // A trailing newline still gets a line in a textarea.
+  parts.push(text.slice(at) + "\n");
+  return parts;
+}
+
+/**
+ * Line numbers beside the source textarea. Lines wrap, so each number's row
+ * takes the height its line wraps to, measured on a hidden copy of the text
+ * laid out at the textarea's width.
+ */
+function SourceGutter({ text, textareaRef, gutterRef }: {
+  text: string;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  gutterRef: RefObject<HTMLDivElement | null>;
+}) {
+  const lines = useMemo(() => text.split("\n"), [text]);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [heights, setHeights] = useState<number[]>([]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const observer = new ResizeObserver(() => setWidth(textarea.clientWidth));
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, [textareaRef]);
+
+  useLayoutEffect(() => {
+    const measure = measureRef.current;
+    if (!measure || width === 0) return;
+    setHeights(Array.from(measure.children, (child) => (child as HTMLElement).getBoundingClientRect().height));
+    if (gutterRef.current && textareaRef.current) gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+  }, [lines, width, gutterRef, textareaRef]);
+
+  return <>
+    <div ref={measureRef} className="md-source-measure" aria-hidden="true" style={{ width }}>
+      {lines.map((line, index) => <div key={index}>{line || "\u200b"}</div>)}
+    </div>
+    <div ref={gutterRef} className="md-source-gutter" aria-hidden="true">
+      {lines.map((_, index) => (
+        <div key={index} style={heights[index] ? { height: heights[index] } : undefined}>{index + 1}</div>
+      ))}
+    </div>
+  </>;
 }

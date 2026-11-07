@@ -38,7 +38,7 @@ export function NewMarkdownDialog({ directory, create, cancel }: {
       {error && <p className="new-tab-error" role="alert">{error}</p>}
       <div className="new-markdown-dialog-actions">
         <button type="button" disabled={busy} onClick={cancel}>取消</button>
-        <button type="submit" disabled={busy || !name.trim()}>{busy ? "正在创建…" : "创建"}</button>
+        <button type="submit" className="primary" disabled={busy || !name.trim()}>{busy ? "正在创建…" : "创建"}</button>
       </div>
     </form>
   </dialog>;

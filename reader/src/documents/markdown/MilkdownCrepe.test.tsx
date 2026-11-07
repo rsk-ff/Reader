@@ -102,8 +102,14 @@ function markEditIntent(instance: (typeof engine.instances)[number]) {
   listener({ isTrusted: true } as Event);
 }
 
+/** The save button names itself "已保存" once there are no unsaved changes. */
+function savedButton() {
+  return host.querySelector('button[aria-label="已保存"]');
+}
+
 async function clickMode(text: string) {
-  const button = [...host.querySelectorAll("button")].find((item) => item.textContent === text);
+  const button = [...host.querySelectorAll("button")]
+    .find((item) => item.textContent === text || item.getAttribute("aria-label") === text);
   expect(button).toBeDefined();
   await act(async () => button!.click());
 }
@@ -189,17 +195,17 @@ describe("Milkdown editor lifecycle", () => {
   it("preserves the live editor on repeated Rendered clicks and loads source edits on return", async () => {
     await render(<MarkdownEditor path="test.md" fileName="test.md" docId="test" untitled={false} active />);
     expect(engine.instances).toHaveLength(1);
-    await clickMode("Rendered");
+    await clickMode("排版视图");
     expect(engine.instances).toHaveLength(1);
 
-    await clickMode("Source");
+    await clickMode("源码视图");
     expect(engine.instances[0].destroy).toHaveBeenCalledTimes(1);
     const source = host.querySelector("textarea")!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(source, "# Source edit\n\n中文");
       source.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await clickMode("Rendered");
+    await clickMode("排版视图");
     expect(engine.instances).toHaveLength(2);
     expect(engine.instances[1].defaultValue).toBe("# Source edit\n\n中文");
   });
@@ -213,7 +219,7 @@ describe("Milkdown editor lifecycle", () => {
     expect(engine.instances).toHaveLength(1);
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true })));
     expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "first edit\n\n第二段", overwrite: false });
-    expect(host.textContent).toContain("已保存");
+    expect(savedButton()).not.toBeNull();
   });
 
   it("asks in the app before overwriting a file that changed outside Reader", async () => {
@@ -237,12 +243,12 @@ describe("Milkdown editor lifecycle", () => {
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(host.querySelector("[role=alertdialog]")).toBeNull();
     expect(engine.invoke).not.toHaveBeenCalledWith("save_file_text", expect.objectContaining({ overwrite: true }));
-    expect(host.textContent).not.toContain("已保存");
+    expect(savedButton()).toBeNull();
 
     await save();
     await clickMode("覆盖");
     expect(engine.invoke).toHaveBeenCalledWith("save_file_text", { path: "test.md", content: "mine", overwrite: true });
-    expect(host.textContent).toContain("已保存");
+    expect(savedButton()).not.toBeNull();
   });
 
   it("reloads the last saved text when changes are explicitly discarded", async () => {
@@ -260,7 +266,7 @@ describe("Milkdown editor lifecycle", () => {
         dirty: true, untitled: false, revision: 0, last_saved_revision: 0, file_size: null,
       });
     });
-    await clickMode("Don't Save");
+    await clickMode("不保存");
     expect(await closed).toBe(true);
     expect(engine.instances).toHaveLength(2);
     expect(instance.destroy).toHaveBeenCalledTimes(1);

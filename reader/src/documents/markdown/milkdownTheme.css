@@ -5,33 +5,30 @@
   justify-content: center;
   width: 100%;
   min-height: 100%;
-  padding: 0 24px 96px;
+  padding: 0 clamp(0px, 2vw, 24px) 96px;
 }
 
 .milkdown-root > .milkdown {
-  --crepe-color-background: #fff;
+  --crepe-color-background: var(--bg-elev);
   --crepe-color-on-background: var(--text);
   --crepe-color-surface: var(--bg);
-  --crepe-color-surface-low: #ededed;
+  --crepe-color-surface-low: var(--md-surface-low);
   --crepe-color-on-surface: var(--text);
   --crepe-color-on-surface-variant: var(--text-dim);
   --crepe-color-outline: var(--text-faint);
   --crepe-color-primary: var(--accent);
   --crepe-color-secondary: var(--bg-active);
   --crepe-color-on-secondary: var(--accent);
-  --crepe-color-inverse: #f0f0f0;
+  --crepe-color-inverse: var(--md-inverse);
   --crepe-color-on-inverse: var(--text);
-  --crepe-color-hover: #eeeeee;
-  --crepe-color-selected: #dde5f3;
-  --crepe-color-inline-area: #dddddd;
+  --crepe-color-hover: var(--md-hover);
+  --crepe-color-selected: var(--md-selected);
+  --crepe-color-inline-area: var(--md-inline-area);
   --crepe-shadow-1: none;
   --crepe-shadow-2: none;
-  --crepe-font-title: -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
-  --crepe-font-default: -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
-  --crepe-font-code: "Cascadia Mono", "Cascadia Code", Consolas,
-    "SFMono-Regular", "SF Mono", Menlo, "Liberation Mono", monospace;
+  --crepe-font-title: var(--font-doc-heading);
+  --crepe-font-default: var(--font-doc);
+  --crepe-font-code: var(--font-mono);
 
   width: 100%;
   max-width: 980px;
@@ -42,19 +39,20 @@
    Outlines do not change popup or document geometry. */
 .milkdown-root :is(.milkdown-toolbar, .link-preview, .link-edit),
 .milkdown-root .milkdown-table-block .cell-handle .button-group {
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   outline: 1px solid var(--border);
 }
 
 .milkdown-root .milkdown-toolbar .toolbar-item,
 .milkdown-root .milkdown-table-block .cell-handle .button-group button,
 .milkdown-root .milkdown-table-block .cell-handle .button-group button:hover {
-  border-radius: 2px;
+  border-radius: var(--radius-control);
 }
 
+/* Margins shrink smoothly with the window instead of jumping at a breakpoint. */
 .milkdown-root > .milkdown > .ProseMirror {
   min-height: 100%;
-  padding: 48px 60px;
+  padding: clamp(24px, 4vw, 48px) clamp(24px, 5vw, 60px);
 }
 
 /* Only H1–H3 have a size gradient; preserve H4–H6 as semantic headings. */
@@ -88,11 +86,16 @@
   margin-top: 0;
 }
 
-/* CodeMirror has its own font rule and does not read Crepe's font variable. */
+/* CodeMirror has its own font rule and does not read Crepe's font variable.
+   Code and formulas are sized to read the same as the body text. */
+.milkdown-root > .milkdown > .ProseMirror { font-size: var(--md-body-size); }
 .milkdown-root .cm-editor .cm-scroller {
   font-family: var(--crepe-font-code);
+  font-size: var(--md-mono-size);
   font-variant-ligatures: none;
 }
+.milkdown-root .ProseMirror :not(pre) > code { font-size: 0.9em; }
+.milkdown-root .ProseMirror .katex { font-size: var(--md-math-scale); }
 
 /* CodeMirror's open marker is the baseline-low text glyph ⌄. Keep the
    closed marker (›), line numbers, gutter hit target and folding untouched.
@@ -102,28 +105,18 @@
   transform: translateY(-0.2em);
 }
 
-@media (max-width: 767px) {
-  .milkdown-root {
-    padding-right: 0;
-    padding-left: 0;
-  }
-
-  .milkdown-root > .milkdown > .ProseMirror {
-    padding: 24px 40px 72px;
-  }
-}
 
 /* Compact quote inset; the rule is a straight 3px edge. */
 .milkdown-root .ProseMirror blockquote { padding-left: 15px; }
-.milkdown-root .ProseMirror blockquote::before { width: 3px; border-radius: 0; background: #c7cbd1; }
+.milkdown-root .ProseMirror blockquote::before { width: 3px; border-radius: 0; background: var(--md-quote-rule); }
 
 /* Give the controls a visible compact header instead of invisible occupied
    space. Code content then has the same inset above and below. */
 .milkdown-root .milkdown-code-block { padding: 0; margin: 8px 0; }
-.milkdown-root .milkdown-code-block .tools { min-height: 28px; padding: 2px 8px; border-bottom: 1px solid #e3e3e3; background: #f0f0f0; }
-.milkdown-root .milkdown-code-block .tools .language-button { margin-bottom: 0; padding: 2px 4px; opacity: 1; background: transparent; border-radius: 2px; }
-.milkdown-root .milkdown-code-block .tools .tools-button-group button { padding: 2px 6px; opacity: 1; border-radius: 2px; background: transparent; font-weight: 400; }
-.milkdown-root .milkdown-code-block .tools .tools-button-group button:hover { background: #e4e4e4; }
+.milkdown-root .milkdown-code-block .tools { min-height: 28px; padding: 2px 8px; border-bottom: 1px solid var(--md-code-tools-line); background: var(--md-code-tools); }
+.milkdown-root .milkdown-code-block .tools .language-button { margin-bottom: 0; padding: 2px 4px; opacity: 1; background: transparent; border-radius: var(--radius-control); }
+.milkdown-root .milkdown-code-block .tools .tools-button-group button { padding: 2px 6px; opacity: 1; border-radius: var(--radius-control); background: transparent; font-weight: 400; }
+.milkdown-root .milkdown-code-block .tools .tools-button-group button:hover { background: var(--md-code-tools-hover); }
 .milkdown-root .milkdown-code-block .cm-editor, .milkdown-root .milkdown-code-block .milkdown-code-block-placeholder { padding: 12px; }
 .milkdown-root .milkdown-code-block .cm-content { padding: 0; }
 .milkdown-root .milkdown-code-block .cm-line { padding-top: 0; padding-bottom: 0; }
@@ -131,4 +124,4 @@
 .milkdown-root .milkdown-code-block .preview-panel .preview-divider { margin: 0 0 8px; }
 .milkdown-root .milkdown-code-block .preview-panel .preview-label { margin: 0 0 8px; }
 .milkdown-root .milkdown-code-block .katex-display { margin: 0; }
-.milkdown-root .milkdown-code-block .list-wrapper, .milkdown-root .milkdown-code-block .search-box { border-radius: 2px; }
+.milkdown-root .milkdown-code-block .list-wrapper, .milkdown-root .milkdown-code-block .search-box { border-radius: var(--radius-control); }

@@ -35,7 +35,7 @@ test("drag changes width without rebuilding or losing edits; collapse releases a
   await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "320px");
   expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
   expect(await page.locator(".ProseMirror").textContent()).toBe(draft);
-  await page.getByRole("button", { name: "保存 ●", exact: true }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__readerInvocations
     .filter((item) => item.command === "save_file_text").at(-1)?.args?.content)).toContain("sidebar draft");
 });
@@ -53,12 +53,12 @@ test("drag bounds and keyboard separator work in both modes, including collapse 
   await expect(separator).toHaveAttribute("aria-valuenow", "560");
   await page.keyboard.press("Home");
   await expect(separator).toHaveAttribute("aria-valuenow", "168");
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "源码视图", exact: true }).click();
   await dragSidebar(page, 72);
   await expect(separator).toHaveAttribute("aria-valuenow", "240");
   await page.locator(".md-source").fill("# Sidebar draft\n\nUnsaved content.");
   await page.getByRole("button", { name: "收起目录", exact: true }).click();
-  await page.getByRole("button", { name: "Rendered", exact: true }).click();
+  await page.getByRole("button", { name: "排版视图", exact: true }).click();
   await expect(page.locator(".ProseMirror")).toContainText("Unsaved content.");
   await expect(page.locator(".md-outline-shell")).toHaveCount(0);
   await page.getByRole("button", { name: "展开目录", exact: true }).click();
@@ -73,7 +73,7 @@ test("window shrink caps sidebar, keeps controls reachable and restores preferre
   await page.setViewportSize({ width: 330, height: 480 });
   await expect(page.locator(".md-outline-shell")).toHaveCSS("width", "168px");
   expect((await page.locator(".md-viewport").boundingBox())!.width).toBeGreaterThanOrEqual(114);
-  for (const name of ["收起目录", "打印", "已保存", "Source", "Rendered"]) {
+  for (const name of ["收起目录", "打印", "已保存", "源码视图", "排版视图"]) {
     const bounds = await page.getByRole("button", { name, exact: true }).boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(330);

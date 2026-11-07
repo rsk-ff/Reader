@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import { brandIcons } from "./brandIcons";
 import { TabStrip } from "./TabStrip";
-import { useWindowDragRegion } from "./windowDrag";
 import {
   snapPhaseClass,
   snapPhaseReducer,
@@ -17,8 +15,8 @@ import {
  *
  * - The native title bar is disabled (`decorations: false` in tauri.conf.json
  *   and `.decorations(false)` on every dynamically created window).
- * - The far-left icon is the canonical application SVG in a 24px canvas with no
- *   visible product-name text beside it.
+ * - There is no application icon or product name in the bar; tabs start at
+ *   the left edge.
  * - The flexible middle holds the existing `TabStrip` (reorder/detach/close
  *   logic untouched); its blank spacer is a window drag region.
  * - The right side exposes minimize / toggle-maximize / close controls. Close
@@ -61,7 +59,6 @@ const SNAP_EVENTS: SnapEventKind[] = [
 ];
 
 export function WindowTitleBar() {
-  const drag = useWindowDragRegion();
   const win = useMemo(() => getCurrentWindow(), []);
   const controls = useMemo(() => makeControls(win), [win]);
 
@@ -114,13 +111,6 @@ export function WindowTitleBar() {
 
   return (
     <div className="window-titlebar" role="banner">
-      <div
-        className="titlebar-icon"
-        aria-hidden="true"
-        onMouseDown={drag.onMouseDown}
-      >
-        <img src={brandIcons.reader} alt="" draggable={false} />
-      </div>
       <TabStrip />
       <div
         className="titlebar-controls"

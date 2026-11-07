@@ -8,20 +8,25 @@ interface DocumentActionsProps {
   onSave: () => void;
 }
 
-/** Both document types use the same position, labels and save state. */
+/** Both document types use the same position, labels and save state. The save
+ * icon carries a dot while there are unsaved changes; the label stays in the
+ * accessible name and tooltip. */
 export function DocumentActions({ dirty, saving, printing, onPrint, onSave }: DocumentActionsProps) {
+  const saveLabel = saving ? "保存中" : dirty ? "保存" : "已保存";
   return (
     <div className="document-actions" role="group" aria-label="文档操作">
       <button type="button" className="document-action" onClick={onPrint}
         onMouseDown={(event) => event.preventDefault()}
-        title="打印 (Ctrl+P)" disabled={printing}>
-        <UiIcon name="print" /><span>{printing ? "准备中…" : "打印"}</span>
+        title={printing ? "准备打印…" : "打印 (Ctrl+P)"} aria-label="打印" disabled={printing}>
+        <UiIcon name="print" />
       </button>
-      <button type="button" className={"document-action" + (dirty ? " document-action-dirty" : "")}
+      <span className="toolbar-separator" aria-hidden="true" />
+      <button type="button" className={"document-action document-save" + (dirty ? " document-action-dirty" : "")}
         onMouseDown={(event) => event.preventDefault()}
-        onClick={onSave} disabled={!dirty || saving} title="保存 (Ctrl+S)">
-        <UiIcon name={dirty || saving ? "save" : "check"} />
-        <span>{saving ? "保存中…" : dirty ? "保存 ●" : "已保存"}</span>
+        onClick={onSave} disabled={!dirty || saving}
+        title={dirty ? "保存 (Ctrl+S)，有未保存的更改" : saving ? "保存中…" : "已保存"} aria-label={saveLabel}>
+        <UiIcon name="save" />
+        {(dirty || saving) && <span className="document-dirty-dot" aria-hidden="true" />}
       </button>
     </div>
   );

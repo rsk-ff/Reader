@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import { clipScreenRect, pageCssSize, pdfRectToScreen, pdfToScreen, quadsBounds, rectToQuad, screenToPdf } from "./coordinates";
+import { clipScreenRect, mergeSelectionRects, pageCssSize, pdfRectToScreen, pdfToScreen, quadsBounds, rangeTextRects, rectToQuad, screenToPdf } from "./coordinates";
 import type { PageGeom, Point, Quad } from "./coordinates";
 import type { PdfAnnotation } from "./annotation-types";
 import { toPdfPageIndex } from "./pdfModel";
@@ -14,6 +14,8 @@ interface AnnotationOverlayProps {
   annotations: PdfAnnotation[];
   /** current tool: null = select; otherwise create mode */
   tool: AnnotationTool;
+  /** Color for new text markup; falls back to the tool default. */
+  markColor?: string;
   renderVisuals: boolean;
   onAnnotationsChanged: (pageNumber: number, deletedId?: string) => void;
   onAnnotationCreated: (ann: PdfAnnotation) => void;
@@ -34,7 +36,7 @@ export type AnnotationTool =
  * them to the Rust `create_annotation` command.
  */
 export function AnnotationOverlay(props: AnnotationOverlayProps) {
-  const { doc, path, pageNumber, geom, annotations, tool, renderVisuals, onAnnotationsChanged, onAnnotationCreated } = props;
+  const { doc, path, pageNumber, geom, annotations, tool, markColor, renderVisuals, onAnnotationsChanged, onAnnotationCreated } = props;
   const svgRef = useRef<SVGSVGElement>(null);
   const [draftInk, setDraftInk] = useState<Point[]>([]);
 
@@ -55,11 +57,11 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
       if (!sel || sel.isCollapsed) return;
       const range = sel.getRangeAt(0);
       const pageRect = host.getBoundingClientRect();
-      const clientRects = range.getClientRects();
+      const lineRects = mergeSelectionRects(rangeTextRects(range)
+        .map((rect) => clipScreenRect(rect, pageRect))
+        .filter((rect): rect is NonNullable<typeof rect> => rect !== null));
       const quads: Quad[] = [];
-      for (let i = 0; i < clientRects.length; i++) {
-        const clipped = clipScreenRect(clientRects[i], pageRect);
-        if (!clipped) continue;
+      for (const clipped of lineRects) {
         quads.push(
           rectToQuad(
             geom,
@@ -80,8 +82,9 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
         rect: { left: bounds.left, right: bounds.right, bottom: bounds.bottom, top: bounds.top },
         quad_points: quads,
         ink_paths: [],
-        color: defaultColor(tool),
-        opacity: 0.4,
+        color: markColor ?? defaultColor(tool),
+        // Highlights tint the text; underline and strikeout are solid lines.
+        opacity: tool === "highlight" ? 0.4 : 1,
         text: null,
         created_at: null,
         modified_at: null,
@@ -99,7 +102,7 @@ export function AnnotationOverlay(props: AnnotationOverlayProps) {
     // page element so a selection mouseup bubbles into this handler.
     pageElement.addEventListener("mouseup", onMouseUp);
     return () => pageElement.removeEventListener("mouseup", onMouseUp);
-  }, [tool, doc, path, pageNumber, geom, onAnnotationsChanged, onAnnotationCreated]);
+  }, [tool, markColor, doc, path, pageNumber, geom, onAnnotationsChanged, onAnnotationCreated]);
 
   // Note / FreeText creation: click to place.
   useEffect(() => {
@@ -282,20 +285,30 @@ function renderAnnotation(
     return (
       <g key={ann.id} opacity={renderVisuals ? 1 : 0} onDoubleClick={del}>
         {ann.quad_points.map((q, i) => {
-          const tl = pdfToScreen(geom, q.x3, q.y3);
-          const tr = pdfToScreen(geom, q.x4, q.y4);
-          const br = pdfToScreen(geom, q.x2, q.y2);
-          const bl = pdfToScreen(geom, q.x1, q.y1);
-          const d = `M ${tl.x} ${tl.y} L ${tr.x} ${tr.y} L ${br.x} ${br.y} L ${bl.x} ${bl.y} Z`;
+          const tl = pdfToScreen(geom, q.x1, q.y1);
+          const tr = pdfToScreen(geom, q.x2, q.y2);
+          const bl = pdfToScreen(geom, q.x3, q.y3);
+          const br = pdfToScreen(geom, q.x4, q.y4);
+          if (ann.annotation_type === "highlight") {
+            const d = `M ${tl.x} ${tl.y} L ${tr.x} ${tr.y} L ${br.x} ${br.y} L ${bl.x} ${bl.y} Z`;
+            return <path key={i} d={d} fill={ann.color} fillOpacity={ann.opacity} />;
+          }
+          // Underline runs just above the bottom edge; strikeout through the middle.
+          const t = ann.annotation_type === "underline" ? 0.08 : 0.5;
+          const start = lerpPoint(bl, tl, t);
+          const end = lerpPoint(br, tr, t);
+          const height = Math.hypot(tl.x - bl.x, tl.y - bl.y);
           return (
-            <path
+            <line
               key={i}
-              d={d}
-              fill={ann.color}
-              fillOpacity={ann.opacity}
-              stroke={ann.annotation_type === "underline" ? ann.color : "none"}
-              strokeWidth={ann.annotation_type === "underline" ? 1.5 : 0}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
+              stroke={ann.color}
               strokeOpacity={ann.opacity}
+              strokeWidth={Math.max(1, height * 0.07)}
+              strokeLinecap="butt"
             />
           );
         })}
@@ -370,6 +383,10 @@ function renderAnnotation(
     );
   }
   return null;
+}
+
+function lerpPoint(from: Point, to: Point, t: number): Point {
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
 }
 
 function defaultColor(tool: AnnotationTool): string {
