@@ -72,16 +72,22 @@ test("toolbar keeps inline math and link editing available without a selection t
 async function capturePrinting(page: Page) {
   await page.addInitScript(() => {
     window.__readerPrints = [];
-    window.print = () => {};
-    // Record each print copy as it is added to the page.
-    new MutationObserver((records) => {
-      for (const record of records) for (const node of Array.from(record.addedNodes)) {
-        if (!(node instanceof HTMLElement) || node.id !== "reader-print-root") continue;
-        const copy = node.cloneNode(true) as HTMLElement;
-        copy.querySelector("style")?.remove();
-        window.__readerPrints.push({ text: copy.textContent!, html: copy.innerHTML, title: node.dataset.title! });
+    const append = Node.prototype.appendChild;
+    Node.prototype.appendChild = function <T extends Node>(node: T): T {
+      const added = append.call(this, node) as T;
+      if (node instanceof HTMLIFrameElement) {
+        const frame = node;
+        frame.contentWindow!.print = () => {
+          window.__readerPrints.push({
+            text: frame.contentDocument!.body.textContent!,
+            html: frame.contentDocument!.body.innerHTML,
+            title: frame.contentDocument!.title,
+          });
+          frame.contentWindow!.dispatchEvent(new Event("afterprint"));
+        };
       }
-    }).observe(document, { childList: true, subtree: true });
+      return added;
+    };
   });
 }
 
@@ -115,7 +121,6 @@ test("printing rendered edits uses a snapshot and keeps the live editor and unsa
   expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
   await expect(page.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
   await expect(page.locator(".markdown-print-source, .markdown-print-frame")).toHaveCount(0);
-  await expect(page.locator("#reader-print-root")).toBeHidden();
   expect(await page.evaluate(() => window.__readerInvocations.some((item) => item.command === "save_file_text"))).toBe(false);
 });
 
@@ -138,7 +143,6 @@ test("Ctrl+P in source mode prints rendered Markdown, code, table and math witho
   await expect(page.locator(".md-source")).toHaveValue(markdown);
   await expect(page.getByRole("button", { name: "源码视图", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".markdown-print-source, .markdown-print-frame")).toHaveCount(0);
-  await expect(page.locator("#reader-print-root")).toBeHidden();
 });
 
 test("compact Markdown layout keeps output actions and the mode switch within the window", async ({ page }) => {

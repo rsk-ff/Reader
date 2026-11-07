@@ -15,7 +15,6 @@ mod local_files;
 mod markdown_file;
 mod markdown_image;
 pub mod pdf;
-mod print;
 mod workspace;
 
 #[cfg(target_os = "macos")]
@@ -86,14 +85,6 @@ pub fn run() {
                 }
                 commands::broadcast(app, ws);
                 let _ = commands::save_session_impl(app, ws);
-                // The PDF print helper must not keep the app alive.
-                let documents_open = app.webview_windows().keys().any(|other| {
-                    other != &label
-                        && (other == workspace::MAIN_WINDOW || other.starts_with("win-"))
-                });
-                if !documents_open {
-                    print::close_pdf_print_window(app);
-                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -126,8 +117,6 @@ pub fn run() {
             commands::discard_pdf_changes,
             commands::insert_blank_page,
             commands::delete_page,
-            print::show_print_dialog,
-            print::print_pdf,
         ])
         .setup(|app| {
             let bundled_pdfium = app.path().resource_dir()?.join("pdfium.dll");
