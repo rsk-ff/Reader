@@ -43,6 +43,16 @@ describe("canReturnToNewTab for a file that was already open", () => {
   });
 });
 
+describe("canReturnToNewTab for a file opened in a new tab", () => {
+  const opened: NewTabReturn = { ...entry, newTabId: "tab-new", close: true };
+  it("allows closing it while untouched", () => {
+    expect(canReturnToNewTab(opened, "doc-a", clean, 2_000)).toBe(true);
+  });
+  it("stops after an edit", () => {
+    expect(canReturnToNewTab(opened, "doc-a", { dirty: true, revision: 2 }, 2_000)).toBe(false);
+  });
+});
+
 describe("restoreRecentEntry", () => {
   const file = (path: string, opened_at: number): RecentFile => ({ path, file_name: path, doc_type: "pdf", opened_at });
   const identity = (path: string) => path.toLowerCase();

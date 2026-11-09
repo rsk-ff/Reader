@@ -31,9 +31,20 @@ function fileSize(bytes?: number | null): string {
   return `${(bytes / unit).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${unit === 1024 ? "KB" : unit === 1024 ** 2 ? "MB" : "GB"}`;
 }
 
+/** The home location only lists recently opened files, so it is named for them. */
+export const HOME_LABEL = "最近打开";
+
+/** Tab title for a new tab: the name of the place it shows. */
+export function newTabTitle(location: string, directoryPath?: string | null): string {
+  if (location === "home") return HOME_LABEL;
+  if (location === "computer") return "此电脑";
+  const crumbs = breadcrumbs(directoryPath ?? location);
+  return crumbs[crumbs.length - 1].label;
+}
+
 /** Address-bar segments: 此电脑 > C: > Users > …, each a folder to open. */
 export function breadcrumbs(location: string): { label: string; path: string }[] {
-  if (location === "home") return [{ label: "主页", path: "home" }];
+  if (location === "home") return [{ label: HOME_LABEL, path: "home" }];
   const computer = { label: "此电脑", path: "computer" };
   if (location === "computer") return [computer];
   const match = /^([A-Za-z]:)[\\/]?(.*)$/.exec(location);
@@ -259,7 +270,7 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
     if (restoredSelection.current?.location !== location) restoredSelection.current = null;
     setSelected(restoredSelection.current?.path ?? null);
     setDirectory(null);
-    setAddress(isDirectory ? location : location === "home" ? "主页" : "此电脑");
+    setAddress(isDirectory ? location : location === "home" ? HOME_LABEL : "此电脑");
     setLoading(isDirectory);
     if (!isDirectory) return;
     void invoke<LocalDirectory>("list_local_directory", { path: location }).then((value) => {
@@ -318,6 +329,13 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
     return () => { alive = false; };
   }, [active, location, recentFiles, revision]);
 
+  // The tab is named after the place it shows, like a File Explorer window.
+  const setNewTabTitle = useWorkspace((state) => state.setNewTabTitle);
+  const title = newTabTitle(location, directory?.path);
+  useEffect(() => {
+    if (tabId) void setNewTabTitle(tabId, title).catch(() => {});
+  }, [tabId, title, setNewTabTitle]);
+
   // Bring the file that was opened by mistake back into view, focused, so
   // the right one next to it is a double-click or arrow key away.
   useEffect(() => {
@@ -343,7 +361,7 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
       : { paths: [...previous.paths.slice(0, previous.index + 1), path], index: previous.index + 1 });
   };
   const fileName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
-  const reopen = async (path: string, fromRecent = false) => {
+  const reopen = async (path: string, fromRecent = false, inNewTab = false) => {
     setError(null);
     const removable = fromRecent;
     if (fromRecent && missing.has(path)) {
@@ -352,7 +370,7 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
     }
     setPending(path);
     try {
-      if (tabId) await openDocumentFromNewTab(tabId, path, { history, selected: path });
+      if (tabId) await openDocumentFromNewTab(tabId, path, { history, selected: path }, inNewTab);
       else await openDocument(path);
     }
     catch (cause) {
@@ -377,6 +395,24 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
       ...(background ? [{ label: "新建 Markdown", action: () => setNewFileFolder(folder.path) }] : []),
       { label: pinned ? "取消固定" : "固定到侧栏", action: () => folders.setPinned(folder, !pinned, isDefault) },
     ] });
+  };
+  /** Files offer opening here or in a new tab, which keeps this page open. */
+  const showFileMenu = (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, path: string, fromRecent = false) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelected(path);
+    if (busy || newFileFolder) return;
+    const owner = event.currentTarget;
+    const rect = owner.getBoundingClientRect();
+    const x = "clientX" in event && event.clientX ? event.clientX : rect.left + 12;
+    const y = "clientY" in event && event.clientY ? event.clientY : rect.bottom;
+    setMenu({ x, y, owner, items: [
+      { label: "打开", action: () => void reopen(path, fromRecent) },
+      { label: "在新标签页中打开", action: () => void reopen(path, fromRecent, true), disabled: !tabId },
+    ] });
+  };
+  const fileKeyboard = (event: KeyboardEvent<HTMLElement>, path: string, fromRecent = false) => {
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) showFileMenu(event, path, fromRecent);
   };
   const folderKeyboard = (event: KeyboardEvent<HTMLElement>, folder: FolderLocation) => {
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) showFolderMenu(event, folder);
@@ -437,14 +473,14 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
       <form className={"home-address" + (editingAddress ? " home-address-editing" : "")} onSubmit={(event) => {
           event.preventDefault();
           const path = address.trim().replace(/^"|"$/g, "");
-          if (path) navigate(path === "主页" ? "home" : path === "此电脑" ? "computer" : path);
+          if (path) navigate(path === HOME_LABEL || path === "主页" ? "home" : path === "此电脑" ? "computer" : path);
           addressInput.current?.blur();
         }}>
-          <UiIcon name={isDirectory ? "folder" : location === "home" ? "home" : "computer"} />
+          <UiIcon name={isDirectory ? "folder" : location === "home" ? "clock" : "computer"} />
           <input ref={addressInput} aria-label="文件夹路径" value={address} disabled={busy}
             onChange={(event) => setAddress(event.target.value)}
             onFocus={(event) => { setEditingAddress(true); event.target.select(); }}
-            onBlur={() => { setEditingAddress(false); setAddress(directory?.path ?? (isDirectory ? location : location === "home" ? "主页" : "此电脑")); }}
+            onBlur={() => { setEditingAddress(false); setAddress(directory?.path ?? (isDirectory ? location : location === "home" ? HOME_LABEL : "此电脑")); }}
             onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.blur(); }} />
           {!editingAddress && <Breadcrumbs crumbs={breadcrumbs(directory?.path ?? location)} busy={busy}
             navigate={navigate} onBlank={() => addressInput.current?.focus()} />}
@@ -459,7 +495,7 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
       <SidebarResizer kind="home" label="调整侧栏宽度" width={layout.sidebar}
         onWidthChange={(sidebar) => updateLayout((current) => ({ ...current, sidebar }))} />
       <nav>
-        {navItem({ name: "主页", path: "home" }, "home", false, false)}
+        {navItem({ name: HOME_LABEL, path: "home" }, "clock", false, false)}
         {!!locations.cloud.length && <div className="home-cloud-links" aria-label="同步文件夹">
           {locations.cloud.map((folder) => navItem(folder, "cloud", false, false))}
         </div>}
@@ -485,11 +521,12 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
           if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) showFolderMenu(event, currentFolder, true);
         }}>
         {location === "home" ? <section className="new-tab-recent" aria-label="最近打开">
-          <header><h2><UiIcon name="clock" />最近打开</h2><span>{visibleFiles.length} 个文件</span></header>
           <ListHeading labels={["名称", "打开时间", "类型", "大小"]} layout={layout} setColumn={setColumn} />
           {visibleFiles.length ? <div className="new-tab-recent-list">{visibleFiles.map((file) => (
             <button type="button" className="new-tab-recent-item" key={file.path} title={file.path} disabled={busy} data-missing={missing.has(file.path) ? "" : undefined}
-              {...itemProps(file.path, () => void reopen(file.path, true))}>
+              {...itemProps(file.path, () => void reopen(file.path, true))}
+              onContextMenu={(event) => showFileMenu(event, file.path, true)}
+              onKeyDown={(event) => { fileKeyboard(event, file.path, true); itemProps(file.path, () => void reopen(file.path, true)).onKeyDown(event); }}>
               <span className="new-tab-recent-icon"><DocumentTypeIcon type={file.doc_type} /></span>
               <span className="new-tab-recent-copy"><strong>{file.file_name}</strong>{missing.has(file.path) && <small className="home-missing-tag">已不存在</small>}</span>
               <span className="new-tab-recent-time" title={file.opened_at ? new Date(file.opened_at).toLocaleString() : "打开时间未记录"}>{pending === file.path ? "打开中…" : openedTime(file.opened_at)}</span>
@@ -514,10 +551,11 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
               onContextMenu={(event) => {
                 setSelected(entry.path);
                 if (entry.is_dir) showFolderMenu(event, { path: entry.path, name: entry.name });
-                else { event.preventDefault(); event.stopPropagation(); }
+                else showFileMenu(event, entry.path);
               }}
               onKeyDown={(event) => {
                 if (entry.is_dir) folderKeyboard(event, { path: entry.path, name: entry.name });
+                else fileKeyboard(event, entry.path);
                 itemProps(entry.path, () => entry.is_dir ? navigate(entry.path) : void reopen(entry.path)).onKeyDown(event);
               }}>
               <span className="new-tab-recent-icon">{entry.is_dir ? <UiIcon name="folder" /> : <DocumentTypeIcon type={documentType(entry.path)} />}</span>
