@@ -22,7 +22,7 @@ Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`m
 
 ## PDF path
 
-- PDF.js 负责解析、渲染、文字层、批注层、搜索、链接、目录、缩略图、缩放和打印渲染；页面几何（尺寸、裁剪框、旋转、坐标变换）以 PDF.js `PageViewport` 为唯一来源。
+- PDF.js 负责解析、渲染、文字层、批注层、搜索、链接、目录、缩略图、缩放和打印预览；页面几何（尺寸、裁剪框、旋转、坐标变换）以 PDF.js `PageViewport` 为唯一来源。
 - PDFium 只负责写操作：批注增删改、插入/删除页面和原子保存（见[决策 0001](decisions/0001-document-engine-split.md)）。
 - 选字增强不改 PDF.js 依赖文件：[`pdfMarginSelection.ts`](../reader/src/documents/pdf/pdfMarginSelection.ts) 校正从行侧空白开始或越过首末行的拖动起止点；[`SelectionPreservingPdfViewer.ts`](../reader/src/documents/pdf/SelectionPreservingPdfViewer.ts) 在缩放和延迟重绘期间保存并恢复原生选区。复制、选区绘制仍由浏览器/PDF.js 负责。
 - 异步 `reader-file` Range 协议只提供已在工作区打开的规范化 PDF 路径。每次加载使用唯一 `?rev=` 令牌，Rust 在令牌首次请求时固定源文件句柄；由于 PDFium 以改名替换写文件，同一次加载不会混读新旧字节。页面增删后前端递增令牌重新打开。
@@ -38,7 +38,7 @@ Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`m
 - Crepe 实例只随组件挂载/卸载创建与销毁，编辑回传不替换实例，以保留焦点、选区和撤销历史；源码返回和放弃修改通过显式重挂载加载内容。异步创建/销毁串行化，旧实例不再发布修改。
 - `flush()` 在保存和切换源码前补发实时内容，防止延迟监听漏掉刚输入的内容。保存使用临时文件加原子替换，并以修订号避免并发编辑被误标为已保存。
 - 新插入的本地图片经 FileReader 内嵌为 data URL。文档中已有的图片地址由 Crepe `proxyDomURL` 经 [`markdownImages.ts`](../reader/src/documents/markdown/markdownImages.ts) 映射：相对路径按 .md 所在目录解析，绝对路径和 `file:` 地址原样取路径，都改走 `reader-image` 协议；`https:`、`data:`、`blob:` 原样加载。打印前对 `getHTML` 结果做同样替换。Markdown 源文本中的地址不变。
-- 目录从标题模型生成；[`printMarkdown.ts`](../reader/src/documents/markdown/printMarkdown.ts) 用临时 Crepe 生成静态 HTML 并在隔离 iframe 中打印，不影响活动编辑器。
+- 目录从标题模型生成；[`printMarkdown.ts`](../reader/src/documents/markdown/printMarkdown.ts) 用临时 Crepe 生成静态 HTML（不影响活动编辑器），再交给打印流程分页（见 Printing）。
 - 目录空白右键新建 Markdown：`NewMarkdownDialog` 收集文件名，`create_local_markdown` 在当前目录独占创建空文件后走普通打开流程。
 
 主要代码：[`reader/src/documents/markdown/`](../reader/src/documents/markdown/)。
@@ -47,6 +47,16 @@ Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`m
 
 - `DocumentActions` 统一 PDF/Markdown 的打印/保存入口；`UiIcon` 从 `lucideIcons.ts` 绘制所有界面图标。PDF 标记方式与颜色由 `PdfViewer` 保存，经 `PdfJsAnnotationPortals` 传给批注层；缩略图右键菜单复用 `FolderContextMenu`。
 - [`SidebarResizer`](../reader/src/components/SidebarResizer.tsx) 共用侧栏调宽与拖动收起逻辑（数值见 PRODUCT）；侧栏宽度和可见状态由各文档容器持有，不进入 Rust 工作区。
+
+## Printing
+
+- 打印窗口 [`PrintDialog`](../reader/src/print/PrintDialog.tsx) 是 React 应用内模态；原生部分在 [`src-tauri/src/print/`](../reader/src-tauri/src/print/)，非 Windows 平台返回“仅支持 Windows”。
+- 一切从 PDF 快照出发：`print_snapshot_pdf` 在 PDFium 锁内复制 PDF 当前来源（有未保存修改时为工作副本）；Markdown 由 `print_markdown_pdf` 生成——页面把打印副本放进 `#reader-print-root`（只在 print 媒体显示），WebView2 `PrintToPdf` 按所选纸张、方向与页边距排版。快照放在临时目录 `reader-print/`，只能按 Reader 生成的文件名访问，窗口关闭或换版时删除，残留的一天后清理。
+- 预览用 PDF.js 读取快照字节（`print_read_snapshot`），不复用阅读器的 PDF.js 文档或 `reader-file` 加载令牌，避免打断阅读器对固定文件句柄的分段读取。
+- [`printLayout.ts`](../reader/src/print/printLayout.ts) 是唯一的排版计算：页面范围解析、自动方向、每张多页网格、适合/实际大小、自动旋转，输出每张纸上每页的毫米坐标。预览按它绘制，`print_submit` 收到同一组坐标。
+- `print_submit` 在 PDFium 锁内用原始绑定打开快照，`CreateDC("WINSPOOL")` 后对每个坐标调用 `FPDF_RenderPage` 直接画进打印机 DC（矢量输出，`FPDF_PRINTING`，按需 `FPDF_ANNOT`/`FPDF_GRAYSCALE`），坐标按 `PHYSICALOFFSET` 换算到可打印区域。
+- 打印机设置走 DEVMODE：`DocumentPropertiesW` 合并驱动默认值、“打印机属性…”返回的驱动私有设置（前端按打印机保存为字节数组）和窗口选项（纸张、方向、双面、颜色、份数、逐份）；纸张列表与双面/彩色/逐份能力来自 `DeviceCapabilitiesW`，可打印区域来自打印机 DC 的 `GetDeviceCaps`。
+- 打印偏好存于 `localStorage`（`reader.print.v1`），见 [`printPrefs.ts`](../reader/src/print/printPrefs.ts)。
 
 ## Workspace, tabs and windows
 

@@ -528,9 +528,13 @@ pub fn print(snapshot: &Path, job: &PrintJob) -> Result<(), String> {
     let offset_y = dc.caps(PHYSICALOFFSETY);
 
     let bindings = crate::pdf::pdfium::pdfium().bindings();
-    let path = snapshot.to_string_lossy();
-    // SAFETY: PDFium calls happen under the caller's PDFium lock.
-    let document = unsafe { bindings.FPDF_LoadDocument(&path, None) };
+    // Loaded from memory: PDFium's file loader reads paths in the ANSI code
+    // page, which breaks on non-ASCII temp folders (Chinese user names).
+    let bytes =
+        std::fs::read(snapshot).map_err(|error| format!("无法读取要打印的文档：{error}"))?;
+    // SAFETY: PDFium calls happen under the caller's PDFium lock; `bytes`
+    // outlives the document, which is closed at the end of this function.
+    let document = unsafe { bindings.FPDF_LoadMemDocument64(&bytes, None) };
     if document.is_null() {
         return Err("无法读取要打印的文档".into());
     }

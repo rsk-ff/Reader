@@ -6,7 +6,7 @@
 
 ## Active task
 
-- None.
+- [自制打印窗口](tasks/active/2026-11-09-print-dialog.md)：分支 `claude/project-thread-xntoqx`，等待用户在真实 Windows 中验收。
 
 ## Pending user acceptance
 
@@ -24,7 +24,7 @@
 
 ## Open follow-ups
 
-- 界面改版后续：自制打印窗口（可考虑 winprint + 现有缩略图做预览，Windows 系统对话框方案已被否决）；深色模式。
+- 界面改版后续：深色模式。
 - 批注 ID 仍存放在作者字段；pdfium-render 0.9 不公开 `/NM` 写入，需另行处理。
 
 ## Implemented
@@ -53,6 +53,6 @@
 - 标签跨原生窗口移动不会迁移滚动、缩放等瞬时状态；未保存 Markdown 的跨窗口移动被阻止。
 - 未保存 Markdown 没有崩溃恢复。
 - 源码/所见即所得切换不保留跨模式撤销历史。
-- 打印会顺序渲染所有页面，对超大文档尚未优化。
+- 打印窗口打开时为预览读取全部页面尺寸，上千页的 PDF 需要几秒；PDF 表单域（填写的内容）不打印。
 - Milkdown 编辑器虽然延迟加载，仍产生约 1.5 MB 的压缩 chunk。
 - 仅发布 Windows 版，安装包没有代码签名，可能触发 SmartScreen 提示。
