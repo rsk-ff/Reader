@@ -17,5 +17,5 @@
     <path d="M32 44C32.5 50 31.5 55 28 59" fill="none" stroke="#a8740c" stroke-width="3.2" stroke-linecap="round"/>
   </g>
   <g filter="url(#shadow)"><rect x="10" y="37" width="44" height="18" rx="3.5" fill="url(#tag)"/></g>
-  <path transform="translate(4 0)" d="M19 50V42L22.5 47L26 42V50M31 42H33A4 4 0 0 1 33 50H31Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path transform="translate(4 0)" d="M19.75 50V42L23.25 47L26.75 42V50M30.25 42H32.25A4 4 0 0 1 32.25 50H30.25Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
