@@ -517,15 +517,14 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
         onWidthChange={(sidebar) => updateLayout((current) => ({ ...current, sidebar }))} />
       <nav>
         {navItem({ name: HOME_LABEL, path: "home" }, "clock", false, false)}
-        {!!locations.cloud.length && <div className="home-cloud-links" aria-label="同步文件夹">
-          {locations.cloud.map((folder) => navItem(folder, "cloud", false, false))}
-        </div>}
         <div className="home-folder-links" aria-label="文件夹">
           {fixed.map((folder) => navItem(folder, "folder", true))}
           {frequent.map((folder) => navItem(folder, "folder"))}
         </div>
-        <div className="home-drive-links" aria-label="磁盘">
-          {locations.roots.map((folder) => navItem(folder, "computer"))}
+        {/* Synced cloud folders sit beside the drives, both under 此电脑. */}
+        <div className="home-drive-links" aria-label="磁盘与同步文件夹">
+          {locations.roots.map((folder) => navItem(folder, "drive"))}
+          {locations.cloud.map((folder) => navItem(folder, "cloud", false, false))}
         </div>
       </nav>
     </aside>
@@ -555,12 +554,16 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
               <span className="new-tab-recent-size" title="最近读取的文件大小">{fileSize(file.file_size)}</span>
             </button>
           ))}</div> : <p className="home-empty-note">{query ? "没有匹配的最近文件" : "暂无最近文件"}</p>}
-        </section> : location === "computer" ? <section aria-label="本地磁盘">
+        </section> : location === "computer" ? <section aria-label="本地磁盘与同步文件夹">
           <div className="home-drive-grid">{locations.roots.filter((root) => matches(root.name, root.path)).map((root) => (
             <button type="button" className="home-drive" key={root.path} disabled={busy} {...itemProps(root.path, () => navigate(root.path))}
               onContextMenu={(event) => showFolderMenu(event, root)}
               onKeyDown={(event) => { folderKeyboard(event, root); itemProps(root.path, () => navigate(root.path)).onKeyDown(event); }}>
-              <UiIcon name="computer" /><span><strong>{root.name}</strong><small>{root.path}</small></span>
+              <UiIcon name="drive" /><span><strong>{root.name}</strong><small>{root.path}</small></span>
+            </button>
+          ))}{locations.cloud.filter((cloud) => matches(cloud.name, cloud.path)).map((cloud) => (
+            <button type="button" className="home-drive" key={cloud.path} disabled={busy} {...itemProps(cloud.path, () => navigate(cloud.path))}>
+              <UiIcon name="cloud" /><span><strong>{cloud.name}</strong><small>{cloud.path}</small></span>
             </button>
           ))}</div>
           {!locations.roots.length && !error && <p className="home-empty-note">暂无可用本地磁盘，请刷新或输入文件夹路径</p>}

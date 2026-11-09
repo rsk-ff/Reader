@@ -636,8 +636,8 @@ html.tab-drag-preview-document #root {
 .home-pin .ui-icon { width: 14px; height: 14px; }
 /* Sidebar groups (home, cloud, folders, drives) are set apart by the same
    thin rule the document toolbars use between groups. */
-.home-cloud-links, .home-folder-links, .home-drive-links { position: relative; margin-top: 9px; padding-top: 9px; }
-:is(.home-cloud-links, .home-folder-links, .home-drive-links)::before { content: ""; position: absolute; top: 0; left: 12px; right: 12px; height: 1px; background: var(--border); }
+.home-folder-links, .home-drive-links { position: relative; margin-top: 9px; padding-top: 9px; }
+:is(.home-folder-links, .home-drive-links)::before { content: ""; position: absolute; top: 0; left: 12px; right: 12px; height: 1px; background: var(--border); }
 .home-folder-links:empty { display: none; }
 /* The navigation row spans the page like File Explorer's, so the white
    active tab runs straight into it; sidebar and content sit below. */
