@@ -30,6 +30,7 @@ window.__TAURI_INTERNALS__ = {
       window.__readerCreated.push({ directory: args.directory, fileName: name, path });
       return path;
     }
+    if (command === "local_file_missing") return args.path === "C:/Notes/old.pdf";
     if (command === "get_local_locations") return {
       cloud: window.__readerCloud.map((folder) => ({ ...folder })),
       roots: [{ name: "本地磁盘 (C:)", path: "C:/" }, { name: "本地磁盘 (D:)", path: "D:/" }],

@@ -69,7 +69,7 @@ test("mouse side buttons navigate folder history once without leaving the applic
   await page.goto("/tests/browser/new-tab.html");
   const address = page.getByRole("textbox", { name: "文件夹路径" });
   await page.locator(".home-drive-links button").first().click();
-  await page.locator(".home-directory-entry").filter({ hasText: "Notes" }).click();
+  await page.locator(".home-directory-entry").filter({ hasText: "Notes" }).dblclick();
   await sideButton(page, "back");
   await expect(address).toHaveValue("C:/");
   await sideButton(page, "back");
@@ -124,7 +124,12 @@ test("home has one continuous pinned folder list and only recent files in the ma
 test("local drive browsing keeps navigation, filtering and document opening", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html");
   await page.locator(".home-drive-links button").first().click();
-  await page.locator(".home-directory-entry").filter({ hasText: "Notes" }).click();
+  const notes = page.locator(".home-directory-entry").filter({ hasText: "Notes" });
+  // A single click only selects; double-click enters the folder.
+  await notes.click();
+  await expect(notes).toHaveAttribute("data-selected", "");
+  await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/");
+  await notes.dblclick();
   await expect(page.locator(".home-directory-entry")).toHaveCount(3);
   await page.getByRole("textbox", { name: "筛选当前列表" }).fill("review");
   await expect(page.locator(".home-directory-entry")).toHaveCount(1);
@@ -136,7 +141,11 @@ test("local drive browsing keeps navigation, filtering and document opening", as
   await page.getByRole("button", { name: "前进", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "文件夹路径" })).toHaveValue("C:/");
   await page.getByRole("button", { name: "后退", exact: true }).click();
-  await page.locator(".home-directory-entry").filter({ hasText: "review.md" }).click();
+  const review = page.locator(".home-directory-entry").filter({ hasText: "review.md" });
+  await review.click();
+  await expect(review).toHaveAttribute("data-selected", "");
+  expect(await page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBeNull();
+  await review.press("Enter");
   await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/review.md");
 });
 
@@ -348,13 +357,34 @@ for (const width of [330, 620, 1100]) {
 }
 
 
+test("missing recent files are greyed out and open a dialog that can forget them", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  const gone = page.locator(".new-tab-recent-item").filter({ hasText: "old.pdf" });
+  await expect(gone).toHaveAttribute("data-missing", "");
+  await expect(gone.locator(".home-missing-tag")).toHaveText("已不存在");
+  await expect(page.locator(".new-tab-recent-item").first()).not.toHaveAttribute("data-missing", "");
+  await gone.dblclick();
+  const dialog = page.getByRole("dialog", { name: "文件已不存在" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("C:/Notes/old.pdf");
+  await expect(page.locator(".new-tab-error")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBeNull();
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(gone).toHaveCount(1);
+  await gone.press("Enter");
+  await page.getByRole("dialog", { name: "文件已不存在" }).getByRole("button", { name: "从列表中移除" }).click();
+  await expect(gone).toHaveCount(0);
+  await expect(page.locator(".new-tab-recent-item")).toHaveCount(1);
+});
+
 test("all recent files beyond eight remain reachable by scrolling", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html?many=1");
   await expect(page.locator(".new-tab-recent-item")).toHaveCount(40);
   const last = page.locator(".new-tab-recent-item").last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
-  await last.click();
+  await last.dblclick();
   await expect.poll(() => page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBe("C:/Notes/old-38.pdf");
 });
 

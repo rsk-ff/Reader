@@ -7,6 +7,7 @@ import { DocumentTypeIcon } from "./DocumentTypeIcon";
 import { UiIcon, type UiIconName } from "./UiIcon";
 import { FolderContextMenu, type FolderMenuState } from "./FolderContextMenu";
 import { NewMarkdownDialog } from "./NewMarkdownDialog";
+import { OpenFileErrorDialog, type OpenFileError } from "./OpenFileErrorDialog";
 import { SidebarResizer } from "./SidebarResizer";
 import { ColumnResizer } from "./ColumnResizer";
 
@@ -147,6 +148,7 @@ function ListHeading({ labels, layout, setColumn }: {
 export function NewTabPage({ active = true }: { active?: boolean }) {
   const openDocument = useWorkspace((state) => state.openDocument);
   const recentFiles = useWorkspace((state) => state.recentFiles);
+  const forgetRecentFile = useWorkspace((state) => state.forgetRecentFile);
   const folders = useFolderLocations();
   const [history, setHistory] = useState({ paths: ["home"], index: 0 });
   const location = history.paths[history.index];
@@ -172,6 +174,10 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<FolderMenuState | null>(null);
   const [newFileFolder, setNewFileFolder] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<OpenFileError | null>(null);
+  /** Recent files confirmed missing; checked in the background, never at startup. */
+  const [missing, setMissing] = useState<ReadonlySet<string>>(() => new Set());
   const [now, setNow] = useState(Date.now);
   const request = useRef(0);
   const qualified = useRef(false);
@@ -241,6 +247,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     setError(null);
     setQuery("");
     setMenu(null);
+    setSelected(null);
     setDirectory(null);
     setAddress(isDirectory ? location : location === "home" ? "主页" : "此电脑");
     setLoading(isDirectory);
@@ -282,6 +289,25 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     };
   }, [directory, active, isDirectory, location, folders.recordVisit]);
 
+  // Each path is checked separately, so a slow or offline drive delays only
+  // its own row. Re-check whenever the home list is shown again.
+  useEffect(() => {
+    if (!active || location !== "home") return;
+    let alive = true;
+    for (const file of recentFiles) {
+      void invoke<boolean>("local_file_missing", { path: file.path }).then((gone) => {
+        if (!alive) return;
+        setMissing((current) => {
+          if (current.has(file.path) === gone) return current;
+          const next = new Set(current);
+          if (gone) next.add(file.path); else next.delete(file.path);
+          return next;
+        });
+      }).catch(() => {});
+    }
+    return () => { alive = false; };
+  }, [active, location, recentFiles, revision]);
+
   const closeMenu = useCallback((restoreFocus: boolean) => {
     setMenu((current) => {
       if (restoreFocus && current?.owner.isConnected) current.owner.focus();
@@ -295,11 +321,21 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     setHistory((previous) => path === previous.paths[previous.index] ? previous
       : { paths: [...previous.paths.slice(0, previous.index + 1), path], index: previous.index + 1 });
   };
-  const reopen = async (path: string) => {
+  const fileName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+  const reopen = async (path: string, fromRecent = false) => {
     setError(null);
+    const removable = fromRecent;
+    if (fromRecent && missing.has(path)) {
+      setOpenError({ path, name: fileName(path), missing: true, removable });
+      return;
+    }
     setPending(path);
     try { await openDocument(path); }
-    catch (cause) { setError(`无法打开文件：${errorMessage(cause)}`); }
+    catch (cause) {
+      const gone = await invoke<boolean>("local_file_missing", { path }).catch(() => false);
+      if (gone && fromRecent) setMissing((current) => new Set(current).add(path));
+      setOpenError({ path, name: fileName(path), missing: gone, message: errorMessage(cause), removable });
+    }
     finally { setPending(null); }
   };
 
@@ -334,6 +370,21 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
       }
     } finally { setPending(null); }
   };
+  /**
+   * Main-area items follow File Explorer: a single click only selects,
+   * double-click or Enter opens the file or enters the folder.
+   */
+  const itemProps = (path: string, open: () => void) => ({
+    "data-selected": selected === path ? "" : undefined,
+    onClick: () => setSelected(path),
+    onDoubleClick: () => { setSelected(path); open(); },
+    onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      setSelected(path);
+      open();
+    },
+  });
   const matches = (name: string, path: string) => `${name} ${path}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
   const visibleFiles = recentFiles.filter((file) => matches(file.file_name, file.path));
   const entries = directory?.entries.filter((entry) => matches(entry.name, entry.path)) ?? [];
@@ -400,6 +451,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     <div className="home-workspace">
       {error && <p className="new-tab-error" role="alert">{error}</p>}
       <div className="home-body" aria-busy={loading} tabIndex={isDirectory ? 0 : undefined}
+        onClick={(event) => { if (!(event.target as HTMLElement).closest("button")) setSelected(null); }}
         onContextMenu={(event) => {
           if (!currentFolder || (event.target as HTMLElement).closest("button, input")) return;
           showFolderMenu(event, currentFolder, true);
@@ -412,9 +464,10 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
           <header><h2><UiIcon name="clock" />最近打开</h2><span>{visibleFiles.length} 个文件</span></header>
           <ListHeading labels={["名称", "打开时间", "类型", "大小"]} layout={layout} setColumn={setColumn} />
           {visibleFiles.length ? <div className="new-tab-recent-list">{visibleFiles.map((file) => (
-            <button type="button" className="new-tab-recent-item" key={file.path} title={file.path} disabled={busy} onClick={() => void reopen(file.path)}>
+            <button type="button" className="new-tab-recent-item" key={file.path} title={file.path} disabled={busy} data-missing={missing.has(file.path) ? "" : undefined}
+              {...itemProps(file.path, () => void reopen(file.path, true))}>
               <span className="new-tab-recent-icon"><DocumentTypeIcon type={file.doc_type} /></span>
-              <span className="new-tab-recent-copy"><strong>{file.file_name}</strong></span>
+              <span className="new-tab-recent-copy"><strong>{file.file_name}</strong>{missing.has(file.path) && <small className="home-missing-tag">已不存在</small>}</span>
               <span className="new-tab-recent-time" title={file.opened_at ? new Date(file.opened_at).toLocaleString() : "打开时间未记录"}>{pending === file.path ? "打开中…" : openedTime(file.opened_at)}</span>
               <span className="new-tab-recent-type">{typeLabel(file.doc_type)}</span>
               <span className="new-tab-recent-size" title="最近读取的文件大小">{fileSize(file.file_size)}</span>
@@ -422,8 +475,9 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
           ))}</div> : <p className="home-empty-note">{query ? "没有匹配的最近文件" : "暂无最近文件"}</p>}
         </section> : location === "computer" ? <section aria-label="本地磁盘">
           <div className="home-drive-grid">{locations.roots.filter((root) => matches(root.name, root.path)).map((root) => (
-            <button type="button" className="home-drive" key={root.path} disabled={busy} onClick={() => navigate(root.path)}
-              onContextMenu={(event) => showFolderMenu(event, root)} onKeyDown={(event) => folderKeyboard(event, root)}>
+            <button type="button" className="home-drive" key={root.path} disabled={busy} {...itemProps(root.path, () => navigate(root.path))}
+              onContextMenu={(event) => showFolderMenu(event, root)}
+              onKeyDown={(event) => { folderKeyboard(event, root); itemProps(root.path, () => navigate(root.path)).onKeyDown(event); }}>
               <UiIcon name="computer" /><span><strong>{root.name}</strong><small>{root.path}</small></span>
             </button>
           ))}</div>
@@ -432,12 +486,16 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
           <ListHeading labels={["名称", "修改日期", "类型", "大小"]} layout={layout} setColumn={setColumn} />
           {loading ? <p className="home-empty-note" role="status">正在读取文件夹…</p> : <div>{entries.map((entry) => (
             <button type="button" className="new-tab-recent-item home-directory-entry" key={entry.path} title={entry.path} disabled={busy}
-              onClick={() => entry.is_dir ? navigate(entry.path) : void reopen(entry.path)}
+              {...itemProps(entry.path, () => entry.is_dir ? navigate(entry.path) : void reopen(entry.path))}
               onContextMenu={(event) => {
+                setSelected(entry.path);
                 if (entry.is_dir) showFolderMenu(event, { path: entry.path, name: entry.name });
                 else { event.preventDefault(); event.stopPropagation(); }
               }}
-              onKeyDown={entry.is_dir ? (event) => folderKeyboard(event, { path: entry.path, name: entry.name }) : undefined}>
+              onKeyDown={(event) => {
+                if (entry.is_dir) folderKeyboard(event, { path: entry.path, name: entry.name });
+                itemProps(entry.path, () => entry.is_dir ? navigate(entry.path) : void reopen(entry.path)).onKeyDown(event);
+              }}>
               <span className="new-tab-recent-icon">{entry.is_dir ? <UiIcon name="folder" /> : <DocumentTypeIcon type={documentType(entry.path)} />}</span>
               <span className="new-tab-recent-copy"><strong>{entry.name}</strong></span>
               <span className="new-tab-recent-time">{openedTime(entry.modified_at)}</span>
@@ -451,6 +509,8 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
       </div>
     </div>
     {menu && active && <FolderContextMenu state={menu} close={closeMenu} />}
+    {openError && active && <OpenFileErrorDialog error={openError} close={() => setOpenError(null)}
+      remove={() => { forgetRecentFile(openError.path); setOpenError(null); }} />}
     {newFileFolder && active && <NewMarkdownDialog directory={newFileFolder} create={createFile} cancel={() => setNewFileFolder(null)} />}
   </main>;
 }

@@ -79,6 +79,11 @@ export function rememberRecentFile(files: RecentFile[], file: RecentFile): Recen
   ];
 }
 
+export function forgetRecentFile(files: RecentFile[], path: string): RecentFile[] {
+  const identity = normalizedPath(path);
+  return files.filter((candidate) => normalizedPath(candidate.path) !== identity);
+}
+
 export function parseRecentFiles(serialized: string | null): RecentFile[] {
   if (!serialized) return [];
   try {

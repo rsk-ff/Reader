@@ -7,6 +7,7 @@ import {
   persistRecentFiles,
   RECENT_FILES_STORAGE_KEY,
   recentFileFromPath,
+  forgetRecentFile,
   rememberRecentFile,
   toUserFacingPath,
 } from "./recentFiles";
@@ -144,5 +145,12 @@ describe("recent files", () => {
     expect(mergeRecentFilesFromSnapshot([], snapshot.documents, afterSave)[0].path).toBe(
       saved.path,
     );
+  });
+});
+
+describe("forgetRecentFile", () => {
+  it("removes a file regardless of slash direction or drive-letter case", () => {
+    const files = [recentFileFromPath("C:\\Notes\\gone.pdf")!, recentFileFromPath("C:/Notes/keep.md")!];
+    expect(forgetRecentFile(files, "c:/notes/gone.pdf").map((file) => file.file_name)).toEqual(["keep.md"]);
   });
 });
