@@ -35,6 +35,15 @@ export function forgetNewTabReturn(tabId: TabId) {
   returns.delete(tabId);
 }
 
+/**
+ * Leaving the tab ends its chance to return: switching to another tab, or
+ * the tab moving to another window, both drop it from this window's active
+ * slot. Switching to another app does not, since the active tab stays.
+ */
+export function pruneNewTabReturns(activeTabId: TabId | null) {
+  for (const tabId of [...returns.keys()]) if (tabId !== activeTabId) returns.delete(tabId);
+}
+
 export function peekNewTabReturn(tabId: TabId): NewTabReturn | undefined {
   return returns.get(tabId);
 }

@@ -20,6 +20,7 @@ import {
   canReturnToNewTab,
   forgetNewTabReturn,
   peekNewTabReturn,
+  pruneNewTabReturns,
   rememberNewTabReturn,
   restoreRecentEntry,
   stashNewTabPlace,
@@ -131,6 +132,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       snap,
     );
     persistRecentFiles(recentFiles);
+    pruneNewTabReturns(snap.active_tab_id);
     set({
       ...snap,
       documentsById: indexDocuments(snap),

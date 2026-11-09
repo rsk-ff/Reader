@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canReturnToNewTab, NEW_TAB_RETURN_MS, restoreRecentEntry, type NewTabReturn } from "./newTabReturn";
+import { canReturnToNewTab, NEW_TAB_RETURN_MS, peekNewTabReturn, pruneNewTabReturns, rememberNewTabReturn, restoreRecentEntry, type NewTabReturn } from "./newTabReturn";
 import type { RecentFile } from "./recentFiles";
 
 const entry: NewTabReturn = {
@@ -41,5 +41,18 @@ describe("restoreRecentEntry", () => {
     const files = [file("c.pdf", 9), file("a.pdf", 8), file("b.pdf", 2)];
     const restored = restoreRecentEntry(files, identity, "c.pdf", { file: file("c.pdf", 1), index: 2 });
     expect(restored).toEqual([file("a.pdf", 8), file("b.pdf", 2), file("c.pdf", 1)]);
+  });
+});
+
+describe("pruneNewTabReturns", () => {
+  it("keeps the active tab and drops a tab that was switched away from", () => {
+    rememberNewTabReturn("tab-1", entry);
+    pruneNewTabReturns("tab-1");
+    expect(peekNewTabReturn("tab-1")).toBe(entry);
+    pruneNewTabReturns("tab-2");
+    expect(peekNewTabReturn("tab-1")).toBeUndefined();
+    // Switching back does not bring it back.
+    pruneNewTabReturns("tab-1");
+    expect(peekNewTabReturn("tab-1")).toBeUndefined();
   });
 });
