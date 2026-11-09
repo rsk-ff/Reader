@@ -39,8 +39,8 @@
   --danger-hover: #9e3028;
 
   /* File types */
-  --file-pdf: #c4473c;
-  --file-markdown: #55554f;
+  --file-pdf: #b85454;      /* matches the PDF tag of the Windows file icon */
+  --file-markdown: #5579ab; /* matches the MD tag of the Windows file icon */
 
   /* Scrollbars */
   --scrollbar: #c9c9c4;
