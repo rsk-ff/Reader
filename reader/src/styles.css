@@ -39,8 +39,8 @@
   --danger-hover: #9e3028;
 
   /* File types */
-  --file-pdf: #c4473c;
-  --file-markdown: #55554f;
+  --file-pdf: #b85454;      /* matches the PDF tag of the Windows file icon */
+  --file-markdown: #5579ab; /* matches the MD tag of the Windows file icon */
 
   /* Scrollbars */
   --scrollbar: #c9c9c4;
@@ -374,6 +374,23 @@ html.tab-drag-preview-document #root {
   font-weight: 600;
 }
 
+/* Concave 8px fillets join the active tab to the toolbar below, so the tab
+   flows into the content instead of meeting it at a right angle. Each corner
+   square sits outside the tab; its ring continues the tab's 1px side border
+   into the title bar's bottom line. */
+.tab-active:not(.tab-drag-ghost)::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: 0;
+  height: 8px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0 0, transparent 7px, var(--border) 7px, var(--border) 8px, var(--bg-elev) 8.5px) left bottom / 8px 8px no-repeat,
+    radial-gradient(circle at 100% 0, transparent 7px, var(--border) 7px, var(--border) 8px, var(--bg-elev) 8.5px) right bottom / 8px 8px no-repeat;
+}
+
 .tab-title {
   flex: 1 1 auto;
   min-width: 0;
@@ -618,7 +635,7 @@ html.tab-drag-preview-document #root {
    active tab runs straight into it; sidebar and content sit below. */
 .home-workspace { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .home-sidebar { grid-column: 1; grid-row: 2; position: relative; overflow-x: hidden; }
-.home-navigation { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; flex-wrap: nowrap; gap: 2px; padding: 8px 12px; min-width: 0; background: var(--bg-elev); border-bottom: 1px solid var(--home-sidebar-line); }
+.home-navigation { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; flex-wrap: nowrap; gap: 2px; height: 44px; padding: 0 12px; min-width: 0; background: var(--bg-elev); border-bottom: 1px solid var(--home-sidebar-line); }
 .home-address { position: relative; }
 .home-address input { position: relative; z-index: 0; }
 .home-address:not(.home-address-editing) input { opacity: 0; }
@@ -635,7 +652,7 @@ html.tab-drag-preview-document #root {
 .home-icon-button[hidden] { display: none; }
 .home-icon-button .ui-icon { width: 17px; height: 17px; }
 .home-icon-button:hover:not(:disabled) { background: var(--home-hover); }
-.home-address, .home-search { display: flex; align-items: center; gap: 8px; min-width: 0; height: 34px; padding: 0 12px; background: var(--home-field); border: 1px solid transparent; border-radius: var(--radius-control); transition: background-color 120ms ease, border-color 120ms ease; }
+.home-address, .home-search { display: flex; align-items: center; gap: 8px; min-width: 0; height: 32px; padding: 0 12px; background: var(--home-field); border: 1px solid transparent; border-radius: var(--radius-control); transition: background-color 120ms ease, border-color 120ms ease; }
 .home-address { flex: 1 1 170px; min-width: 120px; margin-left: 8px; }
 .home-search { flex: 0 1 260px; min-width: 120px; margin-left: 8px; padding-right: 2px; }
 .home-search .home-icon-button { width: 28px; height: 28px; padding: 6px; border-radius: 4px; }

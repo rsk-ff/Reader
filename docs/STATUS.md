@@ -1,6 +1,6 @@
 # Current status
 
-- Last updated: 2026-11-05
+- Last updated: 2026-11-09
 - Application version: `0.1.0`
 - Latest user-accepted source baseline: `b2c1553` — Markdown 侧栏调宽与 PDF/Markdown 拖动收起
 
@@ -15,6 +15,7 @@
 
 ## Recently merged into dev
 
+- 2026-11-09：银杏 Logo、新 PDF/MD 文件关联图标（含 16/20/24px 像素版）、软件内文件图标颜色对齐、新标签页地址栏 44px、当前标签内凹圆角；分支 `claude/project-thread-8ga2vo`，用户已在安装版中验收。
 - 2026-11-05：界面改版（浅色，方向 A），分支 `claude/project-thread-gsfh7v`，各阶段已由用户在检查版中验收；明细见 CHANGELOG。
 - 2026-10-27（PR #1）：全仓审查 P0 修复，Markdown 链接与错误提示框修复。
 - 2026-10-28（PR #2）：审查 P1/P2 修复（Markdown 读写限制在已打开文档、批注更新单次写入、标签/窗口健壮性）。
@@ -23,7 +24,7 @@
 
 ## Open follow-ups
 
-- 界面改版后续：自制打印窗口（可考虑 winprint + 现有缩略图做预览，Windows 系统对话框方案已被否决）；深色模式；正式软件 logo（窗口/任务栏与文件关联图标仍是旧母版 `shell-reader.svg` 等，定稿后重新生成原生图标）。
+- 界面改版后续：自制打印窗口（可考虑 winprint + 现有缩略图做预览，Windows 系统对话框方案已被否决）；深色模式。
 - 批注 ID 仍存放在作者字段；pdfium-render 0.9 不公开 `/NM` 写入，需另行处理。
 
 ## Implemented
@@ -34,16 +35,16 @@
 - Markdown：所见即所得/源码模式、显式保存、顶部格式工具栏、目录侧栏（调宽与完全收起）、Crepe 官方 Frame 主题、图片内嵌保存、打印。
 - 新标签页：本地磁盘/目录浏览、固定与常用文件夹、最近文件、目录内新建 Markdown、OneDrive/Dropbox 入口、鼠标侧键导航。
 - 窗口与标签：切换、关闭、排序、拖出与跨窗口停靠，自定义标题栏与 Snap Layout，文件关联、拖放打开、单实例转发。
-- 软件、PDF、Markdown 图标在应用内与 Windows 中统一，安装包为两类文件注册专用 `DefaultIcon`。
+- 安装包为 PDF、Markdown 两类文件注册专用 `DefaultIcon`。
 
 ## Latest local release artifacts
 
-2026-10-09 从 `b2c1553` 生成，标识 `com.earendil.reader`，本机 MSI 已覆盖安装。包与构建/安装证据保存在 `releases/2026-10-09-0.1.0-b2c1553/`（不纳入 Git，未上传外部平台）。
+2026-11-09 从 `83ff316`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，用户已覆盖安装并验收。包保存在 `releases/2026-11-09-0.1.0-83ff316/`（不纳入 Git，未上传外部平台）。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
-| MSI | `releases/2026-10-09-0.1.0-b2c1553/Reader_0.1.0_x64_en-US.msi` | 20,930,560 | `F2816B7826322C8FBB4B9CCA5A86A55809FA67BC27621073DCA34FF71695244D` | `NotSigned` |
-| NSIS | `releases/2026-10-09-0.1.0-b2c1553/Reader_0.1.0_x64-setup.exe` | 16,040,985 | `9A6EA5B12BA4325AA86DBFCA9D35683D6D61451E98FDAAD764A6B7F8FE55EB5D` | `NotSigned` |
+| MSI | `releases/2026-11-09-0.1.0-83ff316/Reader_0.1.0_x64_en-US.msi` | 21,254,144 | `B75C00A2366FB78BD2EE99772EA9C6434E16C15FC262F0EA6F0BA92D5A4D6C38` | `NotSigned` |
+| NSIS | `releases/2026-11-09-0.1.0-83ff316/Reader_0.1.0_x64-setup.exe` | 16,256,255 | `CBCA0F3CF1CC8C1E1F12C5828586E4897290FB0B97BB4C5BAD3732E4698D102C` | `NotSigned` |
 
 ## Known limitations
 

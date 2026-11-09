@@ -62,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File scripts/check-docs.ps1
 
 ## Icons
 
-软件与文件图标的 SVG 母版及许可在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)；应用内 [`brandIcons.ts`](../reader/src/components/brandIcons.ts) 与原生生成器共用这些母版。修改母版后重新生成原生资源，并重新打包安装才能同步到 Windows：
+软件与文件图标的 SVG 母版及许可在 [`reader/src/assets/icons/`](../reader/src/assets/icons/README.md)；原生生成器读取这些母版。修改母版后重新生成原生资源，并重新打包安装才能同步到 Windows：
 
 ```powershell
 pnpm --dir reader generate:file-icons

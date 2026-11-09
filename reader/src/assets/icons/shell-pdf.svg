@@ -1,8 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 22 22">
-  <!-- Material Icon Theme, fixed source 9d513c781fb5bd0619ca21bd519fd1df5f19f84a; original artwork path retained.
-       Reader modifications: opaque white backing, normalized canvas and matched HSL palette. -->
-  <g transform="translate(1.4 1.4) scale(.8)">
-    <path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" fill="#fff"/>
-    <path d="M13 9h5.5L13 3.5zM6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m4.93 10.44c.41.9.93 1.64 1.53 2.15l.41.32c-.87.16-2.07.44-3.34.93l-.11.04.5-1.04c.45-.87.78-1.66 1.01-2.4m6.48 3.81c.18-.18.27-.41.28-.66.03-.2-.02-.39-.12-.55-.29-.47-1.04-.69-2.28-.69l-1.29.07-.87-.58c-.63-.52-1.2-1.43-1.6-2.56l.04-.14c.33-1.33.64-2.94-.02-3.6a.85.85 0 0 0-.61-.24h-.24c-.37 0-.7.39-.79.77-.37 1.33-.15 2.06.22 3.27v.01c-.25.88-.57 1.9-1.08 2.93l-.96 1.8-.89.49c-1.2.75-1.77 1.59-1.88 2.12-.04.19-.02.36.05.54l.03.05.48.31.44.11c.81 0 1.73-.95 2.97-3.07l.18-.07c1.03-.33 2.31-.56 4.03-.75 1.03.51 2.24.74 3 .74.44 0 .74-.11.91-.3m-.41-.71.09.11c-.01.1-.04.11-.09.13h-.04l-.19.02c-.46 0-1.17-.19-1.9-.51.09-.1.13-.1.23-.1 1.4 0 1.8.25 1.9.35M7.83 17c-.65 1.19-1.24 1.85-1.69 2 .05-.38.5-1.04 1.21-1.69zm3.02-6.91c-.23-.9-.24-1.63-.07-2.05l.07-.12.15.05c.17.24.19.56.09 1.1l-.03.16-.16.82z" fill="#b45c5c"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64">
+  <!-- Reader file icon: Fluent-style page, centred ginkgo mark and centred file-type tag. Original artwork. -->
+  <defs>
+    <linearGradient id="paper" x1="32" y1="4" x2="32" y2="60" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#eeede8"/></linearGradient>
+    <linearGradient id="tag" x1="28" y1="37" x2="28" y2="55" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#cf6e6e"/><stop offset="1" stop-color="#a84c4c"/></linearGradient>
+    <linearGradient id="leafL" x1="10" y1="10" x2="32" y2="44" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd66b"/><stop offset="1" stop-color="#e3920c"/></linearGradient>
+    <linearGradient id="leafR" x1="54" y1="10" x2="32" y2="44" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffe896"/><stop offset="1" stop-color="#f2a91c"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#2b2820" flood-opacity=".28"/></filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M16 4H48A4 4 0 0 1 52 8V56A4 4 0 0 1 48 60H16A4 4 0 0 1 12 56V8A4 4 0 0 1 16 4Z" fill="url(#paper)"/>
   </g>
+  <path d="M16 4H48A4 4 0 0 1 52 8V56A4 4 0 0 1 48 60H16A4 4 0 0 1 12 56V8A4 4 0 0 1 16 4Z" fill="none" stroke="#000" stroke-opacity=".08" stroke-width=".8"/>
+  <g transform="translate(17.6 8.5) scale(.45)">
+    <path d="M32 44C24 39 9 31 5 22C11 11 21 6 28.5 7C30 10.5 31.3 14.5 32 19Z" fill="url(#leafL)"/>
+    <path d="M32 44C40 39 55 31 59 22C53 11 43 6 35.5 7C34 10.5 32.7 14.5 32 19Z" fill="url(#leafR)"/>
+    <path d="M32 44C32.5 50 31.5 55 28 59" fill="none" stroke="#a8740c" stroke-width="3.2" stroke-linecap="round"/>
+  </g>
+  <g filter="url(#shadow)"><rect x="10" y="37" width="44" height="18" rx="3.5" fill="url(#tag)"/></g>
+  <path transform="translate(4 0)" d="M16 50V42H19.5A2.25 2.25 0 0 1 19.5 46.5H16M25 42H27A4 4 0 0 1 27 50H25ZM40 42H34V50M34 46H38.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

@@ -15,17 +15,33 @@ const applicationFiles = [
   "Square150x150Logo.png", "Square284x284Logo.png", "Square310x310Logo.png", "StoreLogo.png",
 ];
 
-function generate(source, files, shellViewBox) {
+function readIco(data) {
+  const count = data.readUInt16LE(4);
+  return Array.from({ length: count }, (_, index) => {
+    const entry = data.subarray(6 + index * 16, 22 + index * 16);
+    const size = entry.readUInt32LE(8), offset = entry.readUInt32LE(12);
+    return { width: entry[0] || 256, entry: Buffer.from(entry), image: data.subarray(offset, offset + size) };
+  });
+}
+
+function writeIco(frames) {
+  const header = Buffer.alloc(6 + frames.length * 16);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(frames.length, 4);
+  let offset = header.length;
+  frames.forEach((frame, index) => {
+    frame.entry.copy(header, 6 + index * 16);
+    header.writeUInt32LE(frame.image.length, 6 + index * 16 + 8);
+    header.writeUInt32LE(offset, 6 + index * 16 + 12);
+    offset += frame.image.length;
+  });
+  return Buffer.concat([header, ...frames.map((frame) => frame.image)]);
+}
+
+function generate(source, files) {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "reader-icons-"));
   try {
-    let input = path.join(assets, source);
-    if (shellViewBox) {
-      // Crop only the master's outer margins for Explorer. UI tabs retain their canvas.
-      const svg = fs.readFileSync(input, "utf8");
-      if (!svg.includes('viewBox="0 0 22 22"')) throw new Error(`Unexpected file master canvas: ${source}`);
-      input = path.join(scratch, "source.svg");
-      fs.writeFileSync(input, svg.replace('viewBox="0 0 22 22"', `viewBox="${shellViewBox}"`));
-    }
+    const input = path.join(assets, source);
     execFileSync(process.execPath, [cli, "icon", input, "--output", scratch],
       { cwd: path.join(root, "reader"), stdio: "pipe" });
     for (const [generated, target] of files) {
@@ -53,6 +69,21 @@ function generate(source, files, shellViewBox) {
 
 fs.mkdirSync(output, { recursive: true });
 generate("shell-reader.svg", applicationFiles.map((file) => [file, file]));
-generate("shell-pdf.svg", [["icon.ico", "file-pdf.ico"]], "2 2 18 18");
-generate("shell-markdown.svg", [["icon.ico", "file-markdown.ico"]], "2 2 18 18");
+// File icons: 16/20/24px frames are hand-placed pixel art (scripts/draw-small-file-icons.py,
+// committed PNGs) because the full artwork turns to mush at Explorer's small-icon sizes.
+function pngFrame(file) {
+  const image = fs.readFileSync(file);
+  const width = image.readUInt32BE(16);
+  const entry = Buffer.alloc(16);
+  entry[0] = width; entry[1] = width;
+  entry.writeUInt16LE(1, 4); entry.writeUInt16LE(32, 6);
+  return { width, entry, image };
+}
+for (const type of ["pdf", "markdown"]) {
+  const target = `file-${type}.ico`;
+  generate(`shell-${type}.svg`, [["icon.ico", target]]);
+  const large = readIco(fs.readFileSync(path.join(output, target))).filter((frame) => frame.width > 24);
+  const small = [16, 20, 24].map((size) => pngFrame(path.join(assets, "small", `file-${type}-${size}.png`)));
+  fs.writeFileSync(path.join(output, target), writeIco([...small, ...large]));
+}
 console.log("Generated native application and file association icons from the shell SVG sources.");
