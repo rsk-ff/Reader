@@ -126,3 +126,18 @@ test("remembers only the printer last printed to", async ({ page }) => {
   await expect(panel.getByRole("button", { name: /^打印机 Microsoft Print to PDF/ })).toBeVisible();
   await expect(panel.getByRole("button", { name: /每张页数.*1 页/ })).toBeVisible();
 });
+
+test("going back to the first sheet scrolls the thumbnail strip to the top", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 480 });
+  await page.goto("/tests/browser/print-dialog.html?pdf=text-3.pdf");
+  const dialog = page.getByRole("region", { name: "打印选项" });
+  await expect(dialog.getByText("第 1 张 / 共 3 张")).toBeVisible();
+  const strip = page.locator(".print-strip");
+  await dialog.getByRole("button", { name: "下一张" }).click();
+  await dialog.getByRole("button", { name: "下一张" }).click();
+  await expect(dialog.getByText("第 3 张 / 共 3 张")).toBeVisible();
+  await expect.poll(() => strip.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await dialog.getByRole("button", { name: "上一张" }).click();
+  await dialog.getByRole("button", { name: "上一张" }).click();
+  await expect.poll(() => strip.evaluate((element) => element.scrollTop)).toBe(0);
+});
