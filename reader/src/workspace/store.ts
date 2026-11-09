@@ -183,11 +183,19 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     const before = get().recentFiles;
     const index = before.findIndex((file) => normalizedPath(file.path) === key);
     await get().openDocument(path);
-    // An already-open file is focused where it lives; this tab stays new.
-    const documentId = get().tabs.find((tab) => tab.id === tabId)?.document_id;
-    if (!documentId) return;
-    rememberNewTabReturn(tabId, {
+    const state = get();
+    const replaced = state.tabs.find((tab) => tab.id === tabId)?.document_id;
+    // An already-open file is focused where it lives and this tab stays new;
+    // only a tab in this window can switch back to it.
+    const focused = replaced ? tabId : state.active_tab_id;
+    const documentId = replaced ?? state.tabs.find((tab) => tab.id === focused)?.document_id;
+    const document = documentId ? state.documentsById[documentId] : undefined;
+    if (!focused || !documentId || !document) return;
+    if (!replaced && normalizedPath(document.path) !== key) return;
+    rememberNewTabReturn(focused, {
+      newTabId: replaced ? undefined : tabId,
       documentId,
+      revision: document.revision,
       path,
       openedAt: Date.now(),
       place,
@@ -205,6 +213,15 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       return false;
     }
     forgetNewTabReturn(tabId);
+    if (entry.newTabId) {
+      const newTab = state.tabs.find((tab) => tab.id === entry.newTabId);
+      if (!newTab || newTab.document_id !== null) return false;
+      const recentFiles = restoreRecentEntry(state.recentFiles, normalizedPath, entry.path, entry.recentBefore);
+      persistRecentFiles(recentFiles);
+      set({ recentFiles });
+      await get().focusTab(entry.newTabId);
+      return true;
+    }
     // The new-tab page mounts as soon as the snapshot arrives; stash first.
     stashNewTabPlace(tabId, entry.place);
     try {

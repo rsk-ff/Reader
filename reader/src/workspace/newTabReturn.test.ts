@@ -4,6 +4,7 @@ import type { RecentFile } from "./recentFiles";
 
 const entry: NewTabReturn = {
   documentId: "doc-a",
+  revision: 1,
   path: "C:\\docs\\a.pdf",
   openedAt: 1_000,
   place: { history: { paths: ["home", "C:\\docs"], index: 1 }, selected: "C:\\docs\\a.pdf" },
@@ -26,6 +27,19 @@ describe("canReturnToNewTab", () => {
     expect(canReturnToNewTab(entry, "doc-b", clean, 2_000)).toBe(false);
     expect(canReturnToNewTab(entry, null, clean, 2_000)).toBe(false);
     expect(canReturnToNewTab(undefined, "doc-a", clean, 2_000)).toBe(false);
+  });
+});
+
+describe("canReturnToNewTab for a file that was already open", () => {
+  const focused: NewTabReturn = { ...entry, newTabId: "tab-new", revision: 4 };
+  it("allows switching back even if the file had unsaved edits before", () => {
+    expect(canReturnToNewTab(focused, "doc-a", { dirty: true, revision: 4 }, 2_000)).toBe(true);
+  });
+  it("stops after an edit made since the switch", () => {
+    expect(canReturnToNewTab(focused, "doc-a", { dirty: true, revision: 5 }, 2_000)).toBe(false);
+  });
+  it("still has the time window", () => {
+    expect(canReturnToNewTab(focused, "doc-a", { dirty: false, revision: 4 }, 1_001 + NEW_TAB_RETURN_MS)).toBe(false);
   });
 });
 

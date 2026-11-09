@@ -4,7 +4,9 @@ import type { DocumentSession, TabId } from "./types";
 /**
  * A file opened from a new tab replaces that tab in place. For a short time
  * afterwards, and only while the file is untouched, the mouse back button
- * turns the tab back into the new tab it came from.
+ * turns the tab back into the new tab it came from. A file that was already
+ * open is focused in its own tab instead; there the back button switches
+ * back to the new tab, which stayed open.
  */
 export const NEW_TAB_RETURN_MS = 10_000;
 
@@ -15,7 +17,11 @@ export interface NewTabPlace {
 }
 
 export interface NewTabReturn {
+  /** The new tab to switch back to, when the file was already open elsewhere. */
+  newTabId?: TabId;
   documentId: string;
+  /** Document revision when it was shown; any later edit ends the return. */
+  revision: number;
   path: string;
   openedAt: number;
   place: NewTabPlace;
@@ -57,7 +63,8 @@ export function canReturnToNewTab(
 ): boolean {
   if (!entry || !document || documentId !== entry.documentId) return false;
   if (now - entry.openedAt > NEW_TAB_RETURN_MS) return false;
-  return !document.dirty && document.revision === 1;
+  if (document.revision !== entry.revision) return false;
+  return entry.newTabId !== undefined || (!document.dirty && document.revision === 1);
 }
 
 export function stashNewTabPlace(tabId: TabId, place: NewTabPlace) {
