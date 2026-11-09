@@ -158,9 +158,6 @@ export function WindowTitleBar({ children, closeOnly = false }: { children?: Rea
           </svg>
         </button>
         </>}
-        {/* The frame plugin keeps a native snap overlay one button left of
-            close on every window; this spacer keeps that spot blank. */}
-        {closeOnly && <span className="winctl winctl-spacer" aria-hidden="true" />}
         <button
           type="button"
           id="frame-tb-close"

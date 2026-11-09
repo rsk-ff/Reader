@@ -291,12 +291,6 @@ html.tab-drag-preview-document #root {
   color: var(--text);
 }
 
-.winctl-spacer,
-.winctl-spacer:hover {
-  background: transparent;
-  pointer-events: none;
-}
-
 .winctl-close:hover {
   background: #c42b1c;
   color: #fff;
@@ -2192,19 +2186,11 @@ body.home-sidebar-resizing * {
 .print-panel { display: flex; flex: 1; min-height: 0; background: var(--bg-elev); color: var(--text); }
 
 .print-preview { display: flex; flex: 1; min-width: 0; flex-direction: column; background: var(--stage); }
-.print-preview-bar {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  height: 44px; padding: 0 12px 0 8px; color: var(--text-dim); flex: none;
+.print-preview-nav {
+  display: flex; flex: none; align-items: center; justify-content: center; gap: 2px;
+  height: 44px; color: var(--text-dim); font-variant-numeric: tabular-nums;
 }
-.print-preview-nav { display: flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
 .print-preview-nav span { min-width: 112px; text-align: center; }
-.print-preview-paper { color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.print-icon-button {
-  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0;
-  border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-dim); font: inherit;
-}
-.print-icon-button:hover:not(:disabled) { background: var(--bg-active); color: var(--text); }
-.print-icon-button:disabled { opacity: 0.4; }
 .print-preview-stage { display: flex; flex: 1; min-height: 0; align-items: center; justify-content: center; }
 .print-preview-sheet { background: #fff; box-shadow: 0 1px 3px rgb(28 28 26 / 18%); }
 .print-preview-sheet.mono { filter: grayscale(1); }

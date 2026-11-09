@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { AnnotationMode, GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -511,8 +511,23 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
   const rangeError = "error" in range && rangeMode === "custom" && rangeText.trim() ? range.error : null;
   const papers = paperCount(sheets.length, copies, duplex !== "none");
   const sheet = sheets[sheetIndex];
-  const orientationLabel = landscape ? "横向" : "纵向";
   const disabled = printing;
+
+  // The wheel over the big preview turns sheets: one per notch, and a
+  // touchpad's small deltas add up to a step.
+  const wheel = useRef({ total: 0, last: 0 });
+  const onPreviewWheel = (event: WheelEvent) => {
+    if (event.ctrlKey) return;
+    const delta = event.deltaMode === 0 ? event.deltaY : event.deltaY * 40;
+    const state = wheel.current;
+    if (event.timeStamp - state.last > 250) state.total = 0;
+    state.last = event.timeStamp;
+    state.total += delta;
+    if (Math.abs(state.total) < 50) return;
+    const step = state.total > 0 ? 1 : -1;
+    state.total = 0;
+    setSheetIndex((index) => Math.max(0, Math.min(sheets.length - 1, index + step)));
+  };
 
   return (
     <div className="print-panel" role="region" aria-labelledby="print-dialog-title">
@@ -523,27 +538,24 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
             onClick={() => { const index = sheetOfPage.get(page); if (index != null) setSheetIndex(index); }} />
         ))}
       </div>
-      <div className="print-preview">
-        <div className="print-preview-bar">
-          <div className="print-preview-nav">
-            <button type="button" className="print-icon-button" aria-label="上一张"
-              disabled={sheetIndex <= 0} onClick={() => setSheetIndex((index) => index - 1)}>
-              <UiIcon name="prev" />
-            </button>
-            <span aria-live="polite">{sheets.length ? `第 ${sheetIndex + 1} 张 / 共 ${sheets.length} 张` : "—"}</span>
-            <button type="button" className="print-icon-button" aria-label="下一张"
-              disabled={sheetIndex >= sheets.length - 1} onClick={() => setSheetIndex((index) => index + 1)}>
-              <UiIcon name="next" />
-            </button>
-          </div>
-          <span className="print-preview-paper">{paper ? `${paper.name} · ${orientationLabel}` : ""}</span>
-        </div>
+      <div className="print-preview" onWheel={onPreviewWheel}>
         {!previewError && !rangeError && previewArea
           ? <SheetPreview snapshot={snapshot} sheet={sheet ?? null} area={previewArea} annotations={!isPdf || annotations}
               color={color && caps?.color !== false} />
           : <div className="print-preview-stage"><span className="print-preview-status">
               {previewError ?? busyText ?? (rangeError ? "没有要打印的页面" : "")}
             </span></div>}
+        <div className="print-preview-nav">
+          <button type="button" className="print-icon-button" aria-label="上一张"
+            disabled={sheetIndex <= 0} onClick={() => setSheetIndex((index) => index - 1)}>
+            <UiIcon name="prev" />
+          </button>
+          <span aria-live="polite">{sheets.length ? `第 ${sheetIndex + 1} 张 / 共 ${sheets.length} 张` : "—"}</span>
+          <button type="button" className="print-icon-button" aria-label="下一张"
+            disabled={sheetIndex >= sheets.length - 1} onClick={() => setSheetIndex((index) => index + 1)}>
+            <UiIcon name="next" />
+          </button>
+        </div>
       </div>
 
       <div className="print-options">

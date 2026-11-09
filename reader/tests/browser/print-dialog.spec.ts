@@ -27,7 +27,6 @@ test("prints the chosen pages several to a sheet with the dialog's settings", as
   await page.getByRole("option", { name: "黑白" }).click();
   await dialog.getByLabel("份数").fill("2");
   await expect(dialog.getByText("共 2 张纸")).toBeVisible();
-  await expect(dialog.getByText("A4 · 横向")).toBeVisible();
 
   await dialog.getByRole("button", { name: "打印", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__printClosed)).toBe(true);
@@ -41,6 +40,24 @@ test("prints the chosen pages several to a sheet with the dialog's settings", as
   expect(job.settings).toMatchObject({ landscape: true, color: false, copies: 2, paperId: 9 });
   expect(job.sheets.map((sheet) => sheet.map((placement) => placement.page))).toEqual([[1, 2]]);
   expect(job.sheets[0][0].x + job.sheets[0][0].width).toBeLessThan(job.sheets[0][1].x);
+});
+
+test("the wheel over the preview turns sheets", async ({ page }) => {
+  await page.goto("/tests/browser/print-dialog.html?pdf=text-3.pdf");
+  const dialog = page.getByRole("region", { name: "打印选项" });
+  await expect(dialog.getByText("第 1 张 / 共 3 张")).toBeVisible();
+  await dialog.getByRole("img", { name: "打印预览" }).hover();
+  await page.mouse.wheel(0, 100);
+  await expect(dialog.getByText("第 2 张 / 共 3 张")).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.mouse.wheel(0, 100);
+  await expect(dialog.getByText("第 3 张 / 共 3 张")).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.mouse.wheel(0, 100);
+  await expect(dialog.getByText("第 3 张 / 共 3 张")).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.mouse.wheel(0, -100);
+  await expect(dialog.getByText("第 2 张 / 共 3 张")).toBeVisible();
 });
 
 test("rejects a bad page range and Esc closes without printing", async ({ page }) => {
