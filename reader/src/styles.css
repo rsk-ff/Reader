@@ -225,24 +225,7 @@ html.tab-drag-preview-document #root {
   white-space: nowrap;
 }
 
-.native-tab-drag-preview /* Concave 8px fillets join the active tab to the toolbar below, so the tab
-   flows into the content instead of meeting it at a right angle. Each corner
-   square sits outside the tab; its ring continues the tab's 1px side border
-   into the title bar's bottom line. */
-.tab-active::after {
-  content: "";
-  position: absolute;
-  left: -8px;
-  right: -8px;
-  bottom: 0;
-  height: 8px;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 0 0, transparent 7px, var(--border) 7px, var(--border) 8px, var(--bg-elev) 8.5px) left bottom / 8px 8px no-repeat,
-    radial-gradient(circle at 100% 0, transparent 7px, var(--border) 7px, var(--border) 8px, var(--bg-elev) 8.5px) right bottom / 8px 8px no-repeat;
-}
-
-.tab-title {
+.native-tab-drag-preview .tab-title {
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -389,6 +372,23 @@ html.tab-drag-preview-document #root {
   color: var(--text);
   border-color: var(--border);
   font-weight: 600;
+}
+
+/* Concave 8px fillets join the active tab to the toolbar below, so the tab
+   flows into the content instead of meeting it at a right angle. Each corner
+   square sits outside the tab; its ring continues the tab's 1px side border
+   into the title bar's bottom line. */
+.tab-active:not(.tab-drag-ghost)::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: 0;
+  height: 8px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0 0, transparent 7px, var(--border) 7px, var(--border) 8px, var(--bg-elev) 8.5px) left bottom / 8px 8px no-repeat,
+    radial-gradient(circle at 100% 0, transparent 7px, var(--border) 7px, var(--border) 8px, var(--bg-elev) 8.5px) right bottom / 8px 8px no-repeat;
 }
 
 .tab-title {
