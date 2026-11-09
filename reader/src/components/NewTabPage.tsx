@@ -188,6 +188,7 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
   const [editingAddress, setEditingAddress] = useState(false);
   const addressInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -328,6 +329,22 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
     }
     return () => { alive = false; };
   }, [active, location, recentFiles, revision]);
+
+  // Ctrl+F filters the list, as in File Explorer, instead of opening the
+  // WebView's own find bar.
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "f") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (newFileFolder) return;
+      searchInput.current?.focus();
+      searchInput.current?.select();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [active, newFileFolder]);
 
   // The tab is named after the place it shows, like a File Explorer window.
   const setNewTabTitle = useWorkspace((state) => state.setNewTabTitle);
@@ -489,7 +506,7 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
           {!editingAddress && <Breadcrumbs crumbs={breadcrumbs(directory?.path ?? location)} busy={busy}
             navigate={navigate} onBlank={() => addressInput.current?.focus()} />}
         </form>
-      <label className="home-search"><UiIcon name="search" /><input aria-label="筛选当前列表"
+      <label className="home-search"><UiIcon name="search" /><input ref={searchInput} aria-label="筛选当前列表"
         placeholder={isDirectory ? "搜索此文件夹" : location === "home" ? "搜索最近文件" : "搜索磁盘"}
         value={query} onChange={(event) => setQuery(event.target.value)} />
         <button type="button" className="home-icon-button" aria-label="清除筛选" hidden={!query} onClick={() => setQuery("")}><UiIcon name="close" /></button>
