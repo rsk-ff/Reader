@@ -13,6 +13,10 @@
 - 架构整理与 Windows CI（拆分 Rust 命令模块、删除重复的 `lib/pdfium.dll` 与未使用的 Milkdown 依赖、新增 GitHub Actions）：分支 `claude/project-thread-xvta0x`，PR 合入 `dev`。
 - 新标签页本地文件浏览（含 OneDrive/Dropbox 入口、视觉重做）已于 2026-10-27 验收，尚未正式打包安装。
 
+## Pending user acceptance (logo)
+
+- 2026-11-09：银杏 Logo 与新 PDF/MD 文件关联图标，分支 `claude/project-thread-8ga2vo`，检查版安装包见下方 Latest local release artifacts。
+
 ## Recently merged into dev
 
 - 2026-11-05：界面改版（浅色，方向 A），分支 `claude/project-thread-gsfh7v`，各阶段已由用户在检查版中验收；明细见 CHANGELOG。
@@ -23,7 +27,7 @@
 
 ## Open follow-ups
 
-- 界面改版后续：自制打印窗口（可考虑 winprint + 现有缩略图做预览，Windows 系统对话框方案已被否决）；深色模式；正式软件 logo（窗口/任务栏与文件关联图标仍是旧母版 `shell-reader.svg` 等，定稿后重新生成原生图标）。
+- 界面改版后续：自制打印窗口（可考虑 winprint + 现有缩略图做预览，Windows 系统对话框方案已被否决）；深色模式。
 - 批注 ID 仍存放在作者字段；pdfium-render 0.9 不公开 `/NM` 写入，需另行处理。
 
 ## Implemented
@@ -34,7 +38,7 @@
 - Markdown：所见即所得/源码模式、显式保存、顶部格式工具栏、目录侧栏（调宽与完全收起）、Crepe 官方 Frame 主题、图片内嵌保存、打印。
 - 新标签页：本地磁盘/目录浏览、固定与常用文件夹、最近文件、目录内新建 Markdown、OneDrive/Dropbox 入口、鼠标侧键导航。
 - 窗口与标签：切换、关闭、排序、拖出与跨窗口停靠，自定义标题栏与 Snap Layout，文件关联、拖放打开、单实例转发。
-- 软件、PDF、Markdown 图标在应用内与 Windows 中统一，安装包为两类文件注册专用 `DefaultIcon`。
+- 安装包为 PDF、Markdown 两类文件注册专用 `DefaultIcon`。
 
 ## Latest local release artifacts
 

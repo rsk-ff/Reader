@@ -15,17 +15,10 @@ const applicationFiles = [
   "Square150x150Logo.png", "Square284x284Logo.png", "Square310x310Logo.png", "StoreLogo.png",
 ];
 
-function generate(source, files, shellViewBox) {
+function generate(source, files) {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "reader-icons-"));
   try {
-    let input = path.join(assets, source);
-    if (shellViewBox) {
-      // Crop only the master's outer margins for Explorer. UI tabs retain their canvas.
-      const svg = fs.readFileSync(input, "utf8");
-      if (!svg.includes('viewBox="0 0 22 22"')) throw new Error(`Unexpected file master canvas: ${source}`);
-      input = path.join(scratch, "source.svg");
-      fs.writeFileSync(input, svg.replace('viewBox="0 0 22 22"', `viewBox="${shellViewBox}"`));
-    }
+    const input = path.join(assets, source);
     execFileSync(process.execPath, [cli, "icon", input, "--output", scratch],
       { cwd: path.join(root, "reader"), stdio: "pipe" });
     for (const [generated, target] of files) {
@@ -53,6 +46,6 @@ function generate(source, files, shellViewBox) {
 
 fs.mkdirSync(output, { recursive: true });
 generate("shell-reader.svg", applicationFiles.map((file) => [file, file]));
-generate("shell-pdf.svg", [["icon.ico", "file-pdf.ico"]], "2 2 18 18");
-generate("shell-markdown.svg", [["icon.ico", "file-markdown.ico"]], "2 2 18 18");
+generate("shell-pdf.svg", [["icon.ico", "file-pdf.ico"]]);
+generate("shell-markdown.svg", [["icon.ico", "file-markdown.ico"]]);
 console.log("Generated native application and file association icons from the shell SVG sources.");

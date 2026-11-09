@@ -17,6 +17,7 @@
 
 ### Added
 
+- 新软件 Logo：Fluent 风格的金色银杏叶，用于窗口、任务栏和安装包。PDF 与 Markdown 的 Windows 文件图标同步更新为带银杏标记和类型色签（PDF/MD）的纸页。
 - Markdown 文档搜索：Ctrl+F 聚焦，回车开始搜索并跳到下一个，排版与源码视图都高亮全部匹配；与 PDF 搜索框行为一致，计数显示在输入框内。
 
 ### Fixed
