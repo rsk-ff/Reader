@@ -13,12 +13,9 @@
 - 架构整理与 Windows CI（拆分 Rust 命令模块、删除重复的 `lib/pdfium.dll` 与未使用的 Milkdown 依赖、新增 GitHub Actions）：分支 `claude/project-thread-xvta0x`，PR 合入 `dev`。
 - 新标签页本地文件浏览（含 OneDrive/Dropbox 入口、视觉重做）已于 2026-10-27 验收，尚未正式打包安装。
 
-## Pending user acceptance (logo)
-
-- 2026-11-09：银杏 Logo 与新 PDF/MD 文件关联图标（软件内文件图标颜色同步），新标签页地址栏高度对齐工具栏，当前标签内凹圆角衔接，分支 `claude/project-thread-8ga2vo`，检查版安装包见下方 Latest local release artifacts。
-
 ## Recently merged into dev
 
+- 2026-11-09：银杏 Logo、新 PDF/MD 文件关联图标（含 16/20/24px 像素版）、软件内文件图标颜色对齐、新标签页地址栏 44px、当前标签内凹圆角；分支 `claude/project-thread-8ga2vo`，用户已在安装版中验收。
 - 2026-11-05：界面改版（浅色，方向 A），分支 `claude/project-thread-gsfh7v`，各阶段已由用户在检查版中验收；明细见 CHANGELOG。
 - 2026-10-27（PR #1）：全仓审查 P0 修复，Markdown 链接与错误提示框修复。
 - 2026-10-28（PR #2）：审查 P1/P2 修复（Markdown 读写限制在已打开文档、批注更新单次写入、标签/窗口健壮性）。
@@ -42,7 +39,7 @@
 
 ## Latest local release artifacts
 
-2026-11-09 从 `83ff316`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，未在本机安装验证，等待用户覆盖安装。包保存在 `releases/2026-11-09-0.1.0-83ff316/`（不纳入 Git，未上传外部平台）。
+2026-11-09 从 `83ff316`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，用户已覆盖安装并验收。包保存在 `releases/2026-11-09-0.1.0-83ff316/`（不纳入 Git，未上传外部平台）。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
