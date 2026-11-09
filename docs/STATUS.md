@@ -36,12 +36,12 @@
 
 ## Latest local release artifacts
 
-2026-11-09 从 `3ecea0b`（dev：新标签页“在新标签页中打开”、标签名跟随位置、“主页”改名“最近打开”，含侧键撤销误开文件）生成，标识 `com.earendil.reader`，构建退出码 0；尚未覆盖安装验收。包保存在 `releases/2026-11-09-0.1.0-3ecea0b/`（不纳入 Git，未上传外部平台）。
+2026-11-09 从 `de11aea`（dev：合入自制打印窗口 PR #13）生成，标识 `com.earendil.reader`，构建退出码 0；安装包已核对文件关联图标的 `DefaultIcon` 注册，尚未覆盖安装验收。包保存在 `releases/2026-11-09-0.1.0-de11aea/`（不纳入 Git，未上传外部平台）。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
-| MSI | `releases/2026-11-09-0.1.0-3ecea0b/Reader_0.1.0_x64_en-US.msi` | 21,286,912 | `5DA4186C8402ABABB9C3EB9BF8E8C7C022D993BCE565208EE5A7B7CD723C15D3` | `NotSigned` |
-| NSIS | `releases/2026-11-09-0.1.0-3ecea0b/Reader_0.1.0_x64-setup.exe` | 16,277,583 | `F18FD0187973A0D1471D09ADF0888E725A1A3E51F4DF4B508E9B3378AC76AB07` | `NotSigned` |
+| MSI | `releases/2026-11-09-0.1.0-de11aea/Reader_0.1.0_x64_en-US.msi` | 21,467,136 | `3992B27582981EDC93304CA9998CC8174A26AB61099662DCFEF295796337BC6E` | `NotSigned` |
+| NSIS | `releases/2026-11-09-0.1.0-de11aea/Reader_0.1.0_x64-setup.exe` | 16,397,661 | `42232E9903B1FA739E20C29BE011F1377D766624B045CE735D22803DE1686789` | `NotSigned` |
 
 ## Known limitations
 
