@@ -26,6 +26,7 @@ import {
  */
 export function TabStrip() {
   const tabs = useWorkspace((s) => s.tabs);
+  const newTabPlaces = useWorkspace((s) => s.newTabPlaces);
   const documentsById = useWorkspace((s) => s.documentsById);
   const activeTabId = useWorkspace((s) => s.active_tab_id);
   const focusTab = useWorkspace((s) => s.focusTab);
@@ -54,6 +55,7 @@ export function TabStrip() {
     dirty: boolean;
     docType: DocumentType;
     newTab: boolean;
+    tabId: TabId;
     width: number;
     height: number;
     grabOffsetX: number;
@@ -164,6 +166,7 @@ export function TabStrip() {
       dirty: s.dirty,
       docType: s.docType,
       newTab: s.newTab,
+      tabId: s.tabId,
       width: s.width,
       height: s.height,
       grabOffsetX: s.grabOffsetX,
@@ -326,7 +329,7 @@ export function TabStrip() {
             }}
             title={tab.title}
           >
-            {tab.document_id === null ? <NewTabIcon /> : <DocumentTypeIcon type={docType} />}
+            {tab.document_id === null ? <NewTabIcon place={newTabPlaces[tab.id]} /> : <DocumentTypeIcon type={docType} />}
             <span className="tab-title">{tab.title}</span>
             <span
               className="tab-close"
@@ -368,7 +371,7 @@ export function TabStrip() {
               }}
             >
               {dragPreview.newTab ? (
-                <NewTabIcon />
+                <NewTabIcon place={newTabPlaces[dragPreview.tabId]} />
               ) : (
                 <DocumentTypeIcon type={dragPreview.docType} />
               )}

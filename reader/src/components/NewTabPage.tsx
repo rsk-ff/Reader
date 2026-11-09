@@ -331,6 +331,10 @@ export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?:
 
   // The tab is named after the place it shows, like a File Explorer window.
   const setNewTabTitle = useWorkspace((state) => state.setNewTabTitle);
+  const setNewTabPlace = useWorkspace((state) => state.setNewTabPlace);
+  useEffect(() => {
+    if (tabId) setNewTabPlace(tabId, isDirectory ? "folder" : location === "home" ? "home" : "computer");
+  }, [tabId, isDirectory, location, setNewTabPlace]);
   const title = newTabTitle(location, directory?.path);
   useEffect(() => {
     if (tabId) void setNewTabTitle(tabId, title).catch(() => {});

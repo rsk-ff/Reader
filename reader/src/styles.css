@@ -164,6 +164,14 @@ body,
   pointer-events: none;
 }
 
+/* Noto Sans SC sits its ink about 1px below the centre of its line box, so
+   icons centred beside labels look high. Nudge them onto the text. */
+.tab .tab-icon, .native-tab-drag-preview .tab-icon, .home-nav-item > .ui-icon, .new-tab-recent-icon,
+.home-address > .ui-icon, .home-search > .ui-icon, .home-crumb > .ui-icon {
+  translate: 0 1px;
+}
+.tab-icon-new .ui-icon { width: 16px; height: 16px; }
+
 /* Letter icons (H, B, I, S, U) at the optical size of the pictograms. */
 .ui-icon.ui-icon-glyph {
   width: 15px;
