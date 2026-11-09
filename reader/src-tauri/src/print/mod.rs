@@ -22,8 +22,11 @@ use crate::workspace::{AppWorkspace, SharedWorkspace};
 
 #[cfg(windows)]
 mod markdown_pdf;
+pub mod window;
 #[cfg(windows)]
 mod windows;
+
+pub use window::{PrintSources, PRINT_WINDOW_PREFIX};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { PrintDialog } from "../../src/print/PrintDialog";
+import { PrintPanel } from "../../src/print/PrintPanel";
 import "../../src/styles.css";
 
 // Only the native print commands are mocked: the dialog, PDF.js preview and
@@ -11,6 +11,7 @@ const kind = params.get("kind") ?? "pdf";
 const fixture = params.get("pdf") ?? "text-3.pdf";
 
 window.__readerInvocations = [];
+window.__readerPrints = [];
 window.__TAURI_INTERNALS__ = {
   invoke: async (command, args) => {
     window.__readerInvocations.push({ command, args });
@@ -39,8 +40,12 @@ window.__TAURI_INTERNALS__ = {
         return { paperWidthMm: w, paperHeightMm: h, printableLeftMm: 4, printableTopMm: 4, printableWidthMm: w - 8, printableHeightMm: h - 8 };
       }
       case "print_snapshot_pdf":
-      case "print_markdown_pdf":
         return "print-1-1-1.pdf";
+      case "print_markdown_pdf": {
+        const root = document.getElementById("reader-print-root");
+        window.__readerPrints.push({ html: root.innerHTML, page: args.page });
+        return "print-1-1-1.pdf";
+      }
       case "print_read_snapshot":
         return (await fetch(`/tests/fixtures/${fixture}`)).arrayBuffer();
       case "print_printer_properties":
@@ -54,11 +59,11 @@ window.__TAURI_INTERNALS__ = {
 function App() {
   const [open, setOpen] = useState(true);
   const source = kind === "markdown"
-    ? { kind: "markdown", title: "notes.md", markdown: "# 标题\n\n正文" }
+    ? { kind: "markdown", title: "notes.md", markdown: "# 标题\n\n**粗体**\n\n```js\nconst n = 2;\n```\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n$x^2$\n" }
     : { kind: "pdf", title: fixture, path: fixture, currentPage: 2 };
   const [stable] = useState(source);
-  return <div className="app-shell">
-    {open ? <PrintDialog source={stable} onClose={() => { window.__printClosed = true; setOpen(false); }} />
+  return <div className="app-shell print-window">
+    {open ? <PrintPanel source={stable} onClose={() => { window.__printClosed = true; setOpen(false); }} />
       : <button onClick={() => setOpen(true)}>reopen</button>}
   </div>;
 }

@@ -8,20 +8,18 @@ import { layoutMarkdownPdf, renderMarkdownPrintHtml } from "../documents/markdow
 import {
   listPrinters, pageArea, printerCapabilities, printerProperties, readSnapshot, releaseSnapshot,
   snapshotPdf, submitPrint,
-  type DeviceSettings, type Duplex, type PageArea, type PrinterCapabilities, type PrinterInfo,
+  type DeviceSettings, type Duplex, type PrintSource, type PageArea, type PrinterCapabilities, type PrinterInfo,
 } from "./printApi";
 import {
   PAGES_PER_SHEET, layoutSheets, paperCount, parsePageRange, resolveLandscape,
   type Orientation, type PageSize, type PagesPerSheet, type Placement, type ScaleMode, type SheetArea,
 } from "./printLayout";
-import { MARGIN_MM, loadPrefs, savePrefs, type MarginPreset, type PrintPrefs } from "./printPrefs";
+import { MARGIN_MM, loadPrinter, savePrinter, type MarginPreset } from "./printPrefs";
 import { PrintSelect } from "./PrintSelect";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-export type PrintSource =
-  | { kind: "pdf"; path: string; title: string; currentPage: number }
-  | { kind: "markdown"; title: string; markdown: string; documentPath?: string };
+export type { PrintSource };
 
 type RangeMode = "all" | "current" | "custom";
 
@@ -177,15 +175,15 @@ function StripThumb({ snapshot, page, included, current, onClick }: {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(false);
   const size = snapshot.sizes[page];
-  const height = 84;
-  const width = Math.max(24, Math.round(height * size.width / Math.max(size.height, 1)));
+  const width = 96;
+  const height = Math.max(24, Math.round(width * size.height / Math.max(size.width, 1)));
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
-    }, { root: element.closest(".print-strip"), rootMargin: "0px 400px" });
+    }, { root: element.closest(".print-strip"), rootMargin: "400px 0px" });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -206,7 +204,7 @@ function StripThumb({ snapshot, page, included, current, onClick }: {
     void drawPage(snapshot.doc, page, context, { x: 0, y: 0, width: canvas.width, height: canvas.height }, 0, true, tasks)
       .catch(() => undefined);
     return () => tasks.forEach((task) => task.cancel());
-  }, [visible, snapshot, page, width]);
+  }, [visible, snapshot, page, width, height]);
 
   return (
     <button ref={ref} type="button" className={`print-strip-item${included ? "" : " excluded"}${current ? " current" : ""}`}
@@ -233,29 +231,28 @@ function Check({ checked, label, disabled, onChange }: {
   );
 }
 
-export function PrintDialog({ source, onClose }: { source: PrintSource; onClose: () => void }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+/** The print window's content: preview on the left, options on the right. */
+export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: () => void }) {
   const isPdf = source.kind === "pdf";
-  const [prefs] = useState<PrintPrefs>(loadPrefs);
+  const [rememberedPrinter] = useState(loadPrinter);
 
   const [printers, setPrinters] = useState<PrinterInfo[] | null>(null);
   const [printer, setPrinter] = useState<string | null>(null);
   const [caps, setCaps] = useState<PrinterCapabilities | null>(null);
-  const [devmodes, setDevmodes] = useState(prefs.devmodeByPrinter);
+  const [devmodes, setDevmodes] = useState<Record<string, number[]>>({});
   const [paperId, setPaperId] = useState<number | null>(null);
   const [copies, setCopies] = useState(1);
   const [copiesText, setCopiesText] = useState("1");
-  const [collate, setCollate] = useState(prefs.collate);
+  const [collate, setCollate] = useState(true);
   const [rangeMode, setRangeMode] = useState<RangeMode>("all");
   const [rangeText, setRangeText] = useState("");
-  const [orientation, setOrientation] = useState<Orientation>(
-    !isPdf && prefs.orientation === "auto" ? "portrait" : prefs.orientation);
-  const [pagesPerSheet, setPagesPerSheet] = useState<PagesPerSheet>(prefs.pagesPerSheet);
-  const [scale, setScale] = useState<ScaleMode>(prefs.scale);
-  const [margin, setMargin] = useState<MarginPreset>(prefs.margin);
-  const [duplex, setDuplex] = useState<Duplex>(prefs.duplex);
-  const [color, setColor] = useState(prefs.color);
-  const [annotations, setAnnotations] = useState(prefs.annotations);
+  const [orientation, setOrientation] = useState<Orientation>(isPdf ? "auto" : "portrait");
+  const [pagesPerSheet, setPagesPerSheet] = useState<PagesPerSheet>(1);
+  const [scale, setScale] = useState<ScaleMode>("fit");
+  const [margin, setMargin] = useState<MarginPreset>("normal");
+  const [duplex, setDuplex] = useState<Duplex>("none");
+  const [color, setColor] = useState(true);
+  const [annotations, setAnnotations] = useState(true);
 
   const [snapshot, setSnapshotState] = useState<Snapshot | null>(null);
   const snapshotRef = useRef<Snapshot | null>(null);
@@ -277,18 +274,15 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
   const [preparing, setPreparing] = useState(true);
   const markdownHtml = useRef<Promise<string> | null>(null);
 
+  // Esc closes the window unless a list consumed it.
+  const printingRef = useRef(false);
   useEffect(() => {
-    const dialog = dialogRef.current!;
-    // Unmounting removes the dialog before close() could restore focus.
-    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialog.showModal();
-    // Nothing is chosen yet: start on the panel, not on a field.
-    dialog.focus();
-    return () => {
-      if (dialog.open) dialog.close();
-      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented && !printingRef.current) onClose();
     };
-  }, []);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   // Printers, then the remembered or default one.
   useEffect(() => {
@@ -296,13 +290,13 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
     listPrinters().then((list) => {
       if (cancelled) return;
       setPrinters(list);
-      const remembered = list.find((entry) => entry.name === prefs.printer);
+      const remembered = list.find((entry) => entry.name === rememberedPrinter);
       setPrinter((remembered ?? list.find((entry) => entry.isDefault) ?? list[0])?.name ?? null);
     }).catch((reason: unknown) => {
       if (!cancelled) { setPrinters([]); setError(`找不到打印机：${errorText(reason)}`); }
     });
     return () => { cancelled = true; };
-  }, [prefs.printer]);
+  }, [rememberedPrinter]);
 
   const devmode = printer ? devmodes[printer] ?? null : null;
 
@@ -315,9 +309,7 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
       if (cancelled) return;
       setCaps(next);
       const ids = next.papers.map((paper) => paper.id);
-      const remembered = prefs.paperByPrinter[printer];
-      setPaperId(ids.includes(remembered) ? remembered
-        : next.defaults.paperId != null && ids.includes(next.defaults.paperId) ? next.defaults.paperId
+      setPaperId(next.defaults.paperId != null && ids.includes(next.defaults.paperId) ? next.defaults.paperId
           : ids[0] ?? null);
       if (!next.duplex) setDuplex("none");
     }).catch((reason: unknown) => {
@@ -473,6 +465,7 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
   const print = async () => {
     if (!canPrint || !printer || !snapshot) return;
     setPrinting(true);
+    printingRef.current = true;
     setError(null);
     try {
       await submitPrint({
@@ -484,23 +477,12 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
         annotations: isPdf ? annotations : true,
         sheets,
       });
-      savePrefs({
-        printer,
-        paperByPrinter: paperId == null ? prefs.paperByPrinter : { ...prefs.paperByPrinter, [printer]: paperId },
-        devmodeByPrinter: devmodes,
-        orientation: isPdf ? orientation : orientation === "landscape" ? "landscape" : prefs.orientation === "auto" ? "auto" : "portrait",
-        pagesPerSheet,
-        scale,
-        duplex,
-        color,
-        collate,
-        annotations,
-        margin,
-      });
+      savePrinter(printer);
       onClose();
     } catch (reason) {
       setError(`打印失败：${errorText(reason)}`);
       setPrinting(false);
+      printingRef.current = false;
     }
   };
 
@@ -517,8 +499,14 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
   const disabled = printing;
 
   return (
-    <dialog ref={dialogRef} className="print-dialog" aria-labelledby="print-dialog-title" tabIndex={-1}
-      onCancel={(event) => { event.preventDefault(); if (!printing) onClose(); }}>
+    <div className="print-panel" role="region" aria-labelledby="print-dialog-title">
+      <div className="print-strip" role="list" aria-label="页面">
+        {snapshot && snapshot.sizes.map((_, page) => (
+          <StripThumb key={`${snapshot.id}-${page}`} snapshot={snapshot} page={page}
+            included={sheetOfPage.has(page)} current={sheetOfPage.get(page) === sheetIndex}
+            onClick={() => { const index = sheetOfPage.get(page); if (index != null) setSheetIndex(index); }} />
+        ))}
+      </div>
       <div className="print-preview">
         <div className="print-preview-bar">
           <div className="print-preview-nav">
@@ -540,17 +528,10 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
           : <div className="print-preview-stage"><span className="print-preview-status">
               {previewError ?? busyText ?? (rangeError ? "没有要打印的页面" : "")}
             </span></div>}
-        <div className="print-strip" role="list" aria-label="页面">
-          {snapshot && snapshot.sizes.map((_, page) => (
-            <StripThumb key={`${snapshot.id}-${page}`} snapshot={snapshot} page={page}
-              included={sheetOfPage.has(page)} current={sheetOfPage.get(page) === sheetIndex}
-              onClick={() => { const index = sheetOfPage.get(page); if (index != null) setSheetIndex(index); }} />
-          ))}
-        </div>
       </div>
 
       <div className="print-options">
-        <h2 id="print-dialog-title">打印</h2>
+        <h2 id="print-dialog-title" className="visually-hidden">打印选项</h2>
         <div className="print-options-body">
           {printers && printers.length === 0
             ? <p className="print-empty">没有找到打印机。请先在 Windows 设置中添加打印机。</p>
@@ -665,6 +646,6 @@ export function PrintDialog({ source, onClose }: { source: PrintSource; onClose:
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }

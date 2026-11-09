@@ -64,6 +64,7 @@ pub fn run() {
 
     builder
         .manage(new_shared())
+        .manage(print::PrintSources::default())
         .manage(commands::new_tab_drag_monitor())
         .on_window_event(|window, event| {
             // When a window is closed by the user, drop its tab slots from the
@@ -73,6 +74,10 @@ pub fn run() {
             if let WindowEvent::Destroyed = event {
                 let app = window.app_handle();
                 let label = window.label().to_string();
+                if label.starts_with(print::PRINT_WINDOW_PREFIX) {
+                    app.state::<print::PrintSources>().remove(&label);
+                    return;
+                }
                 // The short-lived tab-drag preview is a native helper window,
                 // not a workspace owner. Its destruction must not broadcast a
                 // false workspace change or rewrite the saved session.
@@ -122,6 +127,8 @@ pub fn run() {
             commands::discard_pdf_changes,
             commands::insert_blank_page,
             commands::delete_page,
+            print::window::print_open_window,
+            print::window::print_window_source,
             print::print_list_printers,
             print::print_printer_capabilities,
             print::print_page_area,

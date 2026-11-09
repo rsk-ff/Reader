@@ -2177,22 +2177,13 @@ body.home-sidebar-resizing * {
 /* ---- Print dialog ----
    Same panel, type, controls and buttons as the other dialogs; the preview
    side uses the PDF stage colour. */
-.print-dialog {
-  width: min(960px, calc(100vw - 48px));
-  height: min(640px, calc(100vh - 48px));
-  max-width: none;
-  max-height: none;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-panel);
-  background: var(--bg-elev);
-  color: var(--text);
-  box-shadow: 0 0 0 1px var(--dialog-line), var(--dialog-shadow);
-  overflow: hidden;
+.print-window { background: var(--bg-elev); }
+.print-window-title {
+  display: flex; flex: 1; min-width: 0; align-items: center; padding: 0 14px;
+  overflow: hidden; color: var(--text-dim); white-space: nowrap; text-overflow: ellipsis;
 }
-.print-dialog[open] { display: flex; }
-.print-dialog:focus { outline: none; }
-.print-dialog::backdrop { background: var(--backdrop); }
+.print-window-status { padding: 24px; color: var(--text-faint); }
+.print-panel { display: flex; flex: 1; min-height: 0; background: var(--bg-elev); color: var(--text); }
 
 .print-preview { display: flex; flex: 1; min-width: 0; flex-direction: column; background: var(--stage); }
 .print-preview-bar {
@@ -2214,8 +2205,9 @@ body.home-sidebar-resizing * {
 .print-preview-status { color: var(--text-faint); }
 
 .print-strip {
-  display: flex; flex: none; align-items: flex-start; gap: 12px; height: 124px; padding: 12px 16px 0;
-  border-top: 1px solid var(--border); overflow-x: auto; overflow-y: hidden;
+  display: flex; flex: none; flex-direction: column; align-items: center; gap: 12px; width: 136px;
+  padding: 14px 0; overflow-x: hidden; overflow-y: auto; background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
 }
 .print-strip-item {
   display: flex; flex: none; flex-direction: column; align-items: center; gap: 4px; padding: 0;
@@ -2236,8 +2228,8 @@ body.home-sidebar-resizing * {
   display: flex; flex: none; flex-direction: column; width: 320px; min-height: 0;
   border-left: 1px solid var(--dialog-line);
 }
-.print-options h2 { margin: 0; padding: 20px 22px 4px; font-size: 15px; font-weight: 600; line-height: 1.4; }
-.print-options-body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; padding: 12px 22px; overflow-y: auto; }
+.print-options .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.print-options-body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; padding: 18px 22px 12px; overflow-y: auto; }
 .print-row { display: flex; gap: 10px; }
 .print-row > * { flex: 1; min-width: 0; }
 .print-field { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
@@ -2333,9 +2325,6 @@ body.home-sidebar-resizing * {
 .print-footer button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
 @media (max-width: 720px) {
-  .print-dialog[open] { flex-direction: column; }
-  .print-options { width: auto; flex: 1; border-left: 0; border-top: 1px solid var(--dialog-line); }
-  .print-preview { flex: none; height: 46%; }
   .print-strip { display: none; }
 }
 

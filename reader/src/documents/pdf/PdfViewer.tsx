@@ -34,7 +34,7 @@ import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
 import { PdfToolbar, isMarkTool, markColor, type MarkTool } from "./PdfToolbar";
 import { PdfDeleteDialog } from "./PdfDeleteDialog";
-import { PrintDialog, type PrintSource } from "../../print/PrintDialog";
+import { openPrintWindow } from "../../print/printApi";
 import type { OutlineNode, PageInfo, ZoomMode } from "./types";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -92,7 +92,6 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageToDelete, setPageToDelete] = useState<number | null>(null);
-  const [printSource, setPrintSource] = useState<PrintSource | null>(null);
   const [scale, setScale] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const [sidebarMode, setSidebarMode] = useState<"thumbnails" | "outline" | null>(null);
@@ -562,13 +561,9 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
 
   const printDocument = useCallback(() => {
     if (!pdfDocument) return;
-    // The dialog prints the current bytes, unsaved annotations included.
-    setPrintSource((current) => current ?? {
-      kind: "pdf",
-      path,
-      title: path.split(/[\\/]/).pop() ?? path,
-      currentPage,
-    });
+    // The print window prints the current bytes, unsaved annotations included.
+    void openPrintWindow({ kind: "pdf", path, title: path.split(/[\\/]/).pop() ?? path, currentPage })
+      .catch((error: unknown) => window.alert(`无法打开打印窗口：${String(error)}`));
   }, [pdfDocument, path, currentPage]);
 
   const activateOutline = useCallback((node: OutlineNode) => {
@@ -718,7 +713,6 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
             void mutatePages("delete_page", { index: pageToDelete - 1 });
           }
         }} />}
-      {printSource && <PrintDialog source={printSource} onClose={() => setPrintSource(null)} />}
       <PdfJsAnnotationPortals
         viewerElement={viewerElement}
         epoch={overlayEpoch}

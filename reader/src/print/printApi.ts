@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Placement } from "./printLayout";
 
+/** What a print window prints. */
+export type PrintSource =
+  | { kind: "pdf"; path: string; title: string; currentPage: number }
+  | { kind: "markdown"; title: string; markdown: string; documentPath?: string };
+
+/** Ask Rust to open (or focus) the calling document window's print window. */
+export const openPrintWindow = (source: PrintSource) => invoke<void>("print_open_window", { source });
+
 export interface PrinterInfo {
   name: string;
   isDefault: boolean;

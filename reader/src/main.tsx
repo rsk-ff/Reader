@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import App from "./app/App";
@@ -40,8 +40,14 @@ function TabDragPreviewRoot() {
   );
 }
 
+const isPrintWindow = launchParams.has("print");
+// PDF.js and the print panel load only in print windows.
+const PrintWindow = lazy(() => import("./print/PrintWindow").then((module) => ({ default: module.PrintWindow })));
+
 function Root() {
-  return isTabDragPreview ? <TabDragPreviewRoot /> : <ReaderRoot />;
+  if (isTabDragPreview) return <TabDragPreviewRoot />;
+  if (isPrintWindow) return <React.StrictMode><Suspense fallback={null}><PrintWindow /></Suspense></React.StrictMode>;
+  return <ReaderRoot />;
 }
 
 // Forward webview runtime errors to the Rust host so they surface in the dev

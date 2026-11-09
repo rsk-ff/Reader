@@ -1,6 +1,6 @@
 # 自制打印窗口
 
-- Status: `waiting_user_acceptance`
+- Status: `第一轮（2026-11-09）：第 1–5 项通过；要求改为独立窗口、缩略图放左边、设置只记打印机。第二轮 waiting。_user_acceptance`
 - Created: `2026-11-09`
 - Base: `dev@5752b4a`，分支 `claude/project-thread-xntoqx`
 
@@ -12,7 +12,7 @@ PDF 和 Markdown 打印不再弹 Edge 打印预览，改用 Reader 自己的打�
 
 - 行为：[`PRODUCT.md`](../../PRODUCT.md) “打印”一节；数据流：[`ARCHITECTURE.md`](../../ARCHITECTURE.md) “Printing”。
 - 代码：`reader/src/print/`（窗口、排版计算、偏好）、`reader/src-tauri/src/print/`（打印机、DEVMODE、GDI 打印、Markdown PrintToPdf）。
-- 设计草图经用户确认（2026-11-09 线程）：左侧大预览 + 底部缩略图条，右侧选项，底部“共 N 张纸 / 取消 / 打印”。
+- 设计草图经用户确认（2026-11-09 线程）；第一轮验收后改为独立窗口、左侧竖排缩略图。
 
 ## Scope and acceptance
 
@@ -21,7 +21,8 @@ PDF 和 Markdown 打印不再弹 Edge 打印预览，改用 Reader 自己的打�
 - [ ] 页面范围（全部/当前页/自定义）、每张 1/2/4/6/9/16 页、方向、缩放、页边距、黑白在预览中即时体现，实际打印与预览一致。
 - [ ] PDF 打印包含未保存的批注；取消“打印批注”后不打印批注。
 - [ ] “打印机属性…”打开驱动设置，确定后窗口选项同步。
-- [ ] 再次打开记住上次的打印机和设置（页面范围、份数除外）。
+- [ ] 打印窗口是独立窗口，可移出主窗口、单独调大小；缩略图在左侧竖排。
+- [ ] 再次打开只记住上次打印用的打印机，其余选项回到默认（用户 2026-11-09 选定）。
 - [x] 自动化：`pnpm --dir reader test`、`pnpm --dir reader build`、`cargo clippy --target x86_64-pc-windows-msvc`、浏览器测试 `print-dialog.spec.ts`、`markdown-tools.spec.ts`。
 
 ## Progress and verification
@@ -31,7 +32,7 @@ PDF 和 Markdown 打印不再弹 Edge 打印预览，改用 Reader 自己的打�
 
 ## User acceptance
 
-waiting
+第一轮（2026-11-09）：第 1–5 项通过；要求改为独立窗口、缩略图放左边、设置只记打印机。第二轮 waiting。
 
 ## Next action
 

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save as showSaveDialog } from "@tauri-apps/plugin-dialog";
 
@@ -6,10 +6,7 @@ import { isExternalChangeError, useMarkdownText, useMarkdownSave } from "./useMa
 import { confirmInApp } from "../../workspace/confirmDialog";
 import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
 import { MarkdownModeSwitch, MarkdownToolbar } from "./MarkdownToolbar";
-import type { PrintSource } from "../../print/PrintDialog";
-
-// PDF.js and the dialog load the first time a Markdown document prints.
-const PrintDialog = lazy(() => import("../../print/PrintDialog").then((module) => ({ default: module.PrintDialog })));
+import { openPrintWindow } from "../../print/printApi";
 import { MarkdownScrollbar } from "./MarkdownScrollbar";
 import { MarkdownOutline } from "./MarkdownOutline";
 import { clearPaintedRanges, findMatches, findRanges, paintRanges, wrapIndex, type TextMatch } from "./markdownSearch";
@@ -50,7 +47,6 @@ export function MarkdownEditor({
   const [crepeVersion, setCrepeVersion] = useState(0);
   const [dirty, setDirty] = useState(untitled);
   const [saving, setSaving] = useState(false);
-  const [printSource, setPrintSource] = useState<PrintSource | null>(null);
   const [commandsReady, setCommandsReady] = useState(false);
   const commandsRef = useRef<MarkdownCommands | null>(null);
   const onCommands = useCallback((commands: MarkdownCommands | null) => {
@@ -262,11 +258,12 @@ export function MarkdownEditor({
   }, [doSave]);
 
   const printFromEditor = useCallback(() => {
-    if (workingText == null || printSource) return;
-    // The dialog prints what is on screen now, unsaved edits included.
+    if (workingText == null) return;
+    // The print window prints what is on screen now, unsaved edits included.
     const snapshot = mode === "wysiwyg" ? commandsRef.current?.getMarkdown() ?? workingText : workingText;
-    setPrintSource({ kind: "markdown", title: fileName, markdown: snapshot, documentPath: untitled ? undefined : path });
-  }, [workingText, fileName, mode, printSource, untitled, path]);
+    void openPrintWindow({ kind: "markdown", title: fileName, markdown: snapshot, documentPath: untitled ? undefined : path })
+      .catch((error: unknown) => window.alert(`无法打开打印窗口：${String(error)}`));
+  }, [workingText, fileName, mode, untitled, path]);
 
   useEffect(() => {
     if (!active) return;
@@ -403,7 +400,7 @@ export function MarkdownEditor({
       <MarkdownToolbar
         dirty={dirty}
         saving={saving}
-        printing={printSource !== null}
+        printing={false}
         formatEnabled={mode === "wysiwyg" && commandsReady}
         onFormat={(format) => commandsRef.current?.format(format)}
         onSave={saveFromEditor}
@@ -465,9 +462,6 @@ export function MarkdownEditor({
           <MarkdownModeSwitch mode={mode} onSwitch={switchMode} />
         </div>
       </div>
-      {printSource && <Suspense fallback={null}>
-        <PrintDialog source={printSource} onClose={() => setPrintSource(null)} />
-      </Suspense>}
     </div>
   );
 }

@@ -50,13 +50,13 @@ Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`m
 
 ## Printing
 
-- 打印窗口 [`PrintDialog`](../reader/src/print/PrintDialog.tsx) 是 React 应用内模态；原生部分在 [`src-tauri/src/print/`](../reader/src-tauri/src/print/)，非 Windows 平台返回“仅支持 Windows”。
-- 一切从 PDF 快照出发：`print_snapshot_pdf` 在 PDFium 锁内复制 PDF 当前来源（有未保存修改时为工作副本）；Markdown 由 `print_markdown_pdf` 生成——页面把打印副本放进 `#reader-print-root`（只在 print 媒体显示），WebView2 `PrintToPdf` 按所选纸张、方向与页边距排版。快照放在临时目录 `reader-print/`，只能按 Reader 生成的文件名访问，窗口关闭或换版时删除，残留的一天后清理。
+- 打印是独立的原生窗口：文档视图调用 `print_open_window`（[`window.rs`](../reader/src-tauri/src/print/window.rs)），Rust 以 `print-<文档窗口标签>` 建无边框窗口（`parent` 为文档窗口，已存在则聚焦），并把要打印的来源（PDF 路径，或 Markdown 快照文本）按窗口标签暂存；窗口加载 `index.html?print=…`，[`main.tsx`](../reader/src/main.tsx) 延迟加载 [`PrintWindow`](../reader/src/print/PrintWindow.tsx)，经 `print_window_source` 取回来源并渲染同款标题栏和 [`PrintPanel`](../reader/src/print/PrintPanel.tsx)。窗口销毁时来源被丢弃，且不参与工作区/会话记账。其余原生部分在 [`src-tauri/src/print/`](../reader/src-tauri/src/print/)，非 Windows 平台返回“仅支持 Windows”。
+- 一切从 PDF 快照出发：`print_snapshot_pdf` 在 PDFium 锁内复制 PDF 当前来源（有未保存修改时为工作副本）；Markdown 由打印窗口自己渲染并调用 `print_markdown_pdf` 生成——打印窗口把打印副本放进 `#reader-print-root`（只在 print 媒体显示），WebView2 `PrintToPdf` 按所选纸张、方向与页边距排版。快照放在临时目录 `reader-print/`，只能按 Reader 生成的文件名访问，窗口关闭或换版时删除，残留的一天后清理。
 - 预览用 PDF.js 读取快照字节（`print_read_snapshot`），不复用阅读器的 PDF.js 文档或 `reader-file` 加载令牌，避免打断阅读器对固定文件句柄的分段读取。
 - [`printLayout.ts`](../reader/src/print/printLayout.ts) 是唯一的排版计算：页面范围解析、自动方向、每张多页网格、适合/实际大小、自动旋转，输出每张纸上每页的毫米坐标。预览按它绘制，`print_submit` 收到同一组坐标。
 - `print_submit` 在 PDFium 锁内用原始绑定打开快照，`CreateDC("WINSPOOL")` 后对每个坐标调用 `FPDF_RenderPage` 直接画进打印机 DC（矢量输出，`FPDF_PRINTING`，按需 `FPDF_ANNOT`/`FPDF_GRAYSCALE`），坐标按 `PHYSICALOFFSET` 换算到可打印区域。
 - 打印机设置走 DEVMODE：`DocumentPropertiesW` 合并驱动默认值、“打印机属性…”返回的驱动私有设置（前端按打印机保存为字节数组）和窗口选项（纸张、方向、双面、颜色、份数、逐份）；纸张列表与双面/彩色/逐份能力来自 `DeviceCapabilitiesW`，可打印区域来自打印机 DC 的 `GetDeviceCaps`。
-- 打印偏好存于 `localStorage`（`reader.print.v1`），见 [`printPrefs.ts`](../reader/src/print/printPrefs.ts)。
+- 只有上次打印的打印机名存于 `localStorage`（`reader.print.printer`），见 [`printPrefs.ts`](../reader/src/print/printPrefs.ts)；驱动属性设置只在本次窗口内有效。
 
 ## Workspace, tabs and windows
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { TabStrip } from "./TabStrip";
@@ -58,7 +58,8 @@ const SNAP_EVENTS: SnapEventKind[] = [
   "click",
 ];
 
-export function WindowTitleBar() {
+/** `children` replaces the tab strip (the print window shows its title). */
+export function WindowTitleBar({ children }: { children?: ReactNode } = {}) {
   const win = useMemo(() => getCurrentWindow(), []);
   const controls = useMemo(() => makeControls(win), [win]);
 
@@ -111,7 +112,7 @@ export function WindowTitleBar() {
 
   return (
     <div className="window-titlebar" role="banner">
-      <TabStrip />
+      {children ?? <TabStrip />}
       <div
         className="titlebar-controls"
         role="group"
