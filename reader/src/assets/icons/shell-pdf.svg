@@ -13,7 +13,7 @@
     <path d="M40 4V12A4 4 0 0 0 44 16H52Z" fill="url(#fold)"/>
   </g>
   <path d="M16 4H40L52 16V56A4 4 0 0 1 48 60H16A4 4 0 0 1 12 56V8A4 4 0 0 1 16 4Z" fill="none" stroke="#000" stroke-opacity=".08" stroke-width=".8"/>
-  <g transform="translate(12.4 5.7) scale(.55)">
+  <g transform="translate(13.3 7.5) scale(.45)">
     <path d="M32 44C24 39 9 31 5 22C11 11 21 6 28.5 7C30 10.5 31.3 14.5 32 19Z" fill="url(#leafL)"/>
     <path d="M32 44C40 39 55 31 59 22C53 11 43 6 35.5 7C34 10.5 32.7 14.5 32 19Z" fill="url(#leafR)"/>
     <path d="M32 44C32.5 50 31.5 55 28 59" fill="none" stroke="#a8740c" stroke-width="3.2" stroke-linecap="round"/>
