@@ -141,3 +141,17 @@ test("going back to the first sheet scrolls the thumbnail strip to the top", asy
   await dialog.getByRole("button", { name: "上一张" }).click();
   await expect.poll(() => strip.evaluate((element) => element.scrollTop)).toBe(0);
 });
+
+test("pages per sheet turns the paper and the layout together", async ({ page }) => {
+  await page.goto("/tests/browser/print-dialog.html?pdf=text-3.pdf&areaDelay=1500");
+  const dialog = page.getByRole("region", { name: "打印选项" });
+  await expect(dialog.getByText("第 1 张 / 共 3 张")).toBeVisible({ timeout: 10_000 });
+  const sheet = dialog.getByRole("img", { name: "打印预览" });
+  const shape = () => sheet.evaluate((canvas) => canvas.clientWidth > canvas.clientHeight ? "landscape" : "portrait");
+  expect(await shape()).toBe("portrait");
+  await dialog.getByRole("button", { name: /每张页数/ }).click();
+  await page.getByRole("option", { name: "2 页" }).click();
+  // Well before the slow printer answers, the paper is already landscape.
+  await expect.poll(shape, { timeout: 500 }).toBe("landscape");
+  await expect(dialog.getByText("第 1 张 / 共 2 张")).toBeVisible();
+});

@@ -410,14 +410,31 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
     return () => { cancelled = true; };
   }, [printer, devmode, paperId, landscape, paper]);
 
-  const sheetArea = useMemo((): SheetArea | null => area && {
-    paperWidth: area.paperWidthMm,
-    paperHeight: area.paperHeightMm,
-    left: area.printableLeftMm,
-    top: area.printableTopMm,
-    width: area.printableWidthMm,
-    height: area.printableHeightMm,
-  }, [area]);
+  const sheetArea = useMemo((): SheetArea | null => {
+    if (!area) return null;
+    // The printer reports the area for the new orientation a moment after
+    // it changes (pages per sheet can flip it). Until then use the old area
+    // turned a quarter, so pages are never laid out on paper of the old shape.
+    const areaLandscape = area.paperWidthMm > area.paperHeightMm;
+    const turned = area.paperWidthMm !== area.paperHeightMm && areaLandscape !== landscape;
+    return turned
+      ? {
+        paperWidth: area.paperHeightMm,
+        paperHeight: area.paperWidthMm,
+        left: area.printableTopMm,
+        top: area.printableLeftMm,
+        width: area.printableHeightMm,
+        height: area.printableWidthMm,
+      }
+      : {
+        paperWidth: area.paperWidthMm,
+        paperHeight: area.paperHeightMm,
+        left: area.printableLeftMm,
+        top: area.printableTopMm,
+        width: area.printableWidthMm,
+        height: area.printableHeightMm,
+      };
+  }, [area, landscape]);
 
   // Until the printable area arrives, the blank paper uses the paper size.
   const previewArea = useMemo((): SheetArea | null => {

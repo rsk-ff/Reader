@@ -35,6 +35,8 @@ window.__TAURI_INTERNALS__ = {
           defaults: { paperId: 9, landscape: false, duplex: "none", color: true, copies: 1, collate: true },
         };
       case "print_page_area": {
+        // `?areaDelay=ms` makes the printer slow to report the area.
+        await new Promise((resolve) => setTimeout(resolve, Number(params.get("areaDelay") ?? 0)));
         const sizes = { 9: [210, 297], 1: [215.9, 279.4], 11: [148, 210] }[args.paperId];
         const [w, h] = args.landscape ? [sizes[1], sizes[0]] : sizes;
         return { paperWidthMm: w, paperHeightMm: h, printableLeftMm: 4, printableTopMm: 4, printableWidthMm: w - 8, printableHeightMm: h - 8 };
