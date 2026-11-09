@@ -1,6 +1,6 @@
 # Current status
 
-- Last updated: 2026-11-05
+- Last updated: 2026-11-09
 - Application version: `0.1.0`
 - Latest user-accepted source baseline: `b2c1553` — Markdown 侧栏调宽与 PDF/Markdown 拖动收起
 
@@ -42,12 +42,12 @@
 
 ## Latest local release artifacts
 
-2026-10-09 从 `b2c1553` 生成，标识 `com.earendil.reader`，本机 MSI 已覆盖安装。包与构建/安装证据保存在 `releases/2026-10-09-0.1.0-b2c1553/`（不纳入 Git，未上传外部平台）。
+2026-11-09 从 `735bf7e`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，未在本机安装验证，等待用户覆盖安装。包保存在 `releases/2026-11-09-0.1.0-735bf7e/`（不纳入 Git，未上传外部平台）。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
-| MSI | `releases/2026-10-09-0.1.0-b2c1553/Reader_0.1.0_x64_en-US.msi` | 20,930,560 | `F2816B7826322C8FBB4B9CCA5A86A55809FA67BC27621073DCA34FF71695244D` | `NotSigned` |
-| NSIS | `releases/2026-10-09-0.1.0-b2c1553/Reader_0.1.0_x64-setup.exe` | 16,040,985 | `9A6EA5B12BA4325AA86DBFCA9D35683D6D61451E98FDAAD764A6B7F8FE55EB5D` | `NotSigned` |
+| MSI | `releases/2026-11-09-0.1.0-735bf7e/Reader_0.1.0_x64_en-US.msi` | 21,258,240 | `53B791DE472FBC08A759094697CB091C435464552AF54B5C6705C194C012C87F` | `NotSigned` |
+| NSIS | `releases/2026-11-09-0.1.0-735bf7e/Reader_0.1.0_x64-setup.exe` | 16,253,599 | `144FCF21F6B415104A08B247316BEA32791DE49A23D8319A78F66EBECB05589E` | `NotSigned` |
 
 ## Known limitations
 
