@@ -98,6 +98,7 @@ pub fn run() {
             commands::create_markdown_document,
             commands::focus_tab,
             commands::close_tab,
+            commands::return_to_new_tab,
             commands::reorder_tabs,
             commands::detach_tab,
             commands::move_tab,

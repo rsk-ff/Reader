@@ -10,11 +10,22 @@ import {
   forgetRecentFile,
   loadRecentFiles,
   mergeRecentFilesFromSnapshot,
+  normalizedPath,
   persistRecentFiles,
   recentFileFromPath,
   rememberRecentFile,
   type RecentFile,
 } from "./recentFiles";
+import {
+  canReturnToNewTab,
+  forgetNewTabReturn,
+  peekNewTabReturn,
+  rememberNewTabReturn,
+  restoreRecentEntry,
+  stashNewTabPlace,
+  clearNewTabPlace,
+  type NewTabPlace,
+} from "./newTabReturn";
 
 export interface TabDragGrabOffset {
   x: number;
@@ -42,6 +53,10 @@ interface WorkspaceState extends WorkspaceSnapshot {
   recentFiles: RecentFile[];
   init: () => Promise<void>;
   openDocument: (path: string) => Promise<void>;
+  /** Open a file in place of a new tab, remembering how to undo it. */
+  openDocumentFromNewTab: (tabId: TabId, path: string, place: NewTabPlace) => Promise<void>;
+  /** Undo `openDocumentFromNewTab` if still allowed; true when it did. */
+  returnToNewTab: (tabId: TabId) => Promise<boolean>;
   forgetRecentFile: (path: string) => void;
   createNewTab: () => Promise<void>;
   createMarkdownDocument: () => Promise<void>;
@@ -159,6 +174,48 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       set({ recentFiles });
     }
     await get().refresh();
+  },
+
+  openDocumentFromNewTab: async (tabId, path, place) => {
+    const key = normalizedPath(path);
+    const before = get().recentFiles;
+    const index = before.findIndex((file) => normalizedPath(file.path) === key);
+    await get().openDocument(path);
+    // An already-open file is focused where it lives; this tab stays new.
+    const documentId = get().tabs.find((tab) => tab.id === tabId)?.document_id;
+    if (!documentId) return;
+    rememberNewTabReturn(tabId, {
+      documentId,
+      path,
+      openedAt: Date.now(),
+      place,
+      recentBefore: index >= 0 ? { file: before[index], index } : null,
+    });
+  },
+
+  returnToNewTab: async (tabId) => {
+    const entry = peekNewTabReturn(tabId);
+    const state = get();
+    const documentId = state.tabs.find((tab) => tab.id === tabId)?.document_id ?? null;
+    const document = documentId ? state.documentsById[documentId] : undefined;
+    if (!entry || !canReturnToNewTab(entry, documentId, document, Date.now())) {
+      if (entry && documentId !== entry.documentId) forgetNewTabReturn(tabId);
+      return false;
+    }
+    forgetNewTabReturn(tabId);
+    // The new-tab page mounts as soon as the snapshot arrives; stash first.
+    stashNewTabPlace(tabId, entry.place);
+    try {
+      await invoke("return_to_new_tab", { tabId, documentId: entry.documentId });
+    } catch {
+      clearNewTabPlace(tabId);
+      return false;
+    }
+    const recentFiles = restoreRecentEntry(get().recentFiles, normalizedPath, entry.path, entry.recentBefore);
+    persistRecentFiles(recentFiles);
+    set({ recentFiles });
+    await get().refresh();
+    return true;
   },
 
   forgetRecentFile: (path) => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type KeyboardEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWorkspace } from "../workspace/store";
+import { clearNewTabPlace, peekNewTabPlace } from "../workspace/newTabReturn";
 import { BROWSE_DWELL_MS, fixedFolders, folderIdentity, folderName, frequentFolders, useFolderLocations, type FolderLocation } from "../workspace/folderLocations";
 import { documentType, type LocalDirectory, type LocalLocations } from "../workspace/localFiles";
 import { DocumentTypeIcon } from "./DocumentTypeIcon";
@@ -145,12 +146,20 @@ function ListHeading({ labels, layout, setColumn }: {
   </div>;
 }
 
-export function NewTabPage({ active = true }: { active?: boolean }) {
+export function NewTabPage({ active = true, tabId }: { active?: boolean; tabId?: string }) {
   const openDocument = useWorkspace((state) => state.openDocument);
+  const openDocumentFromNewTab = useWorkspace((state) => state.openDocumentFromNewTab);
+  // A tab returning from a file opened by mistake comes back where it was.
+  const [restored] = useState(() => peekNewTabPlace(tabId));
+  useEffect(() => { clearNewTabPlace(tabId); }, [tabId]);
+  const restoredSelection = useRef(restored?.selected
+    ? { location: restored.history.paths[restored.history.index], path: restored.selected } : null);
   const recentFiles = useWorkspace((state) => state.recentFiles);
   const forgetRecentFile = useWorkspace((state) => state.forgetRecentFile);
   const folders = useFolderLocations();
-  const [history, setHistory] = useState({ paths: ["home"], index: 0 });
+  const [history, setHistory] = useState(() => restored?.history ?? { paths: ["home"], index: 0 });
+  const page = useRef<HTMLElement>(null);
+  const reveal = useRef(restoredSelection.current !== null);
   const location = history.paths[history.index];
   const isDirectory = location !== "home" && location !== "computer";
   const [locations, setLocations] = useState<LocalLocations>({ roots: [], shortcuts: [], cloud: [] });
@@ -247,7 +256,8 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     setError(null);
     setQuery("");
     setMenu(null);
-    setSelected(null);
+    if (restoredSelection.current?.location !== location) restoredSelection.current = null;
+    setSelected(restoredSelection.current?.path ?? null);
     setDirectory(null);
     setAddress(isDirectory ? location : location === "home" ? "主页" : "此电脑");
     setLoading(isDirectory);
@@ -308,6 +318,17 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     return () => { alive = false; };
   }, [active, location, recentFiles, revision]);
 
+  // Bring the file that was opened by mistake back into view, focused, so
+  // the right one next to it is a double-click or arrow key away.
+  useEffect(() => {
+    if (!reveal.current || !active || restoredSelection.current?.location !== location) return;
+    const item = page.current?.querySelector<HTMLElement>(".home-body [data-selected]");
+    if (!item) return;
+    reveal.current = false;
+    item.scrollIntoView({ block: "nearest" });
+    item.focus({ preventScroll: true });
+  }, [active, location, directory, selected, recentFiles]);
+
   const closeMenu = useCallback((restoreFocus: boolean) => {
     setMenu((current) => {
       if (restoreFocus && current?.owner.isConnected) current.owner.focus();
@@ -330,7 +351,10 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
       return;
     }
     setPending(path);
-    try { await openDocument(path); }
+    try {
+      if (tabId) await openDocumentFromNewTab(tabId, path, { history, selected: path });
+      else await openDocument(path);
+    }
     catch (cause) {
       const gone = await invoke<boolean>("local_file_missing", { path }).catch(() => false);
       if (gone && fromRecent) setMissing((current) => new Set(current).add(path));
@@ -401,7 +425,7 @@ export function NewTabPage({ active = true }: { active?: boolean }) {
     </button>
   );
 
-  return <main className="new-tab-page" style={{
+  return <main className="new-tab-page" ref={page} style={{
     gridTemplateColumns: `${layout.sidebar}px minmax(0, 1fr)`,
     ["--list-columns" as string]: `16px ${layout.columns.map((width) => `${width}px`).join(" ")}`,
   }}>

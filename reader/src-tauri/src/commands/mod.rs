@@ -264,6 +264,24 @@ pub fn close_tab(
     Ok(())
 }
 
+/// Undo a file opened from a new tab: the tab becomes a new tab again.
+#[tauri::command]
+pub fn return_to_new_tab(
+    tab_id: TabId,
+    document_id: DocumentId,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    {
+        let mut guard = ws
+            .lock()
+            .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+        guard.return_to_new_tab(&tab_id, &document_id)?;
+    }
+    broadcast(&app, &ws);
+    Ok(())
+}
+
 #[tauri::command]
 pub fn reorder_tabs(
     window_id: WindowId,

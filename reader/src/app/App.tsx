@@ -10,6 +10,7 @@ import {
   UnsavedChangesDialog,
 } from "../workspace/documentLifecycle";
 import { ConfirmDialog } from "../workspace/confirmDialog";
+import { canReturnToNewTab, peekNewTabReturn } from "../workspace/newTabReturn";
 import "../styles.css";
 
 export default function App() {
@@ -88,6 +89,28 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [tabs, activeTabId, focusTab, closeTab]);
+
+  // Mouse back button on a file just opened from a new tab: undo the open.
+  // The new-tab page handles side buttons itself for folder history.
+  useEffect(() => {
+    const onSideButton = (event: MouseEvent) => {
+      if (event.button !== 3) return;
+      const state = useWorkspace.getState();
+      const tabId = state.active_tab_id;
+      const documentId = state.tabs.find((tab) => tab.id === tabId)?.document_id ?? null;
+      if (!tabId || !documentId) return;
+      const document = state.documentsById[documentId];
+      if (!canReturnToNewTab(peekNewTabReturn(tabId), documentId, document, Date.now())) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.type === "mouseup") void state.returnToNewTab(tabId);
+    };
+    const events = ["mousedown", "mouseup", "auxclick"] as const;
+    for (const type of events) document.addEventListener(type, onSideButton, true);
+    return () => {
+      for (const type of events) document.removeEventListener(type, onSideButton, true);
+    };
+  }, []);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 

@@ -64,6 +64,7 @@ Rust 命令按领域分在 [`commands/`](../reader/src-tauri/src/commands/)：`m
 - [`local_files.rs`](../reader/src-tauri/src/local_files.rs)：系统位置、本地磁盘（排除网络盘）和单层目录列表（只返回文件夹与 PDF/MD 的元数据，不读内容、不递归）；`create_local_markdown` 是唯一写操作，校验文件名并以 `create_new` 创建，不覆盖已有文件。
 - [`cloud_locations.rs`](../reader/src-tauri/src/cloud_locations.rs)：只读发现 OneDrive/Dropbox 本机同步目录，要求客户端确实已安装且目录存在；不读凭据、不连接在线服务，结果只保存在内存。
 - [`NewTabPage.tsx`](../reader/src/components/NewTabPage.tsx) 持有每个新标签的导航历史、筛选和目录结果，用请求序号丢弃过期响应，并负责“有效访问”计时。
+- [`newTabReturn.ts`](../reader/src/workspace/newTabReturn.ts) 记录“从新标签页打开”的撤销信息（打开时间、原文件夹位置、最近文件原条目）；侧键返回由 `App.tsx` 判断后调用 `return_to_new_tab`，Rust 端只在文档从未改动（`revision == 1`）时把标签还原为新标签并释放文档。
 - [`folderLocations.ts`](../reader/src/workspace/folderLocations.ts) 在 `localStorage` 的 `reader.folder-locations.v1` 保存固定项与常用文件夹统计，排序规则见[决策 0003](decisions/0003-frequent-folders.md)。
 - 最近文件保存在 `localStorage` 的 `reader.recent-files.v1`，按规范路径去重、不设上限；加载时把 Windows `\\?\` 扩展长度路径迁移为普通路径。存储按应用标识和页面 origin 隔离，开发/检查版与正式版互不可见。
 
