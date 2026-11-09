@@ -42,12 +42,12 @@
 
 ## Latest local release artifacts
 
-2026-11-09 从 `19da7fe`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，未在本机安装验证，等待用户覆盖安装。包保存在 `releases/2026-11-09-0.1.0-19da7fe/`（不纳入 Git，未上传外部平台）。
+2026-11-09 从 `83ff316`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，未在本机安装验证，等待用户覆盖安装。包保存在 `releases/2026-11-09-0.1.0-83ff316/`（不纳入 Git，未上传外部平台）。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
-| MSI | `releases/2026-11-09-0.1.0-19da7fe/Reader_0.1.0_x64_en-US.msi` | 21,254,144 | `662021044C33939F014663E847F493CBC0EA2CBD7E0BD4CF2A0FF9B2528FDE26` | `NotSigned` |
-| NSIS | `releases/2026-11-09-0.1.0-19da7fe/Reader_0.1.0_x64-setup.exe` | 16,254,808 | `E5946540047D835B8C064B459173DEE34E96F0B0FECA6D3032085AD7B7807AEB` | `NotSigned` |
+| MSI | `releases/2026-11-09-0.1.0-83ff316/Reader_0.1.0_x64_en-US.msi` | 21,254,144 | `B75C00A2366FB78BD2EE99772EA9C6434E16C15FC262F0EA6F0BA92D5A4D6C38` | `NotSigned` |
+| NSIS | `releases/2026-11-09-0.1.0-83ff316/Reader_0.1.0_x64-setup.exe` | 16,256,255 | `CBCA0F3CF1CC8C1E1F12C5828586E4897290FB0B97BB4C5BAD3732E4698D102C` | `NotSigned` |
 
 ## Known limitations
 
