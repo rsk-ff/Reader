@@ -58,14 +58,19 @@ const SNAP_EVENTS: SnapEventKind[] = [
   "click",
 ];
 
-/** `children` replaces the tab strip (the print window shows its title). */
-export function WindowTitleBar({ children }: { children?: ReactNode } = {}) {
+/**
+ * `children` replaces the tab strip (the print window shows its title).
+ * `closeOnly` drops minimize and maximize (the print window can only close).
+ */
+export function WindowTitleBar({ children, closeOnly = false }: { children?: ReactNode; closeOnly?: boolean } = {}) {
   const win = useMemo(() => getCurrentWindow(), []);
   const controls = useMemo(() => makeControls(win), [win]);
 
   const [snapPhase, setSnapPhase] = useState<SnapPhase>("idle");
 
   useEffect(() => {
+    // Without a maximize button the snap overlay's events mean nothing.
+    if (closeOnly) return;
     let cancelled = false;
     const unlisteners: UnlistenFn[] = [];
 
@@ -106,7 +111,7 @@ export function WindowTitleBar({ children }: { children?: ReactNode } = {}) {
         }
       }
     };
-  }, [controls, win]);
+  }, [closeOnly, controls, win]);
 
   const snapClass = snapPhaseClass(snapPhase);
 
@@ -119,6 +124,7 @@ export function WindowTitleBar({ children }: { children?: ReactNode } = {}) {
         aria-label="Window controls"
         data-tauri-frame-tb
       >
+        {!closeOnly && <>
         <button
           type="button"
           id="frame-tb-minimize"
@@ -151,6 +157,10 @@ export function WindowTitleBar({ children }: { children?: ReactNode } = {}) {
             />
           </svg>
         </button>
+        </>}
+        {/* The frame plugin keeps a native snap overlay one button left of
+            close on every window; this spacer keeps that spot blank. */}
+        {closeOnly && <span className="winctl winctl-spacer" aria-hidden="true" />}
         <button
           type="button"
           id="frame-tb-close"

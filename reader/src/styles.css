@@ -291,6 +291,12 @@ html.tab-drag-preview-document #root {
   color: var(--text);
 }
 
+.winctl-spacer,
+.winctl-spacer:hover {
+  background: transparent;
+  pointer-events: none;
+}
+
 .winctl-close:hover {
   background: #c42b1c;
   color: #fff;

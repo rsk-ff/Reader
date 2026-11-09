@@ -97,9 +97,14 @@ async function drawPage(
   target.drawImage(canvas, Math.round(box.x), Math.round(box.y));
 }
 
+/**
+ * One sheet of paper with its pages drawn on it. Without a snapshot or sheet
+ * (still preparing) it is just the blank paper, so the preview never shows a
+ * "please wait" message.
+ */
 function SheetPreview({ snapshot, sheet, area, annotations, color }: {
-  snapshot: Snapshot;
-  sheet: Placement[];
+  snapshot: Snapshot | null;
+  sheet: Placement[] | null;
   area: SheetArea;
   annotations: boolean;
   color: boolean;
@@ -135,6 +140,7 @@ function SheetPreview({ snapshot, sheet, area, annotations, color }: {
     context.fillStyle = "#fff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     setReady(false);
+    if (!snapshot || !sheet) return;
     const pxPerMm = canvas.width / area.paperWidth;
     const tasks: RenderTask[] = [];
     let cancelled = false;
@@ -364,10 +370,11 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
     if (!markdown || !pageWidth || !pageHeight) return;
     let cancelled = false;
     setPreparing(true);
+    // Render the HTML right away; only the pagination waits for the debounce.
     // The previous layout stays on screen until the new one is ready.
+    const html = markdownHtml.current ??= renderMarkdownPrintHtml(markdown.markdown, markdown.documentPath);
     const timer = window.setTimeout(() => {
-      markdownHtml.current ??= renderMarkdownPrintHtml(markdown.markdown, markdown.documentPath);
-      markdownHtml.current
+      html
         .then((html) => layoutMarkdownPdf(html, { widthMm: pageWidth, heightMm: pageHeight, marginMm: MARGIN_MM[margin] }))
         .then(openSnapshot)
         .then((next) => {
@@ -411,6 +418,15 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
     width: area.printableWidthMm,
     height: area.printableHeightMm,
   }, [area]);
+
+  // Until the printable area arrives, the blank paper uses the paper size.
+  const previewArea = useMemo((): SheetArea | null => {
+    if (sheetArea) return sheetArea;
+    if (!paper) return null;
+    const width = landscape ? paper.heightMm : paper.widthMm;
+    const height = landscape ? paper.widthMm : paper.heightMm;
+    return { paperWidth: width, paperHeight: height, left: 0, top: 0, width, height };
+  }, [sheetArea, paper, landscape]);
 
   const sheets = useMemo(() => {
     if (!snapshot || !sheetArea || pages.length === 0) return [];
@@ -486,12 +502,12 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
     }
   };
 
+  // Only printer lookups get words; while the document is prepared the
+  // preview shows blank paper instead.
   const busyText = !printers ? "正在查找打印机…"
     : printers.length === 0 ? null
       : !caps ? "正在读取打印机…"
-        : previewError ? null
-          : preparing || !snapshot ? (isPdf ? "正在准备预览…" : "正在排版…")
-          : null;
+        : null;
   const rangeError = "error" in range && rangeMode === "custom" && rangeText.trim() ? range.error : null;
   const papers = paperCount(sheets.length, copies, duplex !== "none");
   const sheet = sheets[sheetIndex];
@@ -522,8 +538,8 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
           </div>
           <span className="print-preview-paper">{paper ? `${paper.name} · ${orientationLabel}` : ""}</span>
         </div>
-        {snapshot && sheet && sheetArea
-          ? <SheetPreview snapshot={snapshot} sheet={sheet} area={sheetArea} annotations={!isPdf || annotations}
+        {!previewError && !rangeError && previewArea
+          ? <SheetPreview snapshot={snapshot} sheet={sheet ?? null} area={previewArea} annotations={!isPdf || annotations}
               color={color && caps?.color !== false} />
           : <div className="print-preview-stage"><span className="print-preview-status">
               {previewError ?? busyText ?? (rangeError ? "没有要打印的页面" : "")}

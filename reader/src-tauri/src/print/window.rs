@@ -63,6 +63,9 @@ pub async fn print_open_window(
     .min_inner_size(640.0, 480.0)
     .decorations(false)
     .resizable(true)
+    // Only a close button: no minimize or maximize.
+    .minimizable(false)
+    .maximizable(false)
     .focused(true);
     // Owned by the document window: stays above it and minimizes with it,
     // but moves and resizes on its own.
