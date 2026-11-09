@@ -69,15 +69,21 @@ function generate(source, files) {
 
 fs.mkdirSync(output, { recursive: true });
 generate("shell-reader.svg", applicationFiles.map((file) => [file, file]));
-// File icons: 16/24px frames come from a simplified, pixel-aligned small master,
-// because the full page with letters turns to mush at Explorer's small-icon size.
+// File icons: 16/20/24px frames are hand-placed pixel art (scripts/draw-small-file-icons.py,
+// committed PNGs) because the full artwork turns to mush at Explorer's small-icon sizes.
+function pngFrame(file) {
+  const image = fs.readFileSync(file);
+  const width = image.readUInt32BE(16);
+  const entry = Buffer.alloc(16);
+  entry[0] = width; entry[1] = width;
+  entry.writeUInt16LE(1, 4); entry.writeUInt16LE(32, 6);
+  return { width, entry, image };
+}
 for (const type of ["pdf", "markdown"]) {
   const target = `file-${type}.ico`;
-  generate(`shell-${type}-small.svg`, [["icon.ico", target]]);
-  const small = readIco(fs.readFileSync(path.join(output, target)));
   generate(`shell-${type}.svg`, [["icon.ico", target]]);
-  const large = readIco(fs.readFileSync(path.join(output, target)));
-  const frames = [...small.filter((frame) => frame.width <= 24), ...large.filter((frame) => frame.width > 24)];
-  fs.writeFileSync(path.join(output, target), writeIco(frames));
+  const large = readIco(fs.readFileSync(path.join(output, target))).filter((frame) => frame.width > 24);
+  const small = [16, 20, 24].map((size) => pngFrame(path.join(assets, "small", `file-${type}-${size}.png`)));
+  fs.writeFileSync(path.join(output, target), writeIco([...small, ...large]));
 }
 console.log("Generated native application and file association icons from the shell SVG sources.");
