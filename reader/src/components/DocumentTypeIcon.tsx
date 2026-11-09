@@ -1,16 +1,17 @@
 import type { DocumentType } from "../workspace/types";
 
 /**
- * In-app file glyph: a plain page outline in the interface's line style with a
- * centred band in the file type's colour, echoing the Windows file icons
- * (plain page, centred tag, same colours) without their ginkgo and letters.
+ * In-app file glyph: Lucide's page outline, the same line icon as the rest of
+ * the interface, with a band in the file type's colour. Windows association
+ * icons keep their own masters in brandIcons.
  */
 export function DocumentTypeIcon({ type }: { type: DocumentType }) {
   return <span className={`tab-icon tab-icon-${type}`} aria-hidden="true">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
       strokeLinecap="round" strokeLinejoin="round" focusable="false">
-      <rect x="4" y="2" width="16" height="20" rx="2" className="file-page" />
-      {type !== "unknown" && <rect x="3" y="13" width="18" height="5.5" rx="1.2" className="file-band" stroke="none" />}
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" className="file-page" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" className="file-page" />
+      {type !== "unknown" && <rect x="7" y="13" width="10" height="5" rx="1" className="file-band" stroke="none" />}
     </svg>
   </span>;
 }
