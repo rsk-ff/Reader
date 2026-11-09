@@ -445,7 +445,11 @@ impl AppWorkspace {
     /// Turn a file tab back into a new tab, as long as its document is still
     /// exactly as opened (never edited, even if the edit was later saved).
     /// The new-tab page uses this to undo a file opened by mistake.
-    pub fn return_to_new_tab(&mut self, tab_id: &TabId, document_id: &DocumentId) -> Result<(), String> {
+    pub fn return_to_new_tab(
+        &mut self,
+        tab_id: &TabId,
+        document_id: &DocumentId,
+    ) -> Result<(), String> {
         let tab = self
             .tabs
             .get(tab_id)
@@ -1126,7 +1130,9 @@ mod tests {
             .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
             .unwrap();
 
-        assert!(ws.return_to_new_tab(&opened, &"doc-missing".to_string()).is_err());
+        assert!(ws
+            .return_to_new_tab(&opened, &"doc-missing".to_string())
+            .is_err());
         assert!(ws.tabs[&opened].document_id.is_some());
     }
 
