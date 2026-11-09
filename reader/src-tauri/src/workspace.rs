@@ -442,6 +442,44 @@ impl AppWorkspace {
         Ok(tab.window_id)
     }
 
+    /// Turn a file tab back into a new tab, as long as its document is still
+    /// exactly as opened (never edited, even if the edit was later saved).
+    /// The new-tab page uses this to undo a file opened by mistake.
+    pub fn return_to_new_tab(
+        &mut self,
+        tab_id: &TabId,
+        document_id: &DocumentId,
+    ) -> Result<(), String> {
+        let tab = self
+            .tabs
+            .get(tab_id)
+            .ok_or_else(|| format!("tab not found: {tab_id}"))?;
+        if tab.document_id.as_ref() != Some(document_id) {
+            return Err(format!("tab {tab_id} no longer shows {document_id}"));
+        }
+        let document = self
+            .documents
+            .get(document_id)
+            .ok_or_else(|| format!("document not found: {document_id}"))?;
+        if document.dirty || document.revision != 1 || document.untitled {
+            return Err("the document has been edited since it was opened".into());
+        }
+        if let Some(tab) = self.tabs.get_mut(tab_id) {
+            tab.document_id = None;
+            tab.title = NEW_TAB_TITLE.to_string();
+        }
+        let still_referenced = self
+            .tabs
+            .values()
+            .any(|candidate| candidate.document_id.as_ref() == Some(document_id));
+        if !still_referenced {
+            if let Some(document) = self.documents.remove(document_id) {
+                remove_pdf_working_copy(&document);
+            }
+        }
+        self.focus_tab(tab_id)
+    }
+
     /// Reorder tabs within a window to the given order.
     pub fn reorder_tabs(&mut self, window_id: &WindowId, tab_ids: &[TabId]) -> Result<(), String> {
         let win = self
@@ -1039,6 +1077,63 @@ mod tests {
         assert!(snap.tabs[0].document_id.is_some());
         assert_eq!(snap.documents.len(), 1);
         assert_eq!(snap.active_tab_id, Some(new_tab));
+    }
+
+    #[test]
+    fn return_to_new_tab_restores_an_unedited_file_tab() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let new_tab = ws.create_new_tab(&MAIN_WINDOW.into());
+        let path = tmp_file("return-target.md", "# target");
+        let opened = ws
+            .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let document_id = ws.tabs[&opened].document_id.clone().unwrap();
+
+        ws.return_to_new_tab(&opened, &document_id).unwrap();
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+
+        assert_eq!(opened, new_tab);
+        assert_eq!(snap.tabs.len(), 1);
+        assert_eq!(snap.tabs[0].document_id, None);
+        assert_eq!(snap.tabs[0].title, NEW_TAB_TITLE);
+        assert!(snap.documents.is_empty());
+        assert_eq!(snap.active_tab_id, Some(new_tab));
+    }
+
+    #[test]
+    fn return_to_new_tab_refuses_an_edited_file_even_after_saving() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        ws.create_new_tab(&MAIN_WINDOW.into());
+        let path = tmp_file("return-edited.md", "# edited");
+        let opened = ws
+            .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let document_id = ws.tabs[&opened].document_id.clone().unwrap();
+
+        ws.set_dirty(&document_id, true);
+        assert!(ws.return_to_new_tab(&opened, &document_id).is_err());
+        ws.set_dirty(&document_id, false);
+        assert!(ws.return_to_new_tab(&opened, &document_id).is_err());
+        assert_eq!(ws.tabs[&opened].document_id.as_ref(), Some(&document_id));
+        assert!(ws.documents.contains_key(&document_id));
+    }
+
+    #[test]
+    fn return_to_new_tab_refuses_a_tab_showing_another_document() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        ws.create_new_tab(&MAIN_WINDOW.into());
+        let path = tmp_file("return-other.md", "# other");
+        let opened = ws
+            .open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+
+        assert!(ws
+            .return_to_new_tab(&opened, &"doc-missing".to_string())
+            .is_err());
+        assert!(ws.tabs[&opened].document_id.is_some());
     }
 
     #[test]

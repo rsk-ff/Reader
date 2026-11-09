@@ -34,7 +34,7 @@ export function toUserFacingPath(path: string): string {
   return path;
 }
 
-function normalizedPath(path: string): string {
+export function normalizedPath(path: string): string {
   const unified = toUserFacingPath(path).replace(/\\/g, "/");
   return /^[a-z]:\//i.test(unified) || unified.startsWith("//")
     ? unified.toLocaleLowerCase()

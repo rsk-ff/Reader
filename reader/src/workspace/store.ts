@@ -10,11 +10,23 @@ import {
   forgetRecentFile,
   loadRecentFiles,
   mergeRecentFilesFromSnapshot,
+  normalizedPath,
   persistRecentFiles,
   recentFileFromPath,
   rememberRecentFile,
   type RecentFile,
 } from "./recentFiles";
+import {
+  canReturnToNewTab,
+  forgetNewTabReturn,
+  peekNewTabReturn,
+  pruneNewTabReturns,
+  rememberNewTabReturn,
+  restoreRecentEntry,
+  stashNewTabPlace,
+  clearNewTabPlace,
+  type NewTabPlace,
+} from "./newTabReturn";
 
 export interface TabDragGrabOffset {
   x: number;
@@ -42,6 +54,10 @@ interface WorkspaceState extends WorkspaceSnapshot {
   recentFiles: RecentFile[];
   init: () => Promise<void>;
   openDocument: (path: string) => Promise<void>;
+  /** Open a file in place of a new tab, remembering how to undo it. */
+  openDocumentFromNewTab: (tabId: TabId, path: string, place: NewTabPlace) => Promise<void>;
+  /** Undo `openDocumentFromNewTab` if still allowed; true when it did. */
+  returnToNewTab: (tabId: TabId) => Promise<boolean>;
   forgetRecentFile: (path: string) => void;
   createNewTab: () => Promise<void>;
   createMarkdownDocument: () => Promise<void>;
@@ -116,6 +132,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       snap,
     );
     persistRecentFiles(recentFiles);
+    pruneNewTabReturns(snap.active_tab_id);
     set({
       ...snap,
       documentsById: indexDocuments(snap),
@@ -159,6 +176,65 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       set({ recentFiles });
     }
     await get().refresh();
+  },
+
+  openDocumentFromNewTab: async (tabId, path, place) => {
+    const key = normalizedPath(path);
+    const before = get().recentFiles;
+    const index = before.findIndex((file) => normalizedPath(file.path) === key);
+    await get().openDocument(path);
+    const state = get();
+    const replaced = state.tabs.find((tab) => tab.id === tabId)?.document_id;
+    // An already-open file is focused where it lives and this tab stays new;
+    // only a tab in this window can switch back to it.
+    const focused = replaced ? tabId : state.active_tab_id;
+    const documentId = replaced ?? state.tabs.find((tab) => tab.id === focused)?.document_id;
+    const document = documentId ? state.documentsById[documentId] : undefined;
+    if (!focused || !documentId || !document) return;
+    if (!replaced && normalizedPath(document.path) !== key) return;
+    rememberNewTabReturn(focused, {
+      newTabId: replaced ? undefined : tabId,
+      documentId,
+      revision: document.revision,
+      path,
+      openedAt: Date.now(),
+      place,
+      recentBefore: index >= 0 ? { file: before[index], index } : null,
+    });
+  },
+
+  returnToNewTab: async (tabId) => {
+    const entry = peekNewTabReturn(tabId);
+    const state = get();
+    const documentId = state.tabs.find((tab) => tab.id === tabId)?.document_id ?? null;
+    const document = documentId ? state.documentsById[documentId] : undefined;
+    if (!entry || !canReturnToNewTab(entry, documentId, document, Date.now())) {
+      if (entry && documentId !== entry.documentId) forgetNewTabReturn(tabId);
+      return false;
+    }
+    forgetNewTabReturn(tabId);
+    if (entry.newTabId) {
+      const newTab = state.tabs.find((tab) => tab.id === entry.newTabId);
+      if (!newTab || newTab.document_id !== null) return false;
+      const recentFiles = restoreRecentEntry(state.recentFiles, normalizedPath, entry.path, entry.recentBefore);
+      persistRecentFiles(recentFiles);
+      set({ recentFiles });
+      await get().focusTab(entry.newTabId);
+      return true;
+    }
+    // The new-tab page mounts as soon as the snapshot arrives; stash first.
+    stashNewTabPlace(tabId, entry.place);
+    try {
+      await invoke("return_to_new_tab", { tabId, documentId: entry.documentId });
+    } catch {
+      clearNewTabPlace(tabId);
+      return false;
+    }
+    const recentFiles = restoreRecentEntry(get().recentFiles, normalizedPath, entry.path, entry.recentBefore);
+    persistRecentFiles(recentFiles);
+    set({ recentFiles });
+    await get().refresh();
+    return true;
   },
 
   forgetRecentFile: (path) => {
