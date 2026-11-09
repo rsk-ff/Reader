@@ -4,7 +4,7 @@ import { UiIcon } from "../components/UiIcon";
 export interface SelectOption<T extends string | number> {
   value: T;
   label: string;
-  /** Muted text after the label, such as "默认". */
+  /** Muted text after the label. */
   hint?: string;
 }
 

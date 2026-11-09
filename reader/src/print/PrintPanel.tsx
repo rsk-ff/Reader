@@ -581,7 +581,7 @@ export function PrintPanel({ source, onClose }: { source: PrintSource; onClose: 
           {printers && printers.length === 0
             ? <p className="print-empty">没有找到打印机。请先在 Windows 设置中添加打印机。</p>
             : <PrintSelect label="打印机" value={printer ?? ""} disabled={disabled || !printers}
-                options={(printers ?? []).map((entry) => ({ value: entry.name, label: entry.name, hint: entry.isDefault ? "默认" : undefined }))}
+                options={(printers ?? []).map((entry) => ({ value: entry.name, label: entry.name }))}
                 onChange={(value) => { setPrinter(value); setError(null); }} />}
 
           <div className="print-row">

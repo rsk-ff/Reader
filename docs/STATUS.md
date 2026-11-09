@@ -4,10 +4,6 @@
 - Application version: `0.1.0`
 - Latest user-accepted source baseline: `b2c1553` — Markdown 侧栏调宽与 PDF/Markdown 拖动收起
 
-## Active task
-
-- [自制打印窗口](tasks/active/2026-11-09-print-dialog.md)：分支 `claude/project-thread-xntoqx`，等待用户在真实 Windows 中验收。
-
 ## Pending user acceptance
 
 - 架构整理与 Windows CI（拆分 Rust 命令模块、删除重复的 `lib/pdfium.dll` 与未使用的 Milkdown 依赖、新增 GitHub Actions）：分支 `claude/project-thread-xvta0x`，PR 合入 `dev`。
@@ -15,6 +11,7 @@
 
 ## Recently merged into dev
 
+- 2026-11-09（PR #13）：自制打印窗口（独立窗口、左侧缩略图、每张多页、PDF 矢量直送打印机、Markdown 按纸张与页边距排版、只记住打印机），用户已在开发版中验收；分支 `claude/project-thread-xntoqx`。
 - 2026-11-09：银杏 Logo、新 PDF/MD 文件关联图标（含 16/20/24px 像素版）、软件内文件图标颜色对齐、新标签页地址栏 44px、当前标签内凹圆角；2026-11-10 Logo 加深加轮廓并放大 6%；分支 `claude/project-thread-8ga2vo`，用户已在安装版中验收。
 - 2026-11-05：界面改版（浅色，方向 A），分支 `claude/project-thread-gsfh7v`，各阶段已由用户在检查版中验收；明细见 CHANGELOG。
 - 2026-10-27（PR #1）：全仓审查 P0 修复，Markdown 链接与错误提示框修复。
