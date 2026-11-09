@@ -13,11 +13,11 @@
     <path d="M40 4V12A4 4 0 0 0 44 16H52Z" fill="url(#fold)"/>
   </g>
   <path d="M16 4H40L52 16V56A4 4 0 0 1 48 60H16A4 4 0 0 1 12 56V8A4 4 0 0 1 16 4Z" fill="none" stroke="#000" stroke-opacity=".08" stroke-width=".8"/>
-  <g transform="translate(19.2 8.6) scale(.4)">
+  <g transform="translate(12.4 5.7) scale(.55)">
     <path d="M32 44C24 39 9 31 5 22C11 11 21 6 28.5 7C30 10.5 31.3 14.5 32 19Z" fill="url(#leafL)"/>
     <path d="M32 44C40 39 55 31 59 22C53 11 43 6 35.5 7C34 10.5 32.7 14.5 32 19Z" fill="url(#leafR)"/>
-    <path d="M32 44C32.5 50 31.5 55 28 59" fill="none" stroke="#a8740c" stroke-width="3.6" stroke-linecap="round"/>
+    <path d="M32 44C32.5 50 31.5 55 28 59" fill="none" stroke="#a8740c" stroke-width="3.2" stroke-linecap="round"/>
   </g>
-  <g filter="url(#shadow)"><rect x="6" y="36" width="44" height="18" rx="3.5" fill="url(#tag)"/></g>
-  <path d="M20 49V41L23.5 46L27 41V49M30 41H32A4 4 0 0 1 32 49H30Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g filter="url(#shadow)"><rect x="6" y="37" width="44" height="18" rx="3.5" fill="url(#tag)"/></g>
+  <path d="M20 50V42L23.5 47L27 42V50M30 42H32A4 4 0 0 1 32 50H30Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

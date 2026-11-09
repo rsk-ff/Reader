@@ -15,6 +15,29 @@ const applicationFiles = [
   "Square150x150Logo.png", "Square284x284Logo.png", "Square310x310Logo.png", "StoreLogo.png",
 ];
 
+function readIco(data) {
+  const count = data.readUInt16LE(4);
+  return Array.from({ length: count }, (_, index) => {
+    const entry = data.subarray(6 + index * 16, 22 + index * 16);
+    const size = entry.readUInt32LE(8), offset = entry.readUInt32LE(12);
+    return { width: entry[0] || 256, entry: Buffer.from(entry), image: data.subarray(offset, offset + size) };
+  });
+}
+
+function writeIco(frames) {
+  const header = Buffer.alloc(6 + frames.length * 16);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(frames.length, 4);
+  let offset = header.length;
+  frames.forEach((frame, index) => {
+    frame.entry.copy(header, 6 + index * 16);
+    header.writeUInt32LE(frame.image.length, 6 + index * 16 + 8);
+    header.writeUInt32LE(offset, 6 + index * 16 + 12);
+    offset += frame.image.length;
+  });
+  return Buffer.concat([header, ...frames.map((frame) => frame.image)]);
+}
+
 function generate(source, files) {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "reader-icons-"));
   try {
@@ -46,6 +69,15 @@ function generate(source, files) {
 
 fs.mkdirSync(output, { recursive: true });
 generate("shell-reader.svg", applicationFiles.map((file) => [file, file]));
-generate("shell-pdf.svg", [["icon.ico", "file-pdf.ico"]]);
-generate("shell-markdown.svg", [["icon.ico", "file-markdown.ico"]]);
+// File icons: 16/24px frames come from a simplified, pixel-aligned small master,
+// because the full page with letters turns to mush at Explorer's small-icon size.
+for (const type of ["pdf", "markdown"]) {
+  const target = `file-${type}.ico`;
+  generate(`shell-${type}-small.svg`, [["icon.ico", target]]);
+  const small = readIco(fs.readFileSync(path.join(output, target)));
+  generate(`shell-${type}.svg`, [["icon.ico", target]]);
+  const large = readIco(fs.readFileSync(path.join(output, target)));
+  const frames = [...small.filter((frame) => frame.width <= 24), ...large.filter((frame) => frame.width > 24)];
+  fs.writeFileSync(path.join(output, target), writeIco(frames));
+}
 console.log("Generated native application and file association icons from the shell SVG sources.");
