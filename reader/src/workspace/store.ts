@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 
 import type { TabId, WindowId, WorkspaceSnapshot } from "./types";
+import type { NewTabPlaceKind } from "../components/DocumentTypeIcon";
 import { prepareDocumentForClose } from "./documentLifecycle";
 import { parentFolder, useFolderLocations } from "./folderLocations";
 import {
@@ -52,6 +53,9 @@ interface WorkspaceState extends WorkspaceSnapshot {
   myWindowId: WindowId;
   documentsById: Record<string, import("./types").DocumentSession>;
   recentFiles: RecentFile[];
+  /** What each new tab's page shows, for its tab icon (this window only). */
+  newTabPlaces: Record<TabId, NewTabPlaceKind>;
+  setNewTabPlace: (tabId: TabId, place: NewTabPlaceKind) => void;
   init: () => Promise<void>;
   openDocument: (path: string, inNewTab?: boolean) => Promise<void>;
   /** Open a file in place of a new tab, remembering how to undo it. */
@@ -102,6 +106,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   documentsById: {},
   ready: false,
   recentFiles: loadRecentFiles(),
+  newTabPlaces: {},
+
+  setNewTabPlace: (tabId, place) => {
+    if (get().newTabPlaces[tabId] === place) return;
+    set((state) => ({ newTabPlaces: { ...state.newTabPlaces, [tabId]: place } }));
+  },
 
   setDocumentDirtyLocal: (documentId, dirty) => {
     set((state) => {
