@@ -31,8 +31,11 @@ impl PrintSources {
 }
 
 /// Open (or bring forward) the print window for the calling document window.
+// WebviewWindowBuilder::build deadlocks on Windows from a synchronous command
+// (the new webview never loads and the window can't close); keep this async so
+// Tauri builds the window off the IPC main thread, like `detach_tab`.
 #[tauri::command]
-pub fn print_open_window(
+pub async fn print_open_window(
     app: AppHandle,
     window: WebviewWindow,
     source: Value,
