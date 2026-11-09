@@ -357,6 +357,27 @@ for (const width of [330, 620, 1100]) {
 }
 
 
+test("missing recent files are greyed out and open a dialog that can forget them", async ({ page }) => {
+  await page.goto("/tests/browser/new-tab.html");
+  const gone = page.locator(".new-tab-recent-item").filter({ hasText: "old.pdf" });
+  await expect(gone).toHaveAttribute("data-missing", "");
+  await expect(gone.locator(".home-missing-tag")).toHaveText("已不存在");
+  await expect(page.locator(".new-tab-recent-item").first()).not.toHaveAttribute("data-missing", "");
+  await gone.dblclick();
+  const dialog = page.getByRole("dialog", { name: "文件已不存在" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("C:/Notes/old.pdf");
+  await expect(page.locator(".new-tab-error")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { __readerReopened: string | null }).__readerReopened)).toBeNull();
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(gone).toHaveCount(1);
+  await gone.press("Enter");
+  await page.getByRole("dialog", { name: "文件已不存在" }).getByRole("button", { name: "从列表中移除" }).click();
+  await expect(gone).toHaveCount(0);
+  await expect(page.locator(".new-tab-recent-item")).toHaveCount(1);
+});
+
 test("all recent files beyond eight remain reachable by scrolling", async ({ page }) => {
   await page.goto("/tests/browser/new-tab.html?many=1");
   await expect(page.locator(".new-tab-recent-item")).toHaveCount(40);

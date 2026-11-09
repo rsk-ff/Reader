@@ -7,6 +7,7 @@ import type { TabId, WindowId, WorkspaceSnapshot } from "./types";
 import { prepareDocumentForClose } from "./documentLifecycle";
 import { parentFolder, useFolderLocations } from "./folderLocations";
 import {
+  forgetRecentFile,
   loadRecentFiles,
   mergeRecentFilesFromSnapshot,
   persistRecentFiles,
@@ -41,6 +42,7 @@ interface WorkspaceState extends WorkspaceSnapshot {
   recentFiles: RecentFile[];
   init: () => Promise<void>;
   openDocument: (path: string) => Promise<void>;
+  forgetRecentFile: (path: string) => void;
   createNewTab: () => Promise<void>;
   createMarkdownDocument: () => Promise<void>;
   focusTab: (id: TabId) => Promise<void>;
@@ -157,6 +159,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       set({ recentFiles });
     }
     await get().refresh();
+  },
+
+  forgetRecentFile: (path) => {
+    const recentFiles = forgetRecentFile(get().recentFiles, path);
+    persistRecentFiles(recentFiles);
+    set({ recentFiles });
   },
 
   createNewTab: async () => {

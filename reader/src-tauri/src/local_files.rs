@@ -180,6 +180,24 @@ pub async fn list_local_directory(path: String) -> Result<LocalDirectory, String
         .map_err(|error| error.to_string())?
 }
 
+/// Only a definite "not found" counts as missing. Permission errors or an
+/// unreachable network share stay "present" so a file is never greyed out
+/// merely because its drive is slow or temporarily offline.
+fn file_missing(path: &std::path::Path) -> bool {
+    match std::fs::metadata(path) {
+        Ok(metadata) => !metadata.is_file(),
+        Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+    }
+}
+
+/// One path per call so a slow drive delays only its own row.
+#[tauri::command]
+pub async fn local_file_missing(path: String) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || file_missing(std::path::Path::new(&path)))
+        .await
+        .map_err(|error| error.to_string())
+}
+
 fn markdown_name(name: &str) -> Result<String, String> {
     let name = name.trim();
     if name.is_empty()
@@ -250,6 +268,19 @@ pub async fn create_local_markdown(directory: String, file_name: String) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn missing_files_are_only_definite_not_found() {
+        let root = std::env::temp_dir().join(format!("reader-missing-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("present.md");
+        std::fs::write(&file, b"").unwrap();
+        assert!(!file_missing(&file));
+        assert!(file_missing(&root.join("gone.md")));
+        assert!(file_missing(&root.join("no-folder").join("gone.md")));
+        assert!(file_missing(&root));
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn creates_markdown_in_requested_folder_without_overwriting() {
