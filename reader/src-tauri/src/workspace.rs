@@ -232,6 +232,25 @@ impl AppWorkspace {
     /// The single open_document entry point (§16). `target_window` selects
     /// which window receives the new tab (or focuses the existing one).
     pub fn open_document(&mut self, path: &str, target_window: &WindowId) -> Result<TabId, String> {
+        self.open_document_with(path, target_window, true)
+    }
+
+    /// Open a file in a tab of its own next to the active tab, leaving an
+    /// active new tab where it is. An already-open file is still focused.
+    pub fn open_document_in_new_tab(
+        &mut self,
+        path: &str,
+        target_window: &WindowId,
+    ) -> Result<TabId, String> {
+        self.open_document_with(path, target_window, false)
+    }
+
+    fn open_document_with(
+        &mut self,
+        path: &str,
+        target_window: &WindowId,
+        reuse_new_tab: bool,
+    ) -> Result<TabId, String> {
         self.ensure_main();
         let canon = Self::canonicalize(path)?;
         if canon.is_dir() {
@@ -281,7 +300,11 @@ impl AppWorkspace {
         };
         self.documents.insert(doc_id.clone(), session);
 
-        self.attach_document(doc_id, file_name, target_window)
+        if reuse_new_tab {
+            self.attach_document(doc_id, file_name, target_window)
+        } else {
+            self.insert_document_tab(doc_id, file_name, target_window, true)
+        }
     }
 
     /// Attach a document to the requested window. An active new tab is reused
@@ -312,7 +335,18 @@ impl AppWorkspace {
             self.focus_tab(&tab_id)?;
             return Ok(tab_id);
         }
+        self.insert_document_tab(document_id, title, target_window, false)
+    }
 
+    /// Add a focused document tab at the end of the window, or right after
+    /// its active tab (as a browser opens a link in a new tab).
+    fn insert_document_tab(
+        &mut self,
+        document_id: DocumentId,
+        title: String,
+        target_window: &WindowId,
+        next_to_active: bool,
+    ) -> Result<TabId, String> {
         let tab_id = self.fresh_id("tab");
         let tab = WindowTab {
             id: tab_id.clone(),
@@ -332,9 +366,30 @@ impl AppWorkspace {
                 active_tab: None,
                 bounds: None,
             });
-        win.tab_ids.push(tab_id.clone());
+        let after_active = win
+            .active_tab
+            .as_ref()
+            .filter(|_| next_to_active)
+            .and_then(|active| win.tab_ids.iter().position(|id| id == active))
+            .map(|index| index + 1);
+        match after_active {
+            Some(index) => win.tab_ids.insert(index, tab_id.clone()),
+            None => win.tab_ids.push(tab_id.clone()),
+        }
         self.focus_tab(&tab_id)?;
         Ok(tab_id)
+    }
+
+    /// Name a new tab after the place its page shows. File tabs keep their
+    /// file name, so a late call from a page being replaced changes nothing.
+    pub fn set_new_tab_title(&mut self, tab_id: &TabId, title: &str) -> bool {
+        match self.tabs.get_mut(tab_id) {
+            Some(tab) if tab.document_id.is_none() && tab.title != title => {
+                tab.title = title.to_string();
+                true
+            }
+            _ => false,
+        }
     }
 
     pub fn validate_markdown_save_target(
@@ -1077,6 +1132,56 @@ mod tests {
         assert!(snap.tabs[0].document_id.is_some());
         assert_eq!(snap.documents.len(), 1);
         assert_eq!(snap.active_tab_id, Some(new_tab));
+    }
+
+    #[test]
+    fn open_in_new_tab_keeps_the_new_tab_and_opens_next_to_it() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let first = tmp_file("new-tab-left.md", "# left");
+        let left = ws
+            .open_document(first.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let last = tmp_file("new-tab-right.md", "# right");
+        let right = ws
+            .open_document(last.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let new_tab = ws.create_new_tab(&MAIN_WINDOW.into());
+        ws.reorder_tabs(
+            &MAIN_WINDOW.into(),
+            &[left.clone(), new_tab.clone(), right.clone()],
+        )
+        .unwrap();
+        ws.focus_tab(&new_tab).unwrap();
+
+        let path = tmp_file("new-tab-side.md", "# side");
+        let opened = ws
+            .open_document_in_new_tab(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let snap = ws.snapshot_for(&MAIN_WINDOW.into());
+        let order: Vec<_> = snap.tabs.iter().map(|tab| tab.id.clone()).collect();
+
+        assert_eq!(order, vec![left, new_tab.clone(), opened.clone(), right]);
+        assert_eq!(ws.tabs[&new_tab].document_id, None);
+        assert_eq!(snap.active_tab_id, Some(opened));
+    }
+
+    #[test]
+    fn new_tab_title_changes_only_while_the_tab_has_no_file() {
+        let mut ws = AppWorkspace::default();
+        ws.ensure_main();
+        let tab = ws.create_new_tab(&MAIN_WINDOW.into());
+        assert!(ws.set_new_tab_title(&tab, "桌面"));
+        assert!(!ws.set_new_tab_title(&tab, "桌面"));
+        assert_eq!(ws.tabs[&tab].title, "桌面");
+
+        let path = tmp_file("titled.md", "# titled");
+        ws.open_document(path.to_str().unwrap(), &MAIN_WINDOW.into())
+            .unwrap();
+        let file_title = ws.tabs[&tab].title.clone();
+        assert!(file_title.ends_with("titled.md"));
+        assert!(!ws.set_new_tab_title(&tab, "最近打开"));
+        assert_eq!(ws.tabs[&tab].title, file_title);
     }
 
     #[test]

@@ -94,6 +94,8 @@ pub fn run() {
             local_files::local_file_missing,
             commands::get_workspace,
             commands::open_document_command,
+            commands::open_document_in_new_tab_command,
+            commands::set_new_tab_title,
             commands::create_new_tab,
             commands::create_markdown_document,
             commands::focus_tab,

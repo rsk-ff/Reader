@@ -191,6 +191,41 @@ pub fn open_document_command(
 }
 
 #[tauri::command]
+pub fn open_document_in_new_tab_command(
+    path: String,
+    window_id: WindowId,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<TabId, String> {
+    let mut guard = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?;
+    guard.ensure_main();
+    let tab_id = guard.open_document_in_new_tab(&path, &window_id)?;
+    drop(guard);
+    broadcast(&app, &ws);
+    Ok(tab_id)
+}
+
+/// Rename a new tab after the folder its page shows.
+#[tauri::command]
+pub fn set_new_tab_title(
+    tab_id: TabId,
+    title: String,
+    app: AppHandle,
+    ws: State<'_, SharedWorkspace>,
+) -> Result<(), String> {
+    let changed = ws
+        .lock()
+        .map_err(|e| format!("workspace lock poisoned: {e}"))?
+        .set_new_tab_title(&tab_id, &title);
+    if changed {
+        broadcast(&app, &ws);
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn create_new_tab(
     window_id: WindowId,
     app: AppHandle,

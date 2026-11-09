@@ -19,6 +19,8 @@ export interface NewTabPlace {
 export interface NewTabReturn {
   /** The new tab to switch back to, when the file was already open elsewhere. */
   newTabId?: TabId;
+  /** True when the file got a tab of its own ("open in new tab"); returning closes it. */
+  close?: boolean;
   documentId: string;
   /** Document revision when it was shown; any later edit ends the return. */
   revision: number;
@@ -64,7 +66,9 @@ export function canReturnToNewTab(
   if (!entry || !document || documentId !== entry.documentId) return false;
   if (now - entry.openedAt > NEW_TAB_RETURN_MS) return false;
   if (document.revision !== entry.revision) return false;
-  return entry.newTabId !== undefined || (!document.dirty && document.revision === 1);
+  // A file that was already open may carry earlier edits; a fresh one must be untouched.
+  if (entry.newTabId !== undefined && !entry.close) return true;
+  return !document.dirty && document.revision === 1;
 }
 
 export function stashNewTabPlace(tabId: TabId, place: NewTabPlace) {

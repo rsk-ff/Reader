@@ -53,9 +53,11 @@ interface WorkspaceState extends WorkspaceSnapshot {
   documentsById: Record<string, import("./types").DocumentSession>;
   recentFiles: RecentFile[];
   init: () => Promise<void>;
-  openDocument: (path: string) => Promise<void>;
+  openDocument: (path: string, inNewTab?: boolean) => Promise<void>;
   /** Open a file in place of a new tab, remembering how to undo it. */
-  openDocumentFromNewTab: (tabId: TabId, path: string, place: NewTabPlace) => Promise<void>;
+  openDocumentFromNewTab: (tabId: TabId, path: string, place: NewTabPlace, inNewTab?: boolean) => Promise<void>;
+  /** Name a new tab after the place its page shows. */
+  setNewTabTitle: (tabId: TabId, title: string) => Promise<void>;
   /** Undo `openDocumentFromNewTab` if still allowed; true when it did. */
   returnToNewTab: (tabId: TabId) => Promise<boolean>;
   forgetRecentFile: (path: string) => void;
@@ -164,9 +166,10 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     await get().refresh();
   },
 
-  openDocument: async (path) => {
+  openDocument: async (path, inNewTab = false) => {
     const myWindowId = get().myWindowId;
-    await invoke<string>("open_document_command", { path, windowId: myWindowId });
+    await invoke<string>(inNewTab ? "open_document_in_new_tab_command" : "open_document_command",
+      { path, windowId: myWindowId });
     const folder = parentFolder(path);
     if (folder) useFolderLocations.getState().recordVisit(folder);
     const file = recentFileFromPath(path, Date.now());
@@ -178,11 +181,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     await get().refresh();
   },
 
-  openDocumentFromNewTab: async (tabId, path, place) => {
+  openDocumentFromNewTab: async (tabId, path, place, inNewTab = false) => {
     const key = normalizedPath(path);
     const before = get().recentFiles;
     const index = before.findIndex((file) => normalizedPath(file.path) === key);
-    await get().openDocument(path);
+    const tabsBefore = new Set(get().tabs.map((tab) => tab.id));
+    await get().openDocument(path, inNewTab);
     const state = get();
     const replaced = state.tabs.find((tab) => tab.id === tabId)?.document_id;
     // An already-open file is focused where it lives and this tab stays new;
@@ -194,6 +198,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     if (!replaced && normalizedPath(document.path) !== key) return;
     rememberNewTabReturn(focused, {
       newTabId: replaced ? undefined : tabId,
+      close: !replaced && !tabsBefore.has(focused),
       documentId,
       revision: document.revision,
       path,
@@ -216,10 +221,11 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     if (entry.newTabId) {
       const newTab = state.tabs.find((tab) => tab.id === entry.newTabId);
       if (!newTab || newTab.document_id !== null) return false;
+      await get().focusTab(entry.newTabId);
+      if (entry.close) await invoke("close_tab", { tabId });
       const recentFiles = restoreRecentEntry(state.recentFiles, normalizedPath, entry.path, entry.recentBefore);
       persistRecentFiles(recentFiles);
       set({ recentFiles });
-      await get().focusTab(entry.newTabId);
       return true;
     }
     // The new-tab page mounts as soon as the snapshot arrives; stash first.
@@ -235,6 +241,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     set({ recentFiles });
     await get().refresh();
     return true;
+  },
+
+  setNewTabTitle: async (tabId, title) => {
+    const tab = get().tabs.find((candidate) => candidate.id === tabId);
+    if (!tab || tab.document_id !== null || tab.title === title) return;
+    await invoke("set_new_tab_title", { tabId, title });
   },
 
   forgetRecentFile: (path) => {

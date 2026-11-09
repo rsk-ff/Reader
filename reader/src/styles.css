@@ -665,10 +665,6 @@ html.tab-drag-preview-document #root {
    (name, date, type, size) under a header with thin column rules. */
 .home-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 16px 24px; }
 .home-body > section { max-width: none; margin: 0; }
-.home-body h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; }
-.home-body h2 .ui-icon { width: 16px; height: 16px; color: var(--text-dim); }
-.new-tab-recent > header { display: flex; align-items: baseline; gap: 8px; margin: 4px 8px 10px; }
-.new-tab-recent > header > span { flex-shrink: 0; color: var(--text-faint); font-size: 12px; }
 .new-tab-list-heading, .new-tab-recent-item { display: grid; grid-template-columns: var(--list-columns); justify-content: start; align-items: center; column-gap: 0; }
 .new-tab-list-heading { height: 28px; padding: 0 8px; color: var(--text-faint); font-size: 12px; }
 .new-tab-list-heading > span { position: relative; height: 100%; display: flex; align-items: center; min-width: 0; padding: 0 10px; border-right: 1px solid var(--border); }
