@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { TabStrip } from "./TabStrip";
@@ -58,13 +58,19 @@ const SNAP_EVENTS: SnapEventKind[] = [
   "click",
 ];
 
-export function WindowTitleBar() {
+/**
+ * `children` replaces the tab strip (the print window shows its title).
+ * `closeOnly` drops minimize and maximize (the print window can only close).
+ */
+export function WindowTitleBar({ children, closeOnly = false }: { children?: ReactNode; closeOnly?: boolean } = {}) {
   const win = useMemo(() => getCurrentWindow(), []);
   const controls = useMemo(() => makeControls(win), [win]);
 
   const [snapPhase, setSnapPhase] = useState<SnapPhase>("idle");
 
   useEffect(() => {
+    // Without a maximize button the snap overlay's events mean nothing.
+    if (closeOnly) return;
     let cancelled = false;
     const unlisteners: UnlistenFn[] = [];
 
@@ -105,19 +111,20 @@ export function WindowTitleBar() {
         }
       }
     };
-  }, [controls, win]);
+  }, [closeOnly, controls, win]);
 
   const snapClass = snapPhaseClass(snapPhase);
 
   return (
     <div className="window-titlebar" role="banner">
-      <TabStrip />
+      {children ?? <TabStrip />}
       <div
         className="titlebar-controls"
         role="group"
         aria-label="Window controls"
         data-tauri-frame-tb
       >
+        {!closeOnly && <>
         <button
           type="button"
           id="frame-tb-minimize"
@@ -150,6 +157,7 @@ export function WindowTitleBar() {
             />
           </svg>
         </button>
+        </>}
         <button
           type="button"
           id="frame-tb-close"

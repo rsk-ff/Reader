@@ -4,10 +4,6 @@
 - Application version: `0.1.0`
 - Latest user-accepted source baseline: `b2c1553` — Markdown 侧栏调宽与 PDF/Markdown 拖动收起
 
-## Active task
-
-- None.
-
 ## Pending user acceptance
 
 - 架构整理与 Windows CI（拆分 Rust 命令模块、删除重复的 `lib/pdfium.dll` 与未使用的 Milkdown 依赖、新增 GitHub Actions）：分支 `claude/project-thread-xvta0x`，PR 合入 `dev`。
@@ -15,6 +11,7 @@
 
 ## Recently merged into dev
 
+- 2026-11-09（PR #13）：自制打印窗口（独立窗口、左侧缩略图、每张多页、PDF 矢量直送打印机、Markdown 按纸张与页边距排版、只记住打印机），用户已在开发版中验收；分支 `claude/project-thread-xntoqx`。
 - 2026-11-09：银杏 Logo、新 PDF/MD 文件关联图标（含 16/20/24px 像素版）、软件内文件图标颜色对齐、新标签页地址栏 44px、当前标签内凹圆角；2026-11-10 Logo 加深加轮廓并放大 6%；分支 `claude/project-thread-8ga2vo`，用户已在安装版中验收。
 - 2026-11-05：界面改版（浅色，方向 A），分支 `claude/project-thread-gsfh7v`，各阶段已由用户在检查版中验收；明细见 CHANGELOG。
 - 2026-10-27（PR #1）：全仓审查 P0 修复，Markdown 链接与错误提示框修复。
@@ -24,7 +21,7 @@
 
 ## Open follow-ups
 
-- 界面改版后续：自制打印窗口（可考虑 winprint + 现有缩略图做预览，Windows 系统对话框方案已被否决）；深色模式。
+- 界面改版后续：深色模式。
 - 批注 ID 仍存放在作者字段；pdfium-render 0.9 不公开 `/NM` 写入，需另行处理。
 
 ## Implemented
@@ -53,6 +50,7 @@
 - 标签跨原生窗口移动不会迁移滚动、缩放等瞬时状态；未保存 Markdown 的跨窗口移动被阻止。
 - 未保存 Markdown 没有崩溃恢复。
 - 源码/所见即所得切换不保留跨模式撤销历史。
-- 打印会顺序渲染所有页面，对超大文档尚未优化。
+- 打印窗口打开时为预览读取全部页面尺寸，上千页的 PDF 需要几秒；PDF 表单域（填写的内容）不打印。
+- 标题栏插件的贴靠覆盖层把悬停/点击事件广播给所有窗口：主窗口与拆出的标签窗口之间，悬停一个窗口的最大化按钮会让另一个也高亮，点击可能同时切换两个窗口的最大化（打印窗口已移除覆盖层，不受影响）。
 - Milkdown 编辑器虽然延迟加载，仍产生约 1.5 MB 的压缩 chunk。
 - 仅发布 Windows 版，安装包没有代码签名，可能触发 SmartScreen 提示。

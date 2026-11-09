@@ -223,7 +223,7 @@ impl AppWorkspace {
         )
     }
 
-    fn canonicalize(path: &str) -> Result<PathBuf, String> {
+    pub(crate) fn canonicalize(path: &str) -> Result<PathBuf, String> {
         let p = PathBuf::from(path);
         p.canonicalize()
             .map_err(|e| format!("cannot canonicalize '{path}': {e}"))
@@ -659,7 +659,6 @@ impl AppWorkspace {
     /// Return the currently readable PDF source for a canonical, open path.
     /// Unsaved PDFium writes live in a private working copy; PDF.js reads that
     /// copy while the original remains untouched until an explicit save.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn pdf_source_path(&self, canonical_path: &Path) -> Option<PathBuf> {
         let document = self.documents.values().find(|document| {
             document.path == canonical_path && document.doc_type == DocumentType::Pdf

@@ -2174,17 +2174,153 @@ body.home-sidebar-resizing * {
   font-size: 12px;
 }
 
-.pdf-print-frame {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  width: 1px;
-  height: 1px;
-  border: 0;
-  opacity: 0;
-  pointer-events: none;
+/* ---- Print dialog ----
+   Same panel, type, controls and buttons as the other dialogs; the preview
+   side uses the PDF stage colour. */
+.print-window { background: var(--bg-elev); }
+.print-window-title {
+  display: flex; flex: 1; min-width: 0; align-items: center; padding: 0 14px;
+  overflow: hidden; color: var(--text-dim); white-space: nowrap; text-overflow: ellipsis;
 }
+.print-window-status { padding: 24px; color: var(--text-faint); }
+.print-panel { display: flex; flex: 1; min-height: 0; background: var(--bg-elev); color: var(--text); }
 
+.print-preview { display: flex; flex: 1; min-width: 0; flex-direction: column; background: var(--stage); }
+.print-preview-nav {
+  display: flex; flex: none; align-items: center; justify-content: center; gap: 2px;
+  height: 44px; color: var(--text-dim); font-variant-numeric: tabular-nums;
+}
+.print-preview-nav span { min-width: 112px; text-align: center; }
+.print-preview-stage { display: flex; flex: 1; min-height: 0; align-items: center; justify-content: center; }
+.print-preview-sheet { background: #fff; box-shadow: 0 1px 3px rgb(28 28 26 / 18%); }
+.print-preview-sheet.mono { filter: grayscale(1); }
+.print-preview-status { color: var(--text-faint); }
+
+.print-strip {
+  display: flex; flex: none; flex-direction: column; align-items: center; gap: 12px; width: 136px;
+  padding: 14px 0; overflow-x: hidden; overflow-y: auto; background: var(--bg-sidebar);
+  /* Keep the strip's padding visible when a thumbnail scrolls into view. */
+  scroll-padding: 14px 0;
+  border-right: 1px solid var(--border);
+}
+.print-strip-item {
+  display: flex; flex: none; flex-direction: column; align-items: center; gap: 4px; padding: 0;
+  border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.print-strip-item canvas {
+  display: block; border-radius: var(--radius-thumb); background: var(--page-placeholder);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.print-strip-item.current canvas { box-shadow: 0 0 0 2px var(--accent); }
+.print-strip-item.excluded { opacity: 0.35; }
+.print-strip-item:disabled { cursor: default; }
+.print-strip-item:focus-visible { outline: none; }
+.print-strip-item:focus-visible canvas { box-shadow: 0 0 0 2px var(--focus-ring); }
+
+.print-options {
+  display: flex; flex: none; flex-direction: column; width: 320px; min-height: 0;
+  border-left: 1px solid var(--dialog-line);
+}
+.print-options .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.print-options-body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; padding: 18px 22px 12px; overflow-y: auto; }
+.print-row { display: flex; gap: 10px; }
+.print-row > * { flex: 1; min-width: 0; }
+.print-field { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+.print-field-check { justify-content: flex-end; padding-bottom: 7px; }
+.print-label { font-weight: 500; }
+.print-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.print-label-row .print-hint { font-weight: 400; }
+.print-hint { color: var(--text-faint); font-size: 12px; }
+.print-hint.error { color: var(--danger); }
+.print-empty { margin: 0; color: var(--text-dim); line-height: 1.6; }
+
+.print-select, .print-input, .print-stepper {
+  width: 100%; height: 32px; border: 1px solid var(--input-line); border-radius: var(--radius-control);
+  background: var(--bg-elev); color: var(--text); font: inherit;
+}
+.print-select { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; text-align: left; }
+.print-select .ui-icon { flex: none; color: var(--text-faint); }
+.print-select:hover:not(:disabled) { border-color: var(--scrollbar); }
+.print-select:disabled, .print-input:disabled { color: var(--text-faint); background: var(--bg-sidebar); }
+.print-select-value { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.print-select-hint { flex: none; color: var(--text-faint); font-size: 12px; }
+.print-select:focus-visible, .print-input:focus, .print-stepper:focus-within {
+  border-color: var(--accent); outline: 1px solid var(--accent);
+}
+.print-input { padding: 0 10px; }
+.print-input.invalid { border-color: var(--danger); outline-color: var(--danger); }
+.print-select-list {
+  position: fixed; z-index: 10; padding: 4px; overflow-y: auto; border: 1px solid var(--menu-line);
+  border-radius: 8px; background: var(--bg-elev); box-shadow: var(--menu-shadow);
+}
+.print-select-option {
+  display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px 0 6px;
+  border-radius: 4px; white-space: nowrap;
+}
+.print-select-option.active { background: var(--bg-active); }
+.print-select-option-label { flex: 1; }
+.print-select-check { display: inline-flex; width: 18px; flex: none; }
+.print-select-check .ui-icon { width: 15px; height: 15px; }
+
+.print-stepper { display: flex; align-items: center; padding: 0 2px 0 0; }
+.print-stepper input {
+  flex: 1; min-width: 0; height: 100%; padding: 0 10px; border: 0; background: transparent;
+  color: inherit; font: inherit; font-variant-numeric: tabular-nums; outline: none;
+}
+.print-stepper button {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 4px; background: transparent; color: var(--text-dim);
+}
+.print-stepper button:hover:not(:disabled) { background: var(--bg-active); color: var(--text); }
+.print-stepper button:disabled { opacity: 0.4; }
+.print-stepper .ui-icon { width: 15px; height: 15px; }
+
+.print-segmented { display: flex; padding: 2px; border: 1px solid var(--input-line); border-radius: var(--radius-control); gap: 2px; }
+.print-segmented button {
+  flex: 1; min-width: 0; height: 26px; padding: 0 6px; border: 0; border-radius: 4px;
+  background: transparent; color: var(--text-dim); font: inherit; white-space: nowrap;
+}
+.print-segmented button:hover:not(:disabled):not(.on) { background: var(--bg); color: var(--text); }
+.print-segmented button.on { background: var(--strong); color: var(--on-strong); }
+.print-segmented button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+
+.print-check { display: inline-flex; align-items: center; gap: 8px; color: var(--text); cursor: default; }
+.print-check input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.print-check-box {
+  display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none;
+  border: 1px solid var(--text-placeholder); border-radius: 4px; background: var(--bg-elev); color: transparent;
+}
+.print-check-box .ui-icon { width: 12px; height: 12px; stroke-width: 2.4; }
+.print-check input:checked + .print-check-box { border-color: var(--strong); background: var(--strong); color: var(--on-strong); }
+.print-check input:focus-visible + .print-check-box { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.print-check:has(input:disabled) { color: var(--text-faint); }
+.print-check input:disabled + .print-check-box { opacity: 0.5; }
+
+.print-link {
+  align-self: flex-start; padding: 0; border: 0; background: transparent; color: var(--text-dim);
+  font: inherit; text-decoration: underline; text-underline-offset: 3px;
+}
+.print-link:hover:not(:disabled) { color: var(--text); }
+.print-link:disabled { color: var(--text-faint); text-decoration: none; }
+.print-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
+
+.print-footer { display: flex; flex: none; align-items: center; gap: 8px; padding: 14px 22px 18px; border-top: 1px solid var(--dialog-line); }
+.print-summary { flex: 1; min-width: 0; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.print-summary.error { color: var(--danger); overflow-wrap: anywhere; }
+.print-footer button {
+  min-width: 72px; height: 32px; padding: 0 14px; border: 1px solid var(--input-line);
+  border-radius: var(--radius-control); background: var(--button-bg); color: var(--text); font: inherit; font-weight: 500;
+}
+.print-footer button:hover:not(:disabled) { background: var(--bg); }
+.print-footer button.primary { border-color: var(--strong); background: var(--strong); color: var(--on-strong); }
+.print-footer button.primary:hover:not(:disabled) { border-color: var(--strong-hover); background: var(--strong-hover); }
+.print-footer button:disabled { opacity: 0.45; }
+.print-footer button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+@media (max-width: 720px) {
+  .print-strip { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   :is(.tab, .tab-add, .tab-close, .winctl, .pdf-tbtn, .md-tbtn,

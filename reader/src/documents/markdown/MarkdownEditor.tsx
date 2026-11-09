@@ -6,7 +6,7 @@ import { isExternalChangeError, useMarkdownText, useMarkdownSave } from "./useMa
 import { confirmInApp } from "../../workspace/confirmDialog";
 import { MilkdownCrepe, type MarkdownCommands } from "./MilkdownCrepe";
 import { MarkdownModeSwitch, MarkdownToolbar } from "./MarkdownToolbar";
-import { printMarkdown } from "./printMarkdown";
+import { openPrintWindow } from "../../print/printApi";
 import { MarkdownScrollbar } from "./MarkdownScrollbar";
 import { MarkdownOutline } from "./MarkdownOutline";
 import { clearPaintedRanges, findMatches, findRanges, paintRanges, wrapIndex, type TextMatch } from "./markdownSearch";
@@ -47,10 +47,8 @@ export function MarkdownEditor({
   const [crepeVersion, setCrepeVersion] = useState(0);
   const [dirty, setDirty] = useState(untitled);
   const [saving, setSaving] = useState(false);
-  const [printing, setPrinting] = useState(false);
   const [commandsReady, setCommandsReady] = useState(false);
   const commandsRef = useRef<MarkdownCommands | null>(null);
-  const printingRef = useRef(false);
   const onCommands = useCallback((commands: MarkdownCommands | null) => {
     commandsRef.current = commands;
     setCommandsReady(commands !== null);
@@ -260,17 +258,12 @@ export function MarkdownEditor({
   }, [doSave]);
 
   const printFromEditor = useCallback(() => {
-    if (workingText == null || printingRef.current) return;
-    printingRef.current = true;
-    setPrinting(true);
+    if (workingText == null) return;
+    // The print window prints what is on screen now, unsaved edits included.
     const snapshot = mode === "wysiwyg" ? commandsRef.current?.getMarkdown() ?? workingText : workingText;
-    void printMarkdown(snapshot, fileName, untitled ? undefined : path).catch((error: unknown) => {
-      window.alert(`Markdown 打印失败：${String(error)}`);
-    }).finally(() => {
-      printingRef.current = false;
-      setPrinting(false);
-    });
-  }, [workingText, fileName, mode]);
+    void openPrintWindow({ kind: "markdown", title: fileName, markdown: snapshot, documentPath: untitled ? undefined : path })
+      .catch((error: unknown) => window.alert(`无法打开打印窗口：${String(error)}`));
+  }, [workingText, fileName, mode, untitled, path]);
 
   useEffect(() => {
     if (!active) return;
@@ -407,7 +400,7 @@ export function MarkdownEditor({
       <MarkdownToolbar
         dirty={dirty}
         saving={saving}
-        printing={printing}
+        printing={false}
         formatEnabled={mode === "wysiwyg" && commandsReady}
         onFormat={(format) => commandsRef.current?.format(format)}
         onSave={saveFromEditor}

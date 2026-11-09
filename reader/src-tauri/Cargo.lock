@@ -2636,6 +2636,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "windows",
 ]
 
 [[package]]
@@ -2935,6 +2936,9 @@ dependencies = [
  "tauri-plugin-frame",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
+ "webview2-com",
+ "windows",
+ "windows-core 0.61.2",
 ]
 
 [[package]]

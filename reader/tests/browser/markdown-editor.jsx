@@ -17,7 +17,8 @@ window.__readerInvocations = [];
 window.__TAURI_INTERNALS__ = {
   invoke: async (command, args) => {
     window.__readerInvocations.push({ command, args });
-    return command === "read_file_text" ? markdown : null;
+    if (command === "read_file_text") return markdown;
+    return null;
   },
 };
 

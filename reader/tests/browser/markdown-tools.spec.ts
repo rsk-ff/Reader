@@ -4,7 +4,6 @@ import path from "node:path";
 declare global {
   interface Window {
     __readerInvocations: Array<{ command: string; args?: { content?: string; index?: number } }>;
-    __readerPrints: Array<{ text: string; html: string; title: string }>;
   }
 }
 
@@ -69,41 +68,25 @@ test("toolbar keeps inline math and link editing available without a selection t
   await expect(page.locator(".milkdown-toolbar")).toHaveCount(0);
 });
 
-async function capturePrinting(page: Page) {
-  await page.addInitScript(() => {
-    window.__readerPrints = [];
-    const append = Node.prototype.appendChild;
-    Node.prototype.appendChild = function <T extends Node>(node: T): T {
-      const added = append.call(this, node) as T;
-      if (node instanceof HTMLIFrameElement) {
-        const frame = node;
-        frame.contentWindow!.print = () => {
-          window.__readerPrints.push({
-            text: frame.contentDocument!.body.textContent!,
-            html: frame.contentDocument!.body.innerHTML,
-            title: frame.contentDocument!.title,
-          });
-          frame.contentWindow!.dispatchEvent(new Event("afterprint"));
-        };
-      }
-      return added;
-    };
-  });
+/** The print window opens with this Markdown snapshot. */
+async function printedSource(page: Page) {
+  await expect.poll(() => page.evaluate(() =>
+    window.__readerInvocations.filter((item) => item.command === "print_open_window").length)).toBe(1);
+  const call = await page.evaluate(() => window.__readerInvocations.find((item) => item.command === "print_open_window"));
+  return (call!.args as unknown as { source: { kind: string; title: string; markdown: string } }).source;
 }
 
 test("printing a clean document leaves it clean and restores editor focus", async ({ page }) => {
-  await capturePrinting(page);
   await page.goto("/tests/browser/markdown-editor.html");
   await page.locator(".ProseMirror > p").first().click();
   await page.getByRole("button", { name: "打印", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => window.__readerPrints.length)).toBe(1);
+  expect((await printedSource(page)).kind).toBe("markdown");
   await expect(page.getByRole("button", { name: "已保存", exact: true })).toBeDisabled();
   await expect(page.locator(".ProseMirror")).toBeFocused();
   expect(await page.evaluate(() => window.__readerInvocations.some((item) => item.command === "set_dirty"))).toBe(false);
 });
 
 test("printing rendered edits uses a snapshot and keeps the live editor and unsaved state", async ({ page }) => {
-  await capturePrinting(page);
   await page.goto("/tests/browser/markdown-editor.html");
   const paragraph = page.locator(".ProseMirror > p").first();
   await paragraph.click();
@@ -111,38 +94,27 @@ test("printing rendered edits uses a snapshot and keeps the live editor and unsa
   await page.keyboard.type(" unsaved print text");
   const editor = await page.locator(".ProseMirror").elementHandle();
   await page.getByRole("button", { name: "打印", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => window.__readerPrints.length)).toBe(1);
-  const snapshot = await page.evaluate(() => window.__readerPrints[0]);
-  expect(snapshot.text).toContain("unsaved print text");
-  expect(snapshot.text).toContain("Paragraph 40");
-  expect(snapshot.title).toBe("fixture.md");
-  expect(snapshot.html).not.toContain("contenteditable");
-  expect(snapshot.html).not.toContain("button");
+  const source = await printedSource(page);
+  expect(source.markdown).toContain("unsaved print text");
+  expect(source.markdown).toContain("Paragraph 40");
+  expect(source.title).toBe("fixture.md");
   expect(await editor!.evaluate((element) => element === document.querySelector(".ProseMirror"))).toBe(true);
   await expect(page.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
-  await expect(page.locator(".markdown-print-source, .markdown-print-frame")).toHaveCount(0);
+  await expect(page.locator(".markdown-print-source, #reader-print-root")).toHaveCount(0);
   expect(await page.evaluate(() => window.__readerInvocations.some((item) => item.command === "save_file_text"))).toBe(false);
 });
 
-test("Ctrl+P in source mode prints rendered Markdown, code, table and math without switching modes", async ({ page }) => {
-  await capturePrinting(page);
+test("Ctrl+P in source mode prints the source text without switching modes", async ({ page }) => {
   await page.goto("/tests/browser/markdown-editor.html");
   await page.getByRole("button", { name: "源码视图", exact: true }).click();
   const markdown = "# Unsaved heading\n\n**printed bold**\n\n```js\nconst n = 2;\n```\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n$x^2$\n";
   await page.locator(".md-source").fill(markdown);
   await expect(page.getByRole("button", { name: "加粗 (Ctrl+B)", exact: true })).toBeDisabled();
   await page.keyboard.press("Control+p");
-  await expect.poll(() => page.evaluate(() => window.__readerPrints.length)).toBe(1);
-  const snapshot = await page.evaluate(() => window.__readerPrints[0]);
-  expect(snapshot.html).toContain('>Unsaved heading</h1>');
-  expect(snapshot.html).toContain("<strong>printed bold</strong>");
-  expect(snapshot.html).toContain("const n = 2;");
-  expect(snapshot.html).toContain("<table>");
-  expect(snapshot.html).toContain("katex");
-  expect(snapshot.html).not.toContain("cm-editor");
+  expect((await printedSource(page)).markdown).toBe(markdown);
   await expect(page.locator(".md-source")).toHaveValue(markdown);
   await expect(page.getByRole("button", { name: "源码视图", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".markdown-print-source, .markdown-print-frame")).toHaveCount(0);
+  await expect(page.locator(".markdown-print-source, #reader-print-root")).toHaveCount(0);
 });
 
 test("compact Markdown layout keeps output actions and the mode switch within the window", async ({ page }) => {

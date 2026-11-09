@@ -34,6 +34,7 @@ import { shouldLoadPdf, shouldRefit, type Size } from "./pdfViewerPolicy";
 import { PdfSidebar } from "./PdfSidebar";
 import { PdfToolbar, isMarkTool, markColor, type MarkTool } from "./PdfToolbar";
 import { PdfDeleteDialog } from "./PdfDeleteDialog";
+import { openPrintWindow } from "../../print/printApi";
 import type { OutlineNode, PageInfo, ZoomMode } from "./types";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -60,106 +61,6 @@ interface FindCountEvent {
 
 function pdfAssetUrl(directory: string): string {
   return new URL(`${import.meta.env.BASE_URL}pdfjs/${directory}/`, window.location.href).href;
-}
-
-/**
- * Print the PDF itself: the loaded bytes (the working copy, so unsaved
- * annotations are included) go to the WebView's built-in PDF engine, which
- * prints vector pages without rasterising the document first. Falls back to
- * page images if the engine cannot print from a frame.
- */
-async function printPdfDocument(pdfDocument: PDFDocumentProxy): Promise<void> {
-  const data = await pdfDocument.getData();
-  const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
-  const frame = window.document.createElement("iframe");
-  frame.className = "pdf-print-frame";
-  frame.setAttribute("aria-hidden", "true");
-  const cleanup = () => {
-    frame.remove();
-    URL.revokeObjectURL(url);
-  };
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const timer = window.setTimeout(() => reject(new Error("PDF print frame did not load")), 15_000);
-      frame.addEventListener("load", () => { window.clearTimeout(timer); resolve(); }, { once: true });
-      frame.src = url;
-      window.document.body.append(frame);
-    });
-    const printWindow = frame.contentWindow;
-    if (!printWindow) throw new Error("print frame is unavailable");
-    printWindow.focus();
-    printWindow.print();
-    // The PDF engine owns the frame; afterprint does not reach this page.
-    window.setTimeout(cleanup, 120_000);
-  } catch (error) {
-    cleanup();
-    console.warn("native PDF print failed, printing page images", error);
-    await printPdfAsImages(pdfDocument);
-  }
-}
-
-/** Fallback: rasterise every page and print the images. */
-async function printPdfAsImages(pdfDocument: PDFDocumentProxy): Promise<void> {
-  const frame = window.document.createElement("iframe");
-  frame.className = "pdf-print-frame";
-  frame.setAttribute("aria-hidden", "true");
-  window.document.body.append(frame);
-
-  const printDocument = frame.contentDocument;
-  const printWindow = frame.contentWindow;
-  if (!printDocument || !printWindow) {
-    frame.remove();
-    throw new Error("print frame is unavailable");
-  }
-
-  const objectUrls: string[] = [];
-  const cleanup = () => {
-    objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    frame.remove();
-  };
-
-  try {
-    printDocument.open();
-    printDocument.write(
-      "<!doctype html><html><head><style>" +
-      "@page{margin:0}html,body{margin:0;background:#fff}" +
-      ".page{break-after:page;display:flex;justify-content:center}" +
-      "img{display:block;max-width:100%;width:100%;height:auto}" +
-      "</style></head><body></body></html>",
-    );
-    printDocument.close();
-
-    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
-      const page = await pdfDocument.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: 150 / 72 });
-      const canvas = window.document.createElement("canvas");
-      canvas.width = Math.max(1, Math.floor(viewport.width));
-      canvas.height = Math.max(1, Math.floor(viewport.height));
-      await page.render({ canvas, viewport, background: "#ffffff" }).promise;
-
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((value) => value ? resolve(value) : reject(new Error("encode print page")), "image/png");
-      });
-      const objectUrl = URL.createObjectURL(blob);
-      objectUrls.push(objectUrl);
-      const wrapper = printDocument.createElement("div");
-      wrapper.className = "page";
-      const image = printDocument.createElement("img");
-      image.src = objectUrl;
-      image.alt = `Page ${pageNumber}`;
-      wrapper.append(image);
-      printDocument.body.append(wrapper);
-    }
-
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    printWindow.addEventListener("afterprint", cleanup, { once: true });
-    printWindow.focus();
-    printWindow.print();
-    window.setTimeout(cleanup, 60_000);
-  } catch (error) {
-    cleanup();
-    throw error;
-  }
 }
 
 export function PdfViewer({ path, docId, active }: PdfViewerProps) {
@@ -660,10 +561,10 @@ export function PdfViewer({ path, docId, active }: PdfViewerProps) {
 
   const printDocument = useCallback(() => {
     if (!pdfDocument) return;
-    void printPdfDocument(pdfDocument).catch((error: unknown) => {
-      window.alert(`Print failed: ${String(error)}`);
-    });
-  }, [pdfDocument]);
+    // The print window prints the current bytes, unsaved annotations included.
+    void openPrintWindow({ kind: "pdf", path, title: path.split(/[\\/]/).pop() ?? path, currentPage })
+      .catch((error: unknown) => window.alert(`无法打开打印窗口：${String(error)}`));
+  }, [pdfDocument, path, currentPage]);
 
   const activateOutline = useCallback((node: OutlineNode) => {
     if (node.dest) {

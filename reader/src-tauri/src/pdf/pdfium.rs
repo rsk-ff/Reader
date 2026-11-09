@@ -38,7 +38,9 @@ pub fn configure_pdfium_library(path: PathBuf) -> Result<(), String> {
         .map_err(|_| "PDFium was configured more than once".to_string())
 }
 
-fn pdfium() -> &'static Pdfium {
+/// The shared PDFium instance, for callers that need raw bindings (printing).
+/// Callers must hold [`pdfium_lock`].
+pub(crate) fn pdfium() -> &'static Pdfium {
     static PDFIUM: OnceLock<Pdfium> = OnceLock::new();
     PDFIUM.get_or_init(|| {
         let path = PDFIUM_LIBRARY_PATH.get().cloned().unwrap_or_else(|| {
