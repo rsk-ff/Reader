@@ -1,3 +1,4 @@
+import { UiIcon, type UiIconName } from "./UiIcon";
 import type { DocumentType } from "../workspace/types";
 
 /**
@@ -17,28 +18,14 @@ export function DocumentTypeIcon({ type }: { type: DocumentType }) {
 }
 
 /** Neutral marker for a tab that is not yet associated with a document. */
-export function NewTabIcon() {
+/** What a new tab's page shows; its tab icon follows it. */
+export type NewTabPlaceKind = "home" | "computer" | "folder";
+const PLACE_ICONS: Record<NewTabPlaceKind, UiIconName> = { home: "clock", computer: "computer", folder: "folder" };
+
+export function NewTabIcon({ place = "home" }: { place?: NewTabPlaceKind }) {
   return (
     <span className="tab-icon tab-icon-new" aria-hidden="true">
-      <svg viewBox="0 0 16 16" focusable="false">
-        <rect
-          x="2.25"
-          y="2.25"
-          width="11.5"
-          height="11.5"
-          rx="2"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.15"
-        />
-        <path
-          d="M8 5.25v5.5M5.25 8h5.5"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.15"
-        />
-      </svg>
+      <UiIcon name={PLACE_ICONS[place]} />
     </span>
   );
 }
