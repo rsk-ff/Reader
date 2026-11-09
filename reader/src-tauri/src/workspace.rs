@@ -223,7 +223,7 @@ impl AppWorkspace {
         )
     }
 
-    fn canonicalize(path: &str) -> Result<PathBuf, String> {
+    pub(crate) fn canonicalize(path: &str) -> Result<PathBuf, String> {
         let p = PathBuf::from(path);
         p.canonicalize()
             .map_err(|e| format!("cannot canonicalize '{path}': {e}"))

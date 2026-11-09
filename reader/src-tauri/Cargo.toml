@@ -24,3 +24,18 @@ pdfium-render = { version = "0.9", features = ["thread_safe"] }
 http = "1"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "~2.5"
+
+# Reader's own print dialog: printer enumeration, DEVMODE settings and GDI
+# print jobs (PDFium renders pages straight into the printer DC), plus
+# WebView2 PrintToPdf for Markdown pagination. Same versions Tauri already
+# links; no new code is downloaded.
+[target.'cfg(windows)'.dependencies]
+pdfium-render = { version = "0.9", features = ["thread_safe", "pdfium_use_win32"] }
+webview2-com = "0.38"
+windows-core = "0.61"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Printing",
+  "Win32_Storage_Xps",
+] }

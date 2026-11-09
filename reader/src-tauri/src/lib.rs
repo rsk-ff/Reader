@@ -15,6 +15,7 @@ mod local_files;
 mod markdown_file;
 mod markdown_image;
 pub mod pdf;
+mod print;
 mod workspace;
 
 #[cfg(target_os = "macos")]
@@ -121,6 +122,15 @@ pub fn run() {
             commands::discard_pdf_changes,
             commands::insert_blank_page,
             commands::delete_page,
+            print::print_list_printers,
+            print::print_printer_capabilities,
+            print::print_page_area,
+            print::print_printer_properties,
+            print::print_snapshot_pdf,
+            print::print_markdown_pdf,
+            print::print_read_snapshot,
+            print::print_release_snapshot,
+            print::print_submit,
         ])
         .setup(|app| {
             let bundled_pdfium = app.path().resource_dir()?.join("pdfium.dll");
