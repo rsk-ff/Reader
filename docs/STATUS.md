@@ -15,7 +15,7 @@
 
 ## Pending user acceptance (logo)
 
-- 2026-11-09：银杏 Logo 与新 PDF/MD 文件关联图标，新标签页地址栏高度对齐工具栏，当前标签内凹圆角衔接，分支 `claude/project-thread-8ga2vo`，检查版安装包见下方 Latest local release artifacts。
+- 2026-11-09：银杏 Logo 与新 PDF/MD 文件关联图标（软件内文件图标颜色与形状同步），新标签页地址栏高度对齐工具栏，当前标签内凹圆角衔接，分支 `claude/project-thread-8ga2vo`，检查版安装包见下方 Latest local release artifacts。
 
 ## Recently merged into dev
 
@@ -42,12 +42,12 @@
 
 ## Latest local release artifacts
 
-2026-11-09 从 `57b6830`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，未在本机安装验证，等待用户覆盖安装。包保存在 `releases/2026-11-09-0.1.0-57b6830/`（不纳入 Git，未上传外部平台）。
+2026-11-09 从 `7d884cf`（dev 上的界面改版 + 银杏 Logo）生成，标识 `com.earendil.reader`，未在本机安装验证，等待用户覆盖安装。包保存在 `releases/2026-11-09-0.1.0-7d884cf/`（不纳入 Git，未上传外部平台）。
 
 | Format | Repository-relative output | Size (bytes) | SHA-256 | Signature |
 | --- | --- | ---: | --- | --- |
-| MSI | `releases/2026-11-09-0.1.0-57b6830/Reader_0.1.0_x64_en-US.msi` | 21,254,144 | `04494B6ED6F7995D179A7D5CA3EE8AF3AC6AE3DBBDD6502CEB8487A30D8B8CE5` | `NotSigned` |
-| NSIS | `releases/2026-11-09-0.1.0-57b6830/Reader_0.1.0_x64-setup.exe` | 16,251,840 | `F564C5E36FD3B52297DBB32460A2419F58744DC0790A2B310AE6BF9C645E6161` | `NotSigned` |
+| MSI | `releases/2026-11-09-0.1.0-7d884cf/Reader_0.1.0_x64_en-US.msi` | 21,254,144 | `2929EAD16C3A8BDE28CD39F1C0AB4B650CBDA7884FC2AB179364181D5C475EBF` | `NotSigned` |
+| NSIS | `releases/2026-11-09-0.1.0-7d884cf/Reader_0.1.0_x64-setup.exe` | 16,254,100 | `A55953722EAD87172F9090867745FD69BF295E3D03C78E13A2FA8870BCFE0C06` | `NotSigned` |
 
 ## Known limitations
 
